@@ -1,6 +1,11 @@
 # Continuous critical implementation
 
-Current user direction: keep implementing the most critical work across the
+**Closed 2026-10-31.** The handoff this document was waiting for has been requested;
+current work is in [CORE-HANDOFF.md](../onboarding/CORE-HANDOFF.md). Priorities 1 and 2
+below shipped in small form (public records, shortlists). Priorities 3–5 moved to the
+handoff's next-work table. The public-source contract below still describes the code.
+
+Direction during that run: keep implementing the most critical work across the
 workstreams, with focused local commits. Continue until the user explicitly asks
 to stop and prepare a handoff. Do not prepare transfer bundles, owner handoffs or
 declare the broader product complete merely because a fixture demo passes.

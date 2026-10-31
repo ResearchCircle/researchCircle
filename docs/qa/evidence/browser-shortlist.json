@@ -1,0 +1,27 @@
+{
+  "story": "shortlist",
+  "run_id": "f89edc6c-8e8d-4073-b0fc-068a5c6c9818",
+  "started_at": "2026-10-31T22:18:22.743Z",
+  "base_url": "http://127.0.0.1:18088",
+  "evidence": "synthetic sample paper and candidate",
+  "inference": "not_requested",
+  "model_id": null,
+  "status": "passed",
+  "completed_steps": [
+    "shortlist-paper-and-sample-candidate-without-proposal-no-members-added",
+    "dirty-note-survives-add-and-refresh-save-note-create-proposal-attach-saved-source",
+    "create-team-clears-editor-cancel-switch-preserves-edits-confirm-switch-clears-context",
+    "shortlist-note-and-removal-persist-after-reload",
+    "explicit-viewer-invite-read-only-controls-and-server-write403",
+    "save-response-after-team-unmount-acknowledged-no-false-discard-warning"
+  ],
+  "commit": "50c4041d3e3227dbfd58fe2385b4a4f9f1c2b73f",
+  "checkout_dirty": true,
+  "team_id": "93f40d83-c2b2-4dc5-95ca-2f0e97a43774",
+  "members_before_explicit_invite": 1,
+  "shortlist_entry_id": "7489e5c5-0e8f-4dfc-abcb-8c5e39c39c93",
+  "source_id": "3dad0a3b-3777-51c5-913d-d4bea204bcc0",
+  "proposal_id": "0bda5ab0-13aa-451b-89f9-508dffb3c57e",
+  "viewer_write_status": 403,
+  "finished_at": "2026-10-31T22:18:24.231Z"
+}

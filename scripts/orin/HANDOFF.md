@@ -1,5 +1,10 @@
 # A-P1–A-P4 implementation handoff
 
+Historical provider/drafting record. The user subsequently authorized the crucial
+backend/frontend/discovery work here; those implementations now exist. Current
+status and assignments are in [CORE-HANDOFF.md](../../docs/onboarding/CORE-HANDOFF.md).
+Statements below about missing teammate modules describe the earlier baseline.
+
 ## Current status
 
 | Ticket | Implemented evidence | Remaining acceptance |

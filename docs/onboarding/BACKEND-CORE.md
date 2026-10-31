@@ -92,6 +92,7 @@ origin checks and fresh/repeated migration behavior. SQLite evidence does not
 prove PostgreSQL behavior. The integration handoff records actual PostgreSQL,
 worker, browser and local-model checks separately.
 
-Remaining product scope includes opportunity/pursuit/outcome records, richer
-membership administration and other work deferred in plan 19. This core slice
-is not the complete P1 release.
+Opportunity/pursuit/outcome records are now implemented with migration
+`0002_pursuits`. Member role change/removal exists in the API, without a UI yet. Other release gates remain;
+see [CORE-HANDOFF.md](CORE-HANDOFF.md) for current ownership and actual evidence.
+This core slice is not the complete P1 release.

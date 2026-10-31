@@ -1,0 +1,30 @@
+{
+  "story": "tracking",
+  "run_id": "2d59a9a8-3d6a-4b7c-bcb7-06cd7df99f7a",
+  "started_at": "2026-10-31T22:18:24.268Z",
+  "base_url": "http://127.0.0.1:18088",
+  "evidence": "synthetic manual opportunity",
+  "model_id": null,
+  "inference": "not_requested",
+  "status": "passed",
+  "completed_steps": [
+    "register-create-proposal",
+    "manual-opportunity-unknown-deadline-and-eligibility",
+    "link-opportunity-manually-record-submitted",
+    "record-outcome-terminal-read-only",
+    "refresh-reload-reopen-persisted-history",
+    "same-key-replay-identical-record-changed-payload409-one-outcome"
+  ],
+  "commit": "50c4041d3e3227dbfd58fe2385b4a4f9f1c2b73f",
+  "checkout_dirty": true,
+  "proposal_id": "5828976f-4bda-4e06-a62f-160626dac9f2",
+  "opportunity_id": "12e1548a-c3bf-46c7-90ea-7a906b9eb042",
+  "deadline": null,
+  "eligibility": "unknown",
+  "pursuit_id": "f093c332-4b51-435f-a383-cbb1b472817a",
+  "outcome_id": "d88fdfaa-54fb-48ca-a78a-72ad2b7ba55e",
+  "replay_status": 201,
+  "changed_payload_status": 409,
+  "outcome_count": 1,
+  "finished_at": "2026-10-31T22:18:24.857Z"
+}

@@ -1,0 +1,28 @@
+{
+  "scope": "persisted application job using synthetic selected evidence",
+  "hardware_acceptance": "pending",
+  "attempts": [
+    {
+      "job_id": "15ec00fc-1e2b-4e75-b727-18deb7922a98",
+      "state": "failed",
+      "error_code": "invalid_citations",
+      "started_at": "2026-10-31T06:27:35.827461+00:00",
+      "finished_at": "2026-10-31T06:27:42.675207+00:00",
+      "output_accepted": false
+    },
+    {
+      "job_id": "1a71df30-d8ca-4ed0-8283-4d5161f929c0",
+      "state": "failed",
+      "error_code": "provider_timeout",
+      "retryable": true,
+      "started_at": null,
+      "finished_at": "2026-10-31T12:53:44.486168+00:00",
+      "inference_started": false
+    }
+  ],
+  "observations": [
+    "SSH connection timed out",
+    "HTTP model status probe timed out"
+  ],
+  "fallback": "none"
+}

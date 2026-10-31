@@ -4,18 +4,19 @@ Read `AGENTS.md` first and follow its product-first scope, ownership boundaries,
 
 ## Current sources of truth
 
+- `docs/onboarding/CORE-HANDOFF.md`: what exists now, base branch and next work. Read it first.
 - `docs/design/17-v2-corrected-specification.md`: active product specification.
 - `docs/design/18-four-person-delivery-plan.md`: assignments, interfaces and delivery milestones.
-- `docs/onboarding/README.md`: local setup and role-specific starter prompts.
+- `docs/onboarding/README.md`: role-specific starter prompts.
 - `docs/onboarding/DATA-HANDOFF.md`: inventory and reuse of the separately supplied data snapshot.
 
-The initial goal is a working discovery → team → proposal → local draft → export → outcome workflow. Advanced security is scheduled later. Historical plans, archived hardening designs and legacy setup commands do not create current release requirements.
+The goal is a working discovery → team → proposal → local draft → export → outcome workflow. Its core runs locally against fixtures; real corpus, real model and shared deployment acceptance remain. Advanced security is scheduled later. Historical plans, archived hardening designs and legacy setup commands do not create current release requirements.
 
 ## Starting work
 
-Inspect the current branch, working-tree changes and actual files before implementing the assigned ticket. Preserve unrelated work. Use project-local environments, inspect dependency manifests and run focused checks for the owned slice. Planned routes, migrations and helpers may not exist yet; do not report them as working without verification.
+Inspect the current branch, working-tree changes and actual files before implementing the assigned ticket. Preserve unrelated work. Use project-local environments, inspect dependency manifests and run focused checks for the owned slice. Docs can lag the code; do not report a route, migration or helper as working or missing without checking it.
 
-The existing API entry point is `services.api.app:app`. Local frontend setup uses the checked-in npm lock. Follow the onboarding guide for exact setup expectations; legacy cloud credentials are not required for fixture-based development. Only the platform lead handles Orin deployment and real model validation.
+The existing API entry point is `services.api.app:app`. Local frontend setup uses the checked-in npm lock. Follow `docs/onboarding/CORE-HANDOFF.md` for exact setup expectations; legacy cloud credentials are not required for fixture-based development. Only the platform lead handles Orin deployment and real model validation.
 
 ## Data and publication
 

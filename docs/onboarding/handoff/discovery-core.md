@@ -1,5 +1,10 @@
 # Discovery core handoff
 
+Historical record of the six-sample slice. Database-backed public search now lives
+in `src/platform/discovery/public_search.py`; see
+[CORE-HANDOFF.md](../CORE-HANDOFF.md) for current state. The application-integration
+items under "Remaining work" are done; corpus and retrieval work remain.
+
 The connected sample slice exposes:
 
 ```python

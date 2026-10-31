@@ -1,0 +1,27 @@
+{
+  "run_id": "3d2f0e77-8e9d-4de9-9948-159111a40e74",
+  "started_at": "2026-10-31T22:18:19.585Z",
+  "base_url": "http://127.0.0.1:18088",
+  "evidence": "synthetic sample corpus",
+  "expected_model_id": "fixture-extractive-v1",
+  "model_id": "fixture-extractive-v1",
+  "completed_steps": [
+    "register-create-save",
+    "search-attach-select-save",
+    "draft-inspect-citations-append-versioned-save",
+    "reload-reopen-markdown-download",
+    "second-account-invite-accept-save-stale-conflict-preserves-edits"
+  ],
+  "status": "passed",
+  "commit": "50c4041d3e3227dbfd58fe2385b4a4f9f1c2b73f",
+  "checkout_dirty": true,
+  "proposal_id": "d948841a-5a6c-42ae-a9bc-20c88fdf4bbd",
+  "source_id": "3dad0a3b-3777-51c5-913d-d4bea204bcc0",
+  "job_id": "8b9ecae0-d96d-4518-afd9-cfa617dd52c4",
+  "base_revision": 3,
+  "citation_count": 1,
+  "accepted_revision": 4,
+  "collaborator_revision": 5,
+  "conflict_status": 409,
+  "finished_at": "2026-10-31T22:18:22.703Z"
+}

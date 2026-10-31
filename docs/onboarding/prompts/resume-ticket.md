@@ -4,7 +4,7 @@ Fill in the bracketed values and paste this after opening the repo. Keep it with
 
 ```text
 Resume workstream [Teammate 1 / Teammate 2 / Teammate 3 / Anurag], ticket [ID], branch [branch].
-Read AGENTS.md, docs/design/17-v2-corrected-specification.md, docs/design/18-four-person-delivery-plan.md, docs/onboarding/DATA-HANDOFF.md and the matching starter prompt under docs/onboarding/prompts/.
+Read docs/onboarding/CORE-HANDOFF.md, AGENTS.md, docs/design/17-v2-corrected-specification.md, docs/design/18-four-person-delivery-plan.md, docs/onboarding/DATA-HANDOFF.md and the matching starter prompt under docs/onboarding/prompts/.
 
 Previous handoff: [ticket/PR/commit or short note].
 Last verified behavior/tests: [actual command/result].

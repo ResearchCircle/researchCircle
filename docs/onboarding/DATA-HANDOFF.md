@@ -2,9 +2,7 @@
 
 ## Source and local paths
 
-Anurag's source path: `/Users/anurag/Startups/TBR/tiger_research_buddy/data`.
-
-Other machines will have a different absolute path. Keep the delivered folder as an immutable source snapshot, preferably outside your checkout. Record its location as `TBR_DATA_SOURCE` and a separate writable location as `TBR_DATA_WORK`. These are **onboarding/adapter configuration names**, not existing legacy environment support. T1 implements explicit path injection for the new adapter; simply exporting a variable does not redirect old code.
+Anurag shares the collected data separately. Keep the delivered folder as an immutable source snapshot, preferably outside your checkout. Record its location as `TBR_DATA_SOURCE` and a separate writable location as `TBR_DATA_WORK`. These are **onboarding/adapter configuration names**, not existing legacy environment support. T1 implements explicit path injection for the new adapter; simply exporting a variable does not redirect old code.
 
 Example local arrangement (replace with your own absolute paths):
 
