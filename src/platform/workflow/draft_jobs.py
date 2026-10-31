@@ -134,6 +134,19 @@ class PersistedJobStore:
             session.commit()
             return changed.rowcount == 1
 
+    def fail_next_queued(self, error: JobFailure) -> bool:
+        with self.db.session_factory() as session:
+            self._admission_lock(session)
+            record = session.scalar(select(DraftJobRecord).where(DraftJobRecord.state == 'queued')
+                                    .order_by(DraftJobRecord.created_at, DraftJobRecord.id).limit(1).with_for_update())
+            if record is None:
+                return False
+            changed = session.execute(update(DraftJobRecord).where(DraftJobRecord.id == record.id,
+                                      DraftJobRecord.state == 'queued').values(state='failed', finished_at=utcnow(),
+                                      error_json=asdict(error), output_json=None))
+            session.commit()
+            return changed.rowcount == 1
+
     def interrupt_running(self) -> int:
         with self.db.session_factory() as session:
             changed = session.execute(update(DraftJobRecord).where(DraftJobRecord.state == 'running')

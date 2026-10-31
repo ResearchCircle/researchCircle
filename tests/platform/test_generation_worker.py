@@ -132,6 +132,20 @@ class GenerationWorkerTests(unittest.TestCase):
         self.release.set()
         self.until(worker, lambda: self.store.get(next_job.id).state == 'succeeded')
 
+    def test_unavailable_model_status_fails_queued_job_without_starting_inference(self):
+        first, second = self.enqueue(), self.enqueue('user-2')
+        worker = self.worker()
+        def unavailable():
+            raise ProviderError('provider_unavailable', 'Could not reach local model.', True)
+        worker.idle_check = unavailable
+        worker.tick()
+        failed = self.store.get(first.id)
+        self.assertEqual(failed.state, 'failed')
+        self.assertEqual(failed.error.code, 'provider_unavailable')
+        self.assertIsNone(failed.started_at)
+        self.assertEqual(self.store.get(second.id).state, 'queued')
+        self.assertEqual(self.calls, 0)
+
     def test_exclusive_lease_prevents_second_worker_from_interrupting_live_jobs(self):
         job = self.enqueue()
         worker = self.worker()

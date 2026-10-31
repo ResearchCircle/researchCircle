@@ -39,6 +39,7 @@ class JobStore(Protocol):
     def claim_next(self) -> GenerationJob | None: ...
     def finish(self, job_id: str, *, output: DraftResult | None = None,
                error: JobFailure | None = None) -> bool: ...
+    def fail_next_queued(self, error: JobFailure) -> bool: ...
 
 
 def _now() -> str:
@@ -98,6 +99,14 @@ class FixtureJobStore:
             self._jobs[job_id] = replace(job, state='failed', finished_at=_now(),
                                          error=JobFailure('cancelled', 'Draft cancelled.', True))
             return True
+
+    def fail_next_queued(self, error: JobFailure) -> bool:
+        with self._lock:
+            for job in self._jobs.values():
+                if job.state == 'queued':
+                    self._jobs[job.id] = replace(job, state='failed', error=error, finished_at=_now())
+                    return True
+        return False
 
     def interrupt_running(self) -> int:
         with self._lock:

@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from src.platform.database import Database
 from src.platform.database.models import Proposal, Team, User, new_id
 from src.platform.drafting.fixtures import SAMPLE_REQUEST, SAMPLE_SOURCE, FixtureDraftProvider, FixtureTokenCounter
-from src.platform.drafting.jobs import JobError
+from src.platform.drafting.jobs import JobError, JobFailure
 from src.platform.drafting.service import DraftingService
 from src.platform.workflow.draft_jobs import DraftJobRecord, PersistedJobStore, job_view
 
@@ -69,6 +69,15 @@ class PersistedJobTests(unittest.TestCase):
         self.assertEqual(PersistedJobStore(self.db).interrupt_running(), 1)
         self.assertEqual(self.store.get(running.id).error.code, 'interrupted')
         self.assertEqual(self.store.get(queued.id).state, 'queued')
+
+    def test_provider_failure_can_end_waiting_job_without_false_running_state(self):
+        job = self.enqueue()
+        self.assertTrue(self.store.fail_next_queued(JobFailure('provider_unavailable', 'Model status unavailable.', True)))
+        saved = PersistedJobStore(self.db).get(job.id)
+        self.assertEqual(saved.state, 'failed')
+        self.assertIsNone(saved.started_at)
+        self.assertEqual(saved.error.code, 'provider_unavailable')
+        self.assertIsNone(self.store.claim_next())
 
     def test_concurrent_admission_never_exceeds_four_queued(self):
         barrier = threading.Barrier(8)

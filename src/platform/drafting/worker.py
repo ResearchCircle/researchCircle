@@ -74,6 +74,11 @@ class GenerationWorker:
                 return
             try:
                 ready = self.idle_check()
+            except ProviderError as error:
+                self.blocked_reason = error.code
+                self.store.fail_next_queued(JobFailure(error.code,
+                    'Local model status is unavailable; this draft did not start. Retry when the model is reachable.', True))
+                return
             except Exception:
                 ready = False
             if ready is not True:
