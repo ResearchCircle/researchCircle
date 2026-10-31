@@ -98,10 +98,30 @@ def main() -> int:
                 status, location, _ = request(path)
                 if status != 307 or urlsplit(location).netloc != host:
                     raise RuntimeError('Proxy redirect lost the external browser port.')
+            # Recreate an API at a different IP, as happens during compose upgrades.
+            docker('rm', '-f', created[0])
+            blocker = docker('run', '-d', '--network', network, args.upstream_image,
+                             'python', '-c', 'import time; time.sleep(30)')
+            created.append(blocker)
+            replacement = docker('run', '-d', '--network', network, '--network-alias', 'api',
+                                 '--mount', f'type=bind,source={fixture},target=/fixture.py,readonly',
+                                 args.upstream_image, 'python', '/fixture.py', '8000', 'api')
+            created.append(replacement)
+            deadline = time.monotonic() + 12
+            while True:
+                try:
+                    status, _, raw = request('/healthz')
+                    if status == 200 and json.loads(raw)['backend'] == 'api':
+                        break
+                except (OSError, ValueError, http.client.HTTPException):
+                    pass
+                if time.monotonic() >= deadline:
+                    raise RuntimeError('Proxy retained the replaced API container address.')
+                time.sleep(.2)
         print(json.dumps({'status': 'passed', 'proxy_image': args.proxy_image,
                           'upstream_image': args.upstream_image, 'checks': [
                               'api_path_and_query', 'health_route', 'frontend_route', 'external_host_and_port',
-                              'api_redirect_origin', 'frontend_redirect_origin'],
+                              'api_redirect_origin', 'frontend_redirect_origin', 'api_replacement_dns'],
                           'evidence': 'disposable_http_fixtures; not product/browser acceptance'}))
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
