@@ -92,7 +92,10 @@ class GenerationWorker:
             if self._active is not None and not self._active[1].done() and not wait:
                 return False
             self._executor.shutdown(wait=wait)
-            self._collect()
-            self._lease.close()
-            self._closed = True
+            try:
+                self._collect()
+            finally:
+                # Inference has ended; a failed DB write must not strand the lease.
+                self._lease.close()
+                self._closed = True
             return True

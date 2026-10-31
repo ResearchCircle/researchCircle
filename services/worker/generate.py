@@ -15,6 +15,17 @@ from src.platform.models.provider import LocalModelProvider
 from src.platform.workflow.draft_jobs import PersistedJobStore
 
 
+def close_worker(worker, database) -> bool:
+    try:
+        worker.close(wait=True)
+        return True
+    except SQLAlchemyError:
+        print('Draft result could not be persisted at shutdown; the next worker will mark it interrupted.', flush=True)
+        return False
+    finally:
+        database.engine.dispose()
+
+
 def main() -> int:
     import os
     config = RuntimeConfig.from_env(os.environ)
@@ -34,7 +45,12 @@ def main() -> int:
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    worker = GenerationWorker(store, DraftingService(provider, counter), config.work_dir / 'generation.lock', idle)
+    try:
+        worker = GenerationWorker(store, DraftingService(provider, counter), config.work_dir / 'generation.lock', idle)
+    except SQLAlchemyError:
+        print('Draft database is unavailable at worker startup.', flush=True)
+        database.engine.dispose()
+        return 1
     print(f'Draft worker ready ({config.provider}); interrupted jobs: {worker.interrupted_count}', flush=True)
     try:
         while not stopped:
@@ -46,9 +62,8 @@ def main() -> int:
             time.sleep(.25)
     finally:
         # Do not release the lease while the actual inference call is still active.
-        worker.close(wait=True)
-        database.engine.dispose()
-    return 0
+        closed = close_worker(worker, database)
+    return 0 if closed else 1
 
 
 if __name__ == '__main__':

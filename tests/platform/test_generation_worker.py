@@ -154,6 +154,25 @@ class GenerationWorkerTests(unittest.TestCase):
         self.assertNotIn('PRIVATE', error.message)
         self.assertEqual(self.calls, 1)
 
+    def test_shutdown_write_failure_releases_lease_only_after_inference_finishes(self):
+        self.enqueue()
+        worker = self.worker()
+        worker.tick()
+        self.assertTrue(self.entered.wait(1))
+        original = self.store.finish
+        def rejected_finish(*_args, **_kwargs):
+            raise RuntimeError('Synthetic persistence failure')
+        self.store.finish = rejected_finish
+        self.assertFalse(worker.close(wait=False))
+        self.release.set()
+        try:
+            with self.assertRaises(RuntimeError):
+                worker.close(wait=True)
+        finally:
+            self.store.finish = original
+        replacement = self.worker()
+        self.assertEqual(replacement.interrupted_count, 1)
+
 
 if __name__ == '__main__':
     unittest.main()
