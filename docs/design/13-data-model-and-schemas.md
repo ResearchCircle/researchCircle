@@ -1,3 +1,5 @@
+> **SUPERSEDED — historical reference only (2026-10-29).** Implement [the corrected specification](17-v2-corrected-specification.md) and follow [the team delivery plan](18-four-person-delivery-plan.md). All authority, frozen-contract, copy-verbatim and precedence claims below are withdrawn. Examples below retain known defects for audit context; do not use them as implementation instructions.
+
 # 13 — Data Model & Schemas: concrete DDL + Pydantic for every entity
 
 > **Read this with:** `05-kernel-contracts.md` (the frozen Pydantic value objects this doc imports),

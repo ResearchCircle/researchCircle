@@ -1,3 +1,5 @@
+> **SUPERSEDED — historical reference only (2026-10-29).** Implement [the corrected specification](17-v2-corrected-specification.md) and follow [the team delivery plan](18-four-person-delivery-plan.md). All authority, frozen-contract, copy-verbatim and precedence claims below are withdrawn. Examples below retain known defects for audit context; do not use them as implementation instructions.
+
 # 10 — Feature Modules: Low-Level Design (the read-side loop surfaces behind the PEP)
 
 > **What this document is.** The low-level design for the three **read-side feature modules** that

@@ -1,3 +1,5 @@
+> **SUPERSEDED — historical reference only (2026-10-29).** Implement [the corrected specification](17-v2-corrected-specification.md) and follow [the team delivery plan](18-four-person-delivery-plan.md). All authority, frozen-contract, copy-verbatim and precedence claims below are withdrawn. Examples below retain known defects for audit context; do not use them as implementation instructions.
+
 # 07 — Data Layer & Retrieval: Low-Level Design
 
 > **What this document is.** The complete low-level design for TigerExchange's **single-Postgres data plane** and its **two-stage retrieval pipeline** (single-Orin edition). It tells you *why* vector + lexical + graph all live in one Postgres 16 instance, *how* the SHARED public index and the per-tenant CONFIDENTIAL retrieval surface differ physically and in code, and *exactly* how the two-stage pipeline (RRF-fused hybrid Stage 1 → cross-encoder rerank Stage 2) is built behind the kernel `IRetrievalStrategy` Protocol.

@@ -1,4 +1,7 @@
 {
+  "_document_status": "superseded_historical_reference_only",
+  "_superseded_by": "17-v2-corrected-specification.md",
+  "_status_note": "Historical resolved/locked claims are not current validation evidence.",
   "keep": 21,
   "drop": 8,
   "defer": 5,
