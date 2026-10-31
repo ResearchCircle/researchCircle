@@ -1,7 +1,7 @@
 name: tbr-v2
 services:
   proxy:
-    image: nginx:stable-alpine
+    image: ${TBR_PROXY_IMAGE:-nginx:stable-alpine}
     ports:
       - "127.0.0.1:${TBR_HTTP_PORT:-8080}:80"
     volumes:
@@ -14,10 +14,10 @@ services:
     image: ${TBR_API_IMAGE:?Supply the application image built with T2 runtime dependencies}
     command: ["python", "-m", "uvicorn", "services.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
     environment: &backend_environment
-      TBR_PROFILE: demo
-      TBR_MODEL_PROVIDER: local
-      TBR_MODEL_BASE_URL: ${TBR_MODEL_BASE_URL:?Supply the reachable private Orin endpoint}
-      TBR_MODEL_ID: ${TBR_MODEL_ID:?Supply the observed served model identifier}
+      TBR_PROFILE: ${TBR_PROFILE:-development}
+      TBR_MODEL_PROVIDER: ${TBR_MODEL_PROVIDER:-fixture}
+      TBR_MODEL_BASE_URL: ${TBR_MODEL_BASE_URL:-}
+      TBR_MODEL_ID: ${TBR_MODEL_ID:-}
       TBR_DEV_IDENTITY: "false"
       TBR_DATA_WORK: /var/lib/tbr-work
       TBR_DB_HOST: db
@@ -49,7 +49,7 @@ services:
       NODE_ENV: production
     restart: unless-stopped
   db:
-    image: postgres:16-alpine
+    image: ${TBR_DB_IMAGE:-postgres:16-alpine}
     environment:
       POSTGRES_DB: tbr
       POSTGRES_USER: tbr

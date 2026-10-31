@@ -34,7 +34,7 @@ def main() -> int:
     parser.add_argument('--component', choices=['api', 'web', 'all'], default='all')
     parser.add_argument('--api-tag', default='tbr-v2-api:development')
     parser.add_argument('--web-tag', default='tbr-v2-web:development')
-    parser.add_argument('--api-requirements', default='deployment/api-bootstrap.requirements.txt')
+    parser.add_argument('--api-requirements', default='services/api/requirements.txt')
     parser.add_argument('--print-only', action='store_true')
     args = parser.parse_args()
     try:
