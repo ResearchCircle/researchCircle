@@ -1,0 +1,159 @@
+{
+  "contract_status": "proposed_for_T1_T2_T3_review",
+  "evidence": "synthetic_fixture",
+  "token_count_method": "synthetic_utf8_bytes",
+  "request": {
+    "proposal_id": "00000000-0000-4000-8000-000000000010",
+    "base_revision": 3,
+    "section": "Methods",
+    "instruction": "Describe the measurement schedule and what this trial cannot establish.",
+    "source_refs": [
+      {
+        "id": "00000000-0000-4000-8000-000000000011",
+        "version": "synthetic-v1",
+        "content_hash": "74a1a5dd5fb6dec2e82b3604c028532ae7130950582749e17b1d58cc31bb252c"
+      }
+    ]
+  },
+  "attached_sources": [
+    {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "version": "synthetic-v1",
+      "content_hash": "74a1a5dd5fb6dec2e82b3604c028532ae7130950582749e17b1d58cc31bb252c",
+      "title": "Synthetic greenhouse sensor trial",
+      "origin": "synthetic fixture; no public URL",
+      "text": "In a synthetic greenhouse experiment, temperature sensors recorded one reading every ten minutes for seven days. The trial evaluated data collection reliability; it did not measure crop yields or establish an energy-saving benefit.",
+      "proposal_id": "00000000-0000-4000-8000-000000000010",
+      "is_public": false
+    }
+  ],
+  "result": {
+    "text": "Temperature readings were recorded every ten minutes for seven days [00000000-0000-4000-8000-000000000011]. The trial assessed collection reliability, without establishing crop-yield or energy-saving benefits [00000000-0000-4000-8000-000000000011].",
+    "citations": [
+      {
+        "source_id": "00000000-0000-4000-8000-000000000011",
+        "version": "synthetic-v1",
+        "content_hash": "74a1a5dd5fb6dec2e82b3604c028532ae7130950582749e17b1d58cc31bb252c",
+        "title": "Synthetic greenhouse sensor trial",
+        "origin": "synthetic fixture; no public URL",
+        "quote": "In a synthetic greenhouse experiment, temperature sensors recorded one reading every ten minutes for seven days. The trial evaluated data collection reliability; it did not measure crop yields or establish an energy-saving benefit."
+      }
+    ],
+    "base_revision": 3,
+    "source_refs": [
+      {
+        "id": "00000000-0000-4000-8000-000000000011",
+        "version": "synthetic-v1",
+        "content_hash": "74a1a5dd5fb6dec2e82b3604c028532ae7130950582749e17b1d58cc31bb252c"
+      }
+    ],
+    "model_id": "fixture-draft-v1",
+    "usage": null,
+    "input_tokens": 1696,
+    "finish_reason": "stop",
+    "insufficient_evidence": false
+  },
+  "draft_jobs": {
+    "queued": {
+      "id": "00000000-0000-4000-8000-000000000020",
+      "proposal_id": "00000000-0000-4000-8000-000000000010",
+      "base_revision": 3,
+      "source_refs": [
+        {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "version": "synthetic-v1",
+          "content_hash": "74a1a5dd5fb6dec2e82b3604c028532ae7130950582749e17b1d58cc31bb252c"
+        }
+      ],
+      "state": "queued",
+      "output": null,
+      "error": null,
+      "created_at": "2026-10-31T12:00:00Z",
+      "started_at": null,
+      "finished_at": null
+    },
+    "running": {
+      "id": "00000000-0000-4000-8000-000000000020",
+      "proposal_id": "00000000-0000-4000-8000-000000000010",
+      "base_revision": 3,
+      "source_refs": [
+        {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "version": "synthetic-v1",
+          "content_hash": "74a1a5dd5fb6dec2e82b3604c028532ae7130950582749e17b1d58cc31bb252c"
+        }
+      ],
+      "state": "running",
+      "output": null,
+      "error": null,
+      "created_at": "2026-10-31T12:00:00Z",
+      "started_at": "2026-10-31T12:00:01Z",
+      "finished_at": null
+    },
+    "succeeded": {
+      "id": "00000000-0000-4000-8000-000000000020",
+      "proposal_id": "00000000-0000-4000-8000-000000000010",
+      "base_revision": 3,
+      "source_refs": [
+        {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "version": "synthetic-v1",
+          "content_hash": "74a1a5dd5fb6dec2e82b3604c028532ae7130950582749e17b1d58cc31bb252c"
+        }
+      ],
+      "state": "succeeded",
+      "output": {
+        "text": "Temperature readings were recorded every ten minutes for seven days [00000000-0000-4000-8000-000000000011]. The trial assessed collection reliability, without establishing crop-yield or energy-saving benefits [00000000-0000-4000-8000-000000000011].",
+        "citations": [
+          {
+            "source_id": "00000000-0000-4000-8000-000000000011",
+            "version": "synthetic-v1",
+            "content_hash": "74a1a5dd5fb6dec2e82b3604c028532ae7130950582749e17b1d58cc31bb252c",
+            "title": "Synthetic greenhouse sensor trial",
+            "origin": "synthetic fixture; no public URL",
+            "quote": "In a synthetic greenhouse experiment, temperature sensors recorded one reading every ten minutes for seven days. The trial evaluated data collection reliability; it did not measure crop yields or establish an energy-saving benefit."
+          }
+        ],
+        "base_revision": 3,
+        "source_refs": [
+          {
+            "id": "00000000-0000-4000-8000-000000000011",
+            "version": "synthetic-v1",
+            "content_hash": "74a1a5dd5fb6dec2e82b3604c028532ae7130950582749e17b1d58cc31bb252c"
+          }
+        ],
+        "model_id": "fixture-draft-v1",
+        "usage": null,
+        "input_tokens": 1696,
+        "finish_reason": "stop",
+        "insufficient_evidence": false
+      },
+      "error": null,
+      "created_at": "2026-10-31T12:00:00Z",
+      "started_at": "2026-10-31T12:00:01Z",
+      "finished_at": "2026-10-31T12:00:05Z"
+    },
+    "failed": {
+      "id": "00000000-0000-4000-8000-000000000020",
+      "proposal_id": "00000000-0000-4000-8000-000000000010",
+      "base_revision": 3,
+      "source_refs": [
+        {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "version": "synthetic-v1",
+          "content_hash": "74a1a5dd5fb6dec2e82b3604c028532ae7130950582749e17b1d58cc31bb252c"
+        }
+      ],
+      "state": "failed",
+      "output": null,
+      "error": {
+        "code": "provider_unavailable",
+        "message": "Local provider unavailable.",
+        "retryable": true
+      },
+      "created_at": "2026-10-31T12:00:00Z",
+      "started_at": "2026-10-31T12:00:01Z",
+      "finished_at": "2026-10-31T12:00:05Z"
+    }
+  }
+}

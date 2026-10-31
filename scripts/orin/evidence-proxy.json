@@ -1,0 +1,1 @@
+{"status": "passed", "proxy_image": "nginx:1.27-alpine", "upstream_image": "python:3.12-slim", "checks": ["api_path_and_query", "health_route", "frontend_route", "external_host_and_port", "api_redirect_origin", "frontend_redirect_origin"], "evidence": "disposable_http_fixtures; not product/browser acceptance"}

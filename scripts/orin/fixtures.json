@@ -1,0 +1,70 @@
+{
+  "evidence": "synthetic_fixture",
+  "contract_status": "DraftJob proposal for T2/T3 review; not an implemented API",
+  "model_result": {
+    "text": "Fixture completion. Insufficient evidence for research claims.",
+    "model_id": "fixture-deterministic-v1",
+    "usage": null,
+    "finish_reason": "stop"
+  },
+  "draft_jobs": {
+    "queued": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "proposal_id": "00000000-0000-4000-8000-000000000002",
+      "base_revision": 3,
+      "source_refs": [],
+      "state": "queued",
+      "output": null,
+      "error": null,
+      "created_at": "2026-10-30T12:00:00Z",
+      "started_at": null,
+      "finished_at": null
+    },
+    "running": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "proposal_id": "00000000-0000-4000-8000-000000000002",
+      "base_revision": 3,
+      "source_refs": [],
+      "state": "running",
+      "output": null,
+      "error": null,
+      "created_at": "2026-10-30T12:00:00Z",
+      "started_at": "2026-10-30T12:00:01Z",
+      "finished_at": null
+    },
+    "succeeded": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "proposal_id": "00000000-0000-4000-8000-000000000002",
+      "base_revision": 3,
+      "source_refs": [],
+      "state": "succeeded",
+      "output": {
+        "text": "Fixture completion. Insufficient evidence for research claims.",
+        "model_id": "fixture-deterministic-v1",
+        "usage": null,
+        "finish_reason": "stop",
+        "citations": []
+      },
+      "error": null,
+      "created_at": "2026-10-30T12:00:00Z",
+      "started_at": "2026-10-30T12:00:01Z",
+      "finished_at": "2026-10-30T12:00:02Z"
+    },
+    "failed": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "proposal_id": "00000000-0000-4000-8000-000000000002",
+      "base_revision": 3,
+      "source_refs": [],
+      "state": "failed",
+      "output": null,
+      "error": {
+        "code": "provider_unavailable",
+        "message": "Could not complete the local model request.",
+        "retryable": true
+      },
+      "created_at": "2026-10-30T12:00:00Z",
+      "started_at": "2026-10-30T12:00:01Z",
+      "finished_at": "2026-10-30T12:00:02Z"
+    }
+  }
+}

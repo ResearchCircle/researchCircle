@@ -1,0 +1,1 @@
+{"store": "in_memory_fixture", "evidence": "synthetic_fixture", "provider": "local", "states": ["queued", "running", "failed"], "elapsed_s": 5.737418, "state": "failed", "output": null, "error": {"code": "invalid_citations", "message": "Draft did not contain valid selected-source citations.", "retryable": false}}
