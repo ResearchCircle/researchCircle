@@ -1,0 +1,509 @@
+{
+  "provenance": "Official anonymous Crossref REST API; facts only, no abstract or paper text",
+  "records": [
+    {
+      "external_id": "doi:10.1038/nature14539",
+      "title": "Deep learning",
+      "text": "Title: Deep learning. Authors: Yann LeCun; Yoshua Bengio; Geoffrey Hinton. Publication year: 2015. DOI: 10.1038/nature14539.",
+      "origin": "https://doi.org/10.1038/nature14539",
+      "kind": "paper",
+      "evidence_kind": "public",
+      "is_public": true,
+      "proposal_id": null,
+      "metadata": {
+        "doi": "10.1038/nature14539",
+        "authors": [
+          "Yann LeCun",
+          "Yoshua Bengio",
+          "Geoffrey Hinton"
+        ],
+        "year": 2015,
+        "fetched_at": "2026-10-31T19:35:49.029966+00:00",
+        "provider": "Crossref REST API",
+        "metadata_url": "https://api.crossref.org/works/10.1038%2Fnature14539",
+        "publisher_license_links": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2015,
+                  5,
+                  27
+                ]
+              ],
+              "date-time": "2015-05-27T00:00:00Z",
+              "timestamp": 1432684800000
+            },
+            "content-version": "tdm",
+            "delay-in-days": 0,
+            "URL": "https://www.springer.com/tdm"
+          },
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2015,
+                  5,
+                  27
+                ]
+              ],
+              "date-time": "2015-05-27T00:00:00Z",
+              "timestamp": 1432684800000
+            },
+            "content-version": "vor",
+            "delay-in-days": 0,
+            "URL": "https://www.springer.com/tdm"
+          }
+        ],
+        "abstract_included": false,
+        "text_rights": "Bibliographic facts only; abstract/full-text reuse license not established."
+      }
+    },
+    {
+      "external_id": "doi:10.1038/nature14539#author:0",
+      "title": "Listed author: Yann LeCun \u2014 Deep learning",
+      "text": "Listed author: Yann LeCun. Publication: Deep learning. Publication year: 2015. DOI: 10.1038/nature14539. This is a publication authorship entry; researcher identity, current affiliation and contact details are unresolved.",
+      "origin": "https://doi.org/10.1038/nature14539",
+      "kind": "researcher",
+      "evidence_kind": "public",
+      "is_public": true,
+      "proposal_id": null,
+      "metadata": {
+        "doi": "10.1038/nature14539",
+        "authors": [
+          "Yann LeCun",
+          "Yoshua Bengio",
+          "Geoffrey Hinton"
+        ],
+        "year": 2015,
+        "fetched_at": "2026-10-31T19:35:49.029966+00:00",
+        "provider": "Crossref REST API",
+        "metadata_url": "https://api.crossref.org/works/10.1038%2Fnature14539",
+        "publisher_license_links": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2015,
+                  5,
+                  27
+                ]
+              ],
+              "date-time": "2015-05-27T00:00:00Z",
+              "timestamp": 1432684800000
+            },
+            "content-version": "tdm",
+            "delay-in-days": 0,
+            "URL": "https://www.springer.com/tdm"
+          },
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2015,
+                  5,
+                  27
+                ]
+              ],
+              "date-time": "2015-05-27T00:00:00Z",
+              "timestamp": 1432684800000
+            },
+            "content-version": "vor",
+            "delay-in-days": 0,
+            "URL": "https://www.springer.com/tdm"
+          }
+        ],
+        "abstract_included": false,
+        "text_rights": "Bibliographic facts only; abstract/full-text reuse license not established.",
+        "author_name": "Yann LeCun",
+        "author_position": 0,
+        "identity_status": "authorship_entry_unresolved",
+        "paper_external_id": "doi:10.1038/nature14539"
+      }
+    },
+    {
+      "external_id": "doi:10.1038/nature14539#author:1",
+      "title": "Listed author: Yoshua Bengio \u2014 Deep learning",
+      "text": "Listed author: Yoshua Bengio. Publication: Deep learning. Publication year: 2015. DOI: 10.1038/nature14539. This is a publication authorship entry; researcher identity, current affiliation and contact details are unresolved.",
+      "origin": "https://doi.org/10.1038/nature14539",
+      "kind": "researcher",
+      "evidence_kind": "public",
+      "is_public": true,
+      "proposal_id": null,
+      "metadata": {
+        "doi": "10.1038/nature14539",
+        "authors": [
+          "Yann LeCun",
+          "Yoshua Bengio",
+          "Geoffrey Hinton"
+        ],
+        "year": 2015,
+        "fetched_at": "2026-10-31T19:35:49.029966+00:00",
+        "provider": "Crossref REST API",
+        "metadata_url": "https://api.crossref.org/works/10.1038%2Fnature14539",
+        "publisher_license_links": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2015,
+                  5,
+                  27
+                ]
+              ],
+              "date-time": "2015-05-27T00:00:00Z",
+              "timestamp": 1432684800000
+            },
+            "content-version": "tdm",
+            "delay-in-days": 0,
+            "URL": "https://www.springer.com/tdm"
+          },
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2015,
+                  5,
+                  27
+                ]
+              ],
+              "date-time": "2015-05-27T00:00:00Z",
+              "timestamp": 1432684800000
+            },
+            "content-version": "vor",
+            "delay-in-days": 0,
+            "URL": "https://www.springer.com/tdm"
+          }
+        ],
+        "abstract_included": false,
+        "text_rights": "Bibliographic facts only; abstract/full-text reuse license not established.",
+        "author_name": "Yoshua Bengio",
+        "author_position": 1,
+        "identity_status": "authorship_entry_unresolved",
+        "paper_external_id": "doi:10.1038/nature14539"
+      }
+    },
+    {
+      "external_id": "doi:10.1038/nature14539#author:2",
+      "title": "Listed author: Geoffrey Hinton \u2014 Deep learning",
+      "text": "Listed author: Geoffrey Hinton. Publication: Deep learning. Publication year: 2015. DOI: 10.1038/nature14539. This is a publication authorship entry; researcher identity, current affiliation and contact details are unresolved.",
+      "origin": "https://doi.org/10.1038/nature14539",
+      "kind": "researcher",
+      "evidence_kind": "public",
+      "is_public": true,
+      "proposal_id": null,
+      "metadata": {
+        "doi": "10.1038/nature14539",
+        "authors": [
+          "Yann LeCun",
+          "Yoshua Bengio",
+          "Geoffrey Hinton"
+        ],
+        "year": 2015,
+        "fetched_at": "2026-10-31T19:35:49.029966+00:00",
+        "provider": "Crossref REST API",
+        "metadata_url": "https://api.crossref.org/works/10.1038%2Fnature14539",
+        "publisher_license_links": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2015,
+                  5,
+                  27
+                ]
+              ],
+              "date-time": "2015-05-27T00:00:00Z",
+              "timestamp": 1432684800000
+            },
+            "content-version": "tdm",
+            "delay-in-days": 0,
+            "URL": "https://www.springer.com/tdm"
+          },
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2015,
+                  5,
+                  27
+                ]
+              ],
+              "date-time": "2015-05-27T00:00:00Z",
+              "timestamp": 1432684800000
+            },
+            "content-version": "vor",
+            "delay-in-days": 0,
+            "URL": "https://www.springer.com/tdm"
+          }
+        ],
+        "abstract_included": false,
+        "text_rights": "Bibliographic facts only; abstract/full-text reuse license not established.",
+        "author_name": "Geoffrey Hinton",
+        "author_position": 2,
+        "identity_status": "authorship_entry_unresolved",
+        "paper_external_id": "doi:10.1038/nature14539"
+      }
+    },
+    {
+      "external_id": "doi:10.1016/j.comnet.2010.05.010",
+      "title": "The Internet of Things: A survey",
+      "text": "Title: The Internet of Things: A survey. Authors: Luigi Atzori; Antonio Iera; Giacomo Morabito. Publication year: 2010. DOI: 10.1016/j.comnet.2010.05.010.",
+      "origin": "https://doi.org/10.1016/j.comnet.2010.05.010",
+      "kind": "paper",
+      "evidence_kind": "public",
+      "is_public": true,
+      "proposal_id": null,
+      "metadata": {
+        "doi": "10.1016/j.comnet.2010.05.010",
+        "authors": [
+          "Luigi Atzori",
+          "Antonio Iera",
+          "Giacomo Morabito"
+        ],
+        "year": 2010,
+        "fetched_at": "2026-10-31T19:35:49.188694+00:00",
+        "provider": "Crossref REST API",
+        "metadata_url": "https://api.crossref.org/works/10.1016%2Fj.comnet.2010.05.010",
+        "publisher_license_links": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2010,
+                  10,
+                  1
+                ]
+              ],
+              "date-time": "2010-10-01T00:00:00Z",
+              "timestamp": 1285891200000
+            },
+            "content-version": "tdm",
+            "delay-in-days": 0,
+            "URL": "https://www.elsevier.com/tdm/userlicense/1.0/"
+          }
+        ],
+        "abstract_included": false,
+        "text_rights": "Bibliographic facts only; abstract/full-text reuse license not established."
+      }
+    },
+    {
+      "external_id": "doi:10.1016/j.comnet.2010.05.010#author:0",
+      "title": "Listed author: Luigi Atzori \u2014 The Internet of Things: A survey",
+      "text": "Listed author: Luigi Atzori. Publication: The Internet of Things: A survey. Publication year: 2010. DOI: 10.1016/j.comnet.2010.05.010. This is a publication authorship entry; researcher identity, current affiliation and contact details are unresolved.",
+      "origin": "https://doi.org/10.1016/j.comnet.2010.05.010",
+      "kind": "researcher",
+      "evidence_kind": "public",
+      "is_public": true,
+      "proposal_id": null,
+      "metadata": {
+        "doi": "10.1016/j.comnet.2010.05.010",
+        "authors": [
+          "Luigi Atzori",
+          "Antonio Iera",
+          "Giacomo Morabito"
+        ],
+        "year": 2010,
+        "fetched_at": "2026-10-31T19:35:49.188694+00:00",
+        "provider": "Crossref REST API",
+        "metadata_url": "https://api.crossref.org/works/10.1016%2Fj.comnet.2010.05.010",
+        "publisher_license_links": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2010,
+                  10,
+                  1
+                ]
+              ],
+              "date-time": "2010-10-01T00:00:00Z",
+              "timestamp": 1285891200000
+            },
+            "content-version": "tdm",
+            "delay-in-days": 0,
+            "URL": "https://www.elsevier.com/tdm/userlicense/1.0/"
+          }
+        ],
+        "abstract_included": false,
+        "text_rights": "Bibliographic facts only; abstract/full-text reuse license not established.",
+        "author_name": "Luigi Atzori",
+        "author_position": 0,
+        "identity_status": "authorship_entry_unresolved",
+        "paper_external_id": "doi:10.1016/j.comnet.2010.05.010"
+      }
+    },
+    {
+      "external_id": "doi:10.1016/j.comnet.2010.05.010#author:1",
+      "title": "Listed author: Antonio Iera \u2014 The Internet of Things: A survey",
+      "text": "Listed author: Antonio Iera. Publication: The Internet of Things: A survey. Publication year: 2010. DOI: 10.1016/j.comnet.2010.05.010. This is a publication authorship entry; researcher identity, current affiliation and contact details are unresolved.",
+      "origin": "https://doi.org/10.1016/j.comnet.2010.05.010",
+      "kind": "researcher",
+      "evidence_kind": "public",
+      "is_public": true,
+      "proposal_id": null,
+      "metadata": {
+        "doi": "10.1016/j.comnet.2010.05.010",
+        "authors": [
+          "Luigi Atzori",
+          "Antonio Iera",
+          "Giacomo Morabito"
+        ],
+        "year": 2010,
+        "fetched_at": "2026-10-31T19:35:49.188694+00:00",
+        "provider": "Crossref REST API",
+        "metadata_url": "https://api.crossref.org/works/10.1016%2Fj.comnet.2010.05.010",
+        "publisher_license_links": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2010,
+                  10,
+                  1
+                ]
+              ],
+              "date-time": "2010-10-01T00:00:00Z",
+              "timestamp": 1285891200000
+            },
+            "content-version": "tdm",
+            "delay-in-days": 0,
+            "URL": "https://www.elsevier.com/tdm/userlicense/1.0/"
+          }
+        ],
+        "abstract_included": false,
+        "text_rights": "Bibliographic facts only; abstract/full-text reuse license not established.",
+        "author_name": "Antonio Iera",
+        "author_position": 1,
+        "identity_status": "authorship_entry_unresolved",
+        "paper_external_id": "doi:10.1016/j.comnet.2010.05.010"
+      }
+    },
+    {
+      "external_id": "doi:10.1016/j.comnet.2010.05.010#author:2",
+      "title": "Listed author: Giacomo Morabito \u2014 The Internet of Things: A survey",
+      "text": "Listed author: Giacomo Morabito. Publication: The Internet of Things: A survey. Publication year: 2010. DOI: 10.1016/j.comnet.2010.05.010. This is a publication authorship entry; researcher identity, current affiliation and contact details are unresolved.",
+      "origin": "https://doi.org/10.1016/j.comnet.2010.05.010",
+      "kind": "researcher",
+      "evidence_kind": "public",
+      "is_public": true,
+      "proposal_id": null,
+      "metadata": {
+        "doi": "10.1016/j.comnet.2010.05.010",
+        "authors": [
+          "Luigi Atzori",
+          "Antonio Iera",
+          "Giacomo Morabito"
+        ],
+        "year": 2010,
+        "fetched_at": "2026-10-31T19:35:49.188694+00:00",
+        "provider": "Crossref REST API",
+        "metadata_url": "https://api.crossref.org/works/10.1016%2Fj.comnet.2010.05.010",
+        "publisher_license_links": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2010,
+                  10,
+                  1
+                ]
+              ],
+              "date-time": "2010-10-01T00:00:00Z",
+              "timestamp": 1285891200000
+            },
+            "content-version": "tdm",
+            "delay-in-days": 0,
+            "URL": "https://www.elsevier.com/tdm/userlicense/1.0/"
+          }
+        ],
+        "abstract_included": false,
+        "text_rights": "Bibliographic facts only; abstract/full-text reuse license not established.",
+        "author_name": "Giacomo Morabito",
+        "author_position": 2,
+        "identity_status": "authorship_entry_unresolved",
+        "paper_external_id": "doi:10.1016/j.comnet.2010.05.010"
+      }
+    },
+    {
+      "external_id": "doi:10.1561/1500000019",
+      "title": "The Probabilistic Relevance Framework: BM25 and Beyond",
+      "text": "Title: The Probabilistic Relevance Framework: BM25 and Beyond. Authors: Stephen Robertson; Hugo Zaragoza. Publication year: 2009. DOI: 10.1561/1500000019.",
+      "origin": "https://doi.org/10.1561/1500000019",
+      "kind": "paper",
+      "evidence_kind": "public",
+      "is_public": true,
+      "proposal_id": null,
+      "metadata": {
+        "doi": "10.1561/1500000019",
+        "authors": [
+          "Stephen Robertson",
+          "Hugo Zaragoza"
+        ],
+        "year": 2009,
+        "fetched_at": "2026-10-31T19:35:49.344677+00:00",
+        "provider": "Crossref REST API",
+        "metadata_url": "https://api.crossref.org/works/10.1561%2F1500000019",
+        "publisher_license_links": [],
+        "abstract_included": false,
+        "text_rights": "Bibliographic facts only; abstract/full-text reuse license not established."
+      }
+    },
+    {
+      "external_id": "doi:10.1561/1500000019#author:0",
+      "title": "Listed author: Stephen Robertson \u2014 The Probabilistic Relevance Framework: BM25 and Beyond",
+      "text": "Listed author: Stephen Robertson. Publication: The Probabilistic Relevance Framework: BM25 and Beyond. Publication year: 2009. DOI: 10.1561/1500000019. This is a publication authorship entry; researcher identity, current affiliation and contact details are unresolved.",
+      "origin": "https://doi.org/10.1561/1500000019",
+      "kind": "researcher",
+      "evidence_kind": "public",
+      "is_public": true,
+      "proposal_id": null,
+      "metadata": {
+        "doi": "10.1561/1500000019",
+        "authors": [
+          "Stephen Robertson",
+          "Hugo Zaragoza"
+        ],
+        "year": 2009,
+        "fetched_at": "2026-10-31T19:35:49.344677+00:00",
+        "provider": "Crossref REST API",
+        "metadata_url": "https://api.crossref.org/works/10.1561%2F1500000019",
+        "publisher_license_links": [],
+        "abstract_included": false,
+        "text_rights": "Bibliographic facts only; abstract/full-text reuse license not established.",
+        "author_name": "Stephen Robertson",
+        "author_position": 0,
+        "identity_status": "authorship_entry_unresolved",
+        "paper_external_id": "doi:10.1561/1500000019"
+      }
+    },
+    {
+      "external_id": "doi:10.1561/1500000019#author:1",
+      "title": "Listed author: Hugo Zaragoza \u2014 The Probabilistic Relevance Framework: BM25 and Beyond",
+      "text": "Listed author: Hugo Zaragoza. Publication: The Probabilistic Relevance Framework: BM25 and Beyond. Publication year: 2009. DOI: 10.1561/1500000019. This is a publication authorship entry; researcher identity, current affiliation and contact details are unresolved.",
+      "origin": "https://doi.org/10.1561/1500000019",
+      "kind": "researcher",
+      "evidence_kind": "public",
+      "is_public": true,
+      "proposal_id": null,
+      "metadata": {
+        "doi": "10.1561/1500000019",
+        "authors": [
+          "Stephen Robertson",
+          "Hugo Zaragoza"
+        ],
+        "year": 2009,
+        "fetched_at": "2026-10-31T19:35:49.344677+00:00",
+        "provider": "Crossref REST API",
+        "metadata_url": "https://api.crossref.org/works/10.1561%2F1500000019",
+        "publisher_license_links": [],
+        "abstract_included": false,
+        "text_rights": "Bibliographic facts only; abstract/full-text reuse license not established.",
+        "author_name": "Hugo Zaragoza",
+        "author_position": 1,
+        "identity_status": "authorship_entry_unresolved",
+        "paper_external_id": "doi:10.1561/1500000019"
+      }
+    }
+  ]
+}
