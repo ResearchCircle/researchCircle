@@ -11,6 +11,15 @@ export type DraftResult = { text: string; citations: Citation[]; base_revision: 
 export type DraftJob = { id: string; proposal_id: string; base_revision: number; source_refs: SourceRef[]; state: 'queued' | 'running' | 'succeeded' | 'failed'; output: DraftResult | null; error: { code: string; message: string; retryable?: boolean } | null; created_at: string; started_at: string | null; finished_at: string | null };
 export type SaveInput = { expected_revision: number; title: string; content: string; selected_source_ids: string[] };
 
+export type Eligibility = 'unknown' | 'eligible' | 'ineligible';
+export type PursuitState = 'draft' | 'shortlisted' | 'collaborating' | 'submitted';
+export type OutcomeState = 'won' | 'lost' | 'withdrawn';
+export type OpportunityInput = { team_id: string; title: string; source_url: string | null; deadline: string | null; deadline_timezone: string | null; notes: string; eligibility: Eligibility };
+export type Opportunity = OpportunityInput & { id: string; created_at: string };
+export type Pursuit = { id: string; proposal_id: string; opportunity_id: string | null; state: PursuitState | OutcomeState; updated_at: string; history: { id: string; from_state: string | null; to_state: string; user_id: string; recorded_at: string }[] };
+export type Outcome = { id: string; pursuit_id: string; outcome: OutcomeState; award_reference: string | null; recorded_at: string };
+export type OutcomeInput = { outcome: OutcomeState; idempotency_key: string; award_reference: string | null };
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public retryable = false) { super(message); this.name = 'ApiError'; }
 }
@@ -35,6 +44,12 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 }
 const post = <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 export const api = {
+  opportunities: () => request<{ items: Opportunity[] }>('/opportunities'),
+  createOpportunity: (body: OpportunityInput) => post<Opportunity>('/opportunities', body),
+  pursuit: (id: string) => request<{ pursuit: Pursuit | null }>(`/proposals/${id}/pursuit`),
+  updatePursuit: (id: string, body: { state: PursuitState; opportunity_id: string | null }) => request<{ pursuit: Pursuit }>(`/proposals/${id}/pursuit`, { method: 'PUT', body: JSON.stringify(body) }),
+  outcomes: (id: string) => request<{ items: Outcome[] }>(`/proposals/${id}/outcomes`),
+  recordOutcome: (id: string, body: OutcomeInput) => post<Outcome>(`/proposals/${id}/outcomes`, body),
   me: () => request<{ user: User }>('/auth/me'),
   authenticate: (mode: 'login' | 'register', body: { email: string; password: string; name?: string }) => post<{ user: User }>(`/auth/${mode}`, body),
   logout: () => post<void>('/auth/logout'),

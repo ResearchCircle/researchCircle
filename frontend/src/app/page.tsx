@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, type DraftJob, type Invitation, type Proposal, type SearchPage, type SourceSnapshot, type Team, type User } from '@/lib/api';
 import { appendSuggestion, canApplyDraft, hasEdits, safeOrigin } from '@/lib/editor';
+import PursuitPanel from '@/components/PursuitPanel';
 
 function Origin({ value }: { value: string }) {
   const href = safeOrigin(value);
@@ -162,6 +163,7 @@ export default function Workspace() {
           {!editable && <p className="muted">You have viewer access. Your team owner can invite you as an editor.</p>}
           {conflict && <section className="conflict" aria-labelledby="conflict-heading"><h2 id="conflict-heading">Review the newer revision</h2><p>Your edits remain in the editor. The server has revision {conflict.revision}.</p><details><summary>Compare saved text</summary><h3>{conflict.title}</h3><pre>{conflict.content || '(Empty proposal)'}</pre></details><div className="button-row"><button disabled={busy} onClick={() => void run(() => copy(`# ${title}\n\n${content}`))}>Copy my edits</button><button disabled={busy} onClick={() => { install(conflict); setNotice('Loaded the saved revision.'); }}>Discard mine and load saved</button><button disabled={busy} onClick={() => { setProposal(conflict); setConflict(null); setNotice('Your edits are kept. Reconcile them in the editor, then save against the latest revision.'); }}>Keep my edits for reconciliation</button></div></section>}
         </section> : <section className="workspace-empty"><span className="paper-symbol" aria-hidden="true">≡</span><h1>A place for your next research question.</h1><p>Create a team and proposal, then bring in evidence from discovery or your own source text.</p><p className="muted">Your changes are saved only when you choose Save changes.</p></section>}
+        {proposal && <PursuitPanel proposal={proposal} />}
         <section className="discovery" aria-labelledby="discovery-heading"><div className="section-heading"><div><h2 id="discovery-heading">Discover evidence</h2><p className="muted">Search the sample corpus for papers and researcher examples.</p></div><span className="tag">Sample corpus</span></div><form className="search-form" onSubmit={event => submit(event, async () => { setResults(await api.search(query)); })}><label className="grow">Research topic<input value={query} onChange={event => setQuery(event.target.value)} placeholder="Try retrieval, collaboration, or climate" required /></label><button className="primary" disabled={busy}>Search</button></form>
           {results?.degraded && <p className="alert warning">Search is running with limited evidence. Check the source and match reason before using a result.</p>}
           {results && !results.items.length && <p className="empty">No results for this query. Try a broader research topic.</p>}
