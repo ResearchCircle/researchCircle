@@ -1,0 +1,1 @@
+{"status": "passed", "database": "postgresql", "queued_admitted": 4, "queue_full_rejected": 4, "same_user_admitted": 1, "same_user_rejected": 7, "concurrent_save_statuses": [200, 409], "restart_interrupted": true, "snapshot_roundtrip": true, "evidence": "synthetic_development_records"}
