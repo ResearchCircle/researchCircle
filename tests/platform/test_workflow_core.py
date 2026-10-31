@@ -168,8 +168,6 @@ class WorkflowCoreTests(unittest.TestCase):
     def test_simultaneous_invitation_acceptance_is_idempotent(self):
         from concurrent.futures import ThreadPoolExecutor
         from threading import Barrier
-        from unittest.mock import patch
-        from sqlalchemy.orm import Session
 
         team, _ = self.proposal()
         owner_cookies = dict(self.client.cookies)
@@ -180,23 +178,16 @@ class WorkflowCoreTests(unittest.TestCase):
         self.client.cookies.update(owner_cookies)
         invited = self.client.post(f"/api/v2/teams/{team['id']}/invitations", json={
             'email': recipient['email'], 'role': 'editor'}).json()
-        # Synchronize real reads so both SQLite transactions observe no membership.
-        # The requests, inserts, constraints and commits all use the real database.
-        both_read = Barrier(2)
-        original_get = Session.get
-
-        def synchronized_get(session, entity, identity, *args, **kwargs):
-            row = original_get(session, entity, identity, *args, **kwargs)
-            if entity is Membership and row is None:
-                both_read.wait(timeout=5)
-            return row
+        # Start competing requests together; locking may serialize database reads.
+        start = Barrier(2)
 
         def accept_request():
             with TestClient(self.app) as client:
                 client.cookies.update(recipient_cookies)
+                start.wait(timeout=5)
                 return client.post('/api/v2/invitations/' + invited['id'] + '/accept')
 
-        with patch.object(Session, 'get', synchronized_get), ThreadPoolExecutor(max_workers=2) as executor:
+        with ThreadPoolExecutor(max_workers=2) as executor:
             responses = list(executor.map(lambda _: accept_request(), range(2)))
         self.assertEqual([response.status_code for response in responses], [200, 200],
                          [response.text for response in responses])

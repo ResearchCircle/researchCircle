@@ -16,6 +16,7 @@ from services.api.dependencies import SESSION_COOKIE, current_user, get_session,
 from src.platform.database.models import Invitation, LoginSession, Membership, Proposal, ProposalSource, Source, Team, User, utcnow
 from src.platform.workflow.accounts import authenticate, create_session, password_hasher
 from src.platform.workflow.errors import WorkflowError
+from src.platform.workflow.memberships import change_member, lock_team
 from src.platform.workflow.proposals import markdown_export, proposal_view, save_proposal, source_view
 
 router = APIRouter(prefix='/api/v2')
@@ -59,6 +60,10 @@ class TeamInput(Input):
         if not value.strip():
             raise ValueError('Team name is required')
         return value.strip()
+
+
+class MemberRoleInput(Input):
+    role: Literal['owner', 'editor', 'viewer']
 
 
 class InviteInput(Input):
@@ -169,21 +174,48 @@ def get_team(team_id: UUID, session: Session = Depends(get_session), user: User 
         {'id': member.id, 'name': member.name, 'email': member.email, 'role': member_role} for member, member_role in members]}
 
 
+@router.patch('/teams/{team_id}/members/{member_id}')
+def update_member(team_id: UUID, member_id: UUID, body: MemberRoleInput,
+                  session: Session = Depends(get_session), user: User = Depends(current_user)):
+    team_id = str(team_id)
+    lock_team(session, team_id)
+    team_role(session, user, team_id, owner=True)
+    membership = change_member(session, team_id, str(member_id), body.role)
+    member = session.get(User, str(member_id))
+    session.commit()
+    return {'id': member.id, 'email': member.email, 'name': member.name, 'role': membership.role}
+
+
+@router.delete('/teams/{team_id}/members/{member_id}', status_code=204)
+def remove_member(team_id: UUID, member_id: UUID,
+                  session: Session = Depends(get_session), user: User = Depends(current_user)):
+    team_id = str(team_id)
+    lock_team(session, team_id)
+    team_role(session, user, team_id, owner=True)
+    change_member(session, team_id, str(member_id), None)
+    session.commit()
+
+
 @router.post('/teams/{team_id}/invitations', status_code=201)
 def invite(team_id: UUID, body: InviteInput, session: Session = Depends(get_session), user: User = Depends(current_user)):
     team_id = str(team_id)
+    lock_team(session, team_id)
     team_role(session, user, team_id, owner=True)
     recipient = session.scalar(select(User).where(User.email == body.email.strip().lower()))
     if recipient is None:
         raise WorkflowError(404, 'user_not_found', 'Invite an existing registered user')
     if session.get(Membership, (team_id, recipient.id)):
         raise WorkflowError(409, 'already_member', 'This user is already a team member')
-    invitation = session.scalar(select(Invitation).where(Invitation.team_id == team_id, Invitation.user_id == recipient.id))
+    invitation = session.scalar(select(Invitation).where(Invitation.team_id == team_id, Invitation.user_id == recipient.id)
+                                .with_for_update())
     if invitation is None:
         invitation = Invitation(team_id=team_id, user_id=recipient.id, invited_by=user.id, role=body.role)
         session.add(invitation)
     else:
         invitation.role = body.role
+        invitation.invited_by = user.id
+        invitation.accepted_at = None
+        invitation.created_at = utcnow()
     session.commit()
     return {'id': invitation.id, 'team_id': team_id, 'role': invitation.role, 'email': recipient.email}
 
@@ -197,17 +229,25 @@ def invitations(session: Session = Depends(get_session), user: User = Depends(cu
 
 @router.post('/invitations/{invitation_id}/accept')
 def accept(invitation_id: UUID, session: Session = Depends(get_session), user: User = Depends(current_user)):
+    team_id = session.scalar(select(Invitation.team_id).where(
+        Invitation.id == str(invitation_id), Invitation.user_id == user.id))
+    if team_id is None:
+        raise WorkflowError(404, 'invitation_not_found', 'Invitation was not found')
+    lock_team(session, team_id)
     invitation = session.scalar(select(Invitation).where(
-        Invitation.id == str(invitation_id), Invitation.user_id == user.id).with_for_update())
+        Invitation.id == str(invitation_id), Invitation.user_id == user.id).with_for_update()
+        .execution_options(populate_existing=True))
     if invitation is None:
         raise WorkflowError(404, 'invitation_not_found', 'Invitation was not found')
-    if not session.get(Membership, (invitation.team_id, user.id)):
-        # PostgreSQL serializes acceptance on the invitation row. SQLite tests
-        # and a concurrent membership insert still require a targeted PK no-op.
-        insert = postgres_insert if session.get_bind().dialect.name == 'postgresql' else sqlite_insert
-        session.execute(insert(Membership).values(team_id=invitation.team_id, user_id=user.id, role=invitation.role)
-                        .on_conflict_do_nothing(index_elements=['team_id', 'user_id']))
-    if invitation.accepted_at is None:
+    membership = session.get(Membership, (team_id, user.id))
+    if invitation.accepted_at is not None:
+        if membership is None:
+            raise WorkflowError(409, 'invitation_already_used', 'This invitation was already accepted; ask an owner to invite you again')
+    else:
+        if membership is None:
+            insert = postgres_insert if session.get_bind().dialect.name == 'postgresql' else sqlite_insert
+            session.execute(insert(Membership).values(team_id=team_id, user_id=user.id, role=invitation.role)
+                            .on_conflict_do_nothing(index_elements=['team_id', 'user_id']))
         invitation.accepted_at = utcnow()
     session.commit()
     return {'team_id': invitation.team_id}
@@ -269,7 +309,7 @@ def create_source(proposal_id: UUID, body: SourceInput, session: Session = Depen
 def attach_source(proposal_id: UUID, body: AttachInput, session: Session = Depends(get_session), user: User = Depends(current_user)):
     proposal = require_proposal(session, user, str(proposal_id), edit=True)
     source = session.get(Source, str(body.source_id))
-    if source is None or not source.is_public:
+    if source is None or not source.is_public or source.proposal_id is not None:
         raise WorkflowError(404, 'source_not_found', 'Public source was not found')
     if not session.get(ProposalSource, (proposal.id, source.id)):
         session.add(ProposalSource(proposal_id=proposal.id, source_id=source.id))
