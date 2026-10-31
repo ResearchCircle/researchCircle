@@ -70,7 +70,7 @@ function TeamShortlist({ team, proposal, attachedSourceIds, refreshVersion, work
     {notice && <p className="success" role="status">{notice}</p>}
     {!loading && !error && !items.length && <p className="empty">No saved items yet. Search below and choose Shortlist to save evidence for this team.</p>}
     {!loading && items.map(item => <article className="shortlist-item" key={item.id}>
-      <div className="result-meta"><span className="tag">{sourceKindLabel(item.kind, item.evidence_kind)}</span><span className={`evidence ${item.evidence_kind === 'synthetic' ? 'synthetic' : ''}`}>{item.evidence_kind === 'synthetic' ? 'Synthetic sample' : 'Public evidence'}</span><small>Version {item.version}</small></div>
+      <div className="result-meta"><span className="tag">{sourceKindLabel(item.kind, item.evidence_kind, item.identity_status)}</span><span className={`evidence ${item.evidence_kind === 'synthetic' ? 'synthetic' : ''}`}>{item.evidence_kind === 'synthetic' ? 'Synthetic sample' : 'Public evidence'}</span><small>Version {item.version}</small></div>
       <h3>{item.title}</h3><p className="shortlist-snippet">{item.snippet}</p>
       <p className="muted shortlist-origin">{item.origin}</p>{safeOrigin(item.origin) && <a href={safeOrigin(item.origin)} target="_blank" rel="noopener noreferrer">View shortlist source</a>}
       <label className="shortlist-note">Note for {item.title}<textarea rows={2} value={noteDrafts[item.id] ?? item.note} maxLength={2000} disabled={!editable || disabled} onChange={event => onNoteChange(item.id, event.target.value, item.note)} /></label>

@@ -42,6 +42,9 @@ test('publication authorship evidence is labelled without claiming a resolved re
   assert.equal(sourceKindLabel('researcher', 'public'), 'Listed author');
   assert.equal(sourceKindLabel('researcher', 'synthetic'), 'Researcher example');
   assert.equal(sourceKindLabel('paper', 'public'), 'Paper');
+  assert.equal(sourceKindLabel('researcher', 'public', 'official_profile'), 'Researcher profile');
+  assert.equal(sourceKindLabel('researcher', 'public', 'authorship_entry_unresolved'), 'Listed author');
+  assert.equal(sourceKindLabel('researcher', 'synthetic', 'official_profile'), 'Researcher example');
 });
 
 test('shortlist persistence uses team-scoped paths, entry IDs for mutations, and source IDs for insertion', async () => {

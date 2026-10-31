@@ -35,6 +35,8 @@ def search_public(session, query: str, limit: int = 10) -> dict:
         items.append(dict(id=source.id, source_id=source.id, version=source.version, content_hash=source.content_hash,
                           title=source.title, snippet=source.text[start:start+280], origin=source.origin, text=source.text,
                           score=round(float(score), 6), reason='BM25 keyword match: ' + ', '.join(sorted(matched)) + '. Semantic retrieval unavailable.',
-                          kind=metadata.kind, evidence_kind=metadata.evidence_kind))
+                          kind=metadata.kind, evidence_kind=metadata.evidence_kind,
+                          **({'identity_status': metadata.metadata_json['identity_status']}
+                             if metadata.metadata_json.get('identity_status') else {})))
     items.sort(key=lambda row: (-row['score'], row['id']))
     return dict(items=items[:limit], degraded=True, next_cursor=None)

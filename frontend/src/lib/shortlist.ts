@@ -8,8 +8,10 @@ export function canAttachToProposal(teamId: string, proposal: Pick<Proposal, 'te
   return !!proposal && proposal.team_id === teamId && (proposal.role === 'owner' || proposal.role === 'editor');
 }
 
-export function sourceKindLabel(kind: 'paper' | 'researcher', evidence: 'public' | 'synthetic'): string {
-  return kind === 'researcher' ? evidence === 'synthetic' ? 'Researcher example' : 'Listed author' : 'Paper';
+export function sourceKindLabel(kind: 'paper' | 'researcher', evidence: 'public' | 'synthetic', identityStatus?: string): string {
+  if (kind === 'paper') return 'Paper';
+  if (evidence === 'synthetic') return 'Researcher example';
+  return identityStatus === 'official_profile' ? 'Researcher profile' : 'Listed author';
 }
 
 export type ShortlistDrafts = Record<string, Record<string, string>>;

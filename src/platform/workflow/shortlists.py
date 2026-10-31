@@ -27,7 +27,9 @@ def entry_view(entry: TeamShortlistEntry, source: Source, record: PublicRecord) 
     return {'id': entry.id, 'team_id': entry.team_id, 'source_id': source.id, 'version': source.version,
             'content_hash': source.content_hash, 'title': source.title, 'snippet': source.text[:280],
             'origin': source.origin, 'kind': record.kind, 'evidence_kind': record.evidence_kind,
-            'note': entry.note, 'created_at': created.astimezone(timezone.utc).isoformat(), 'created_by': entry.created_by}
+            'note': entry.note, 'created_at': created.astimezone(timezone.utc).isoformat(), 'created_by': entry.created_by,
+            **({'identity_status': record.metadata_json['identity_status']}
+               if record.metadata_json.get('identity_status') else {})}
 
 
 def list_entries(session: Session, team_id: str) -> list[dict]:

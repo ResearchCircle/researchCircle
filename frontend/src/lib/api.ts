@@ -4,14 +4,14 @@ export type Invitation = { id: string; team_id: string; team_name: string; role:
 export type SourceRef = { id: string; version: string; content_hash: string };
 export type SourceSnapshot = SourceRef & { title: string; origin: string; text: string; proposal_id: string | null; is_public: boolean };
 export type Proposal = { id: string; team_id: string; title: string; content: string; revision: number; role: Team['role']; selected_sources: SourceRef[]; updated_at: string };
-export type SearchResult = SourceRef & { source_id: string; title: string; snippet: string; origin: string; score: number; reason: string; kind: 'paper' | 'researcher'; evidence_kind: 'public' | 'synthetic'; text: string };
+export type SearchResult = SourceRef & { source_id: string; title: string; snippet: string; origin: string; score: number; reason: string; kind: 'paper' | 'researcher'; evidence_kind: 'public' | 'synthetic'; identity_status?: string; text: string };
 export type SearchPage = { items: SearchResult[]; degraded: boolean; next_cursor: string | null };
 export type Citation = { source_id: string; version: string; content_hash: string; title: string; origin: string; quote: string };
 export type DraftResult = { text: string; citations: Citation[]; base_revision: number; source_refs: SourceRef[]; model_id: string | null; insufficient_evidence: boolean; finish_reason: string };
 export type DraftJob = { id: string; proposal_id: string; base_revision: number; source_refs: SourceRef[]; state: 'queued' | 'running' | 'succeeded' | 'failed'; output: DraftResult | null; error: { code: string; message: string; retryable?: boolean } | null; created_at: string; started_at: string | null; finished_at: string | null };
 export type SaveInput = { expected_revision: number; title: string; content: string; selected_source_ids: string[] };
 
-export type ShortlistEntry = { id: string; team_id: string; source_id: string; version: string; content_hash: string; title: string; snippet: string; origin: string; kind: 'paper' | 'researcher'; evidence_kind: 'public' | 'synthetic'; note: string; created_at: string; created_by: string };
+export type ShortlistEntry = { id: string; team_id: string; source_id: string; version: string; content_hash: string; title: string; snippet: string; origin: string; kind: 'paper' | 'researcher'; evidence_kind: 'public' | 'synthetic'; identity_status?: string; note: string; created_at: string; created_by: string };
 
 export type Eligibility = 'unknown' | 'eligible' | 'ineligible';
 export type PursuitState = 'draft' | 'shortlisted' | 'collaborating' | 'submitted';
