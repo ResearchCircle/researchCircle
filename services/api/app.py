@@ -10,6 +10,7 @@ from services.api.routes.core import router as core_router
 from services.api.routes.jobs import router as jobs_router
 from services.api.routes.search import router as search_router
 from services.api.routes.pursuits import router as pursuits_router
+from services.api.routes.shortlists import router as shortlists_router
 from src.platform.database import Database
 from src.platform.workflow.draft_jobs import PersistedJobStore
 from src.platform.workflow.errors import WorkflowError
@@ -60,6 +61,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     application.include_router(jobs_router)
     application.include_router(search_router)
     application.include_router(pursuits_router)
+    application.include_router(shortlists_router)
     return application
 
 
