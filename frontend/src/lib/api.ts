@@ -74,7 +74,7 @@ export const api = {
   attach: (id: string, source_id: string) => post<SourceSnapshot>(`/proposals/${id}/sources/attach`, { source_id }),
   search: (q: string) => request<SearchPage>(`/search?q=${encodeURIComponent(q)}`),
   jobs: (id: string) => request<{ items: DraftJob[] }>(`/proposals/${id}/jobs`),
-  draft: (id: string, body: { section: string; instruction: string; source_ids: string[] }) => post<DraftJob>(`/proposals/${id}/jobs`, body),
+  draft: (id: string, body: { expected_revision: number; section: string; instruction: string; source_ids: string[] }) => post<DraftJob>(`/proposals/${id}/jobs`, body),
   job: (id: string) => request<DraftJob>(`/jobs/${id}`),
   cancel: (id: string) => post<DraftJob>(`/jobs/${id}/cancel`),
 };

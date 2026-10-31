@@ -20,8 +20,8 @@ const { hasEdits, canApplyDraft, appendSuggestion, safeOrigin } = loadTypeScript
 const { api, ApiError } = loadTypeScript('../src/lib/api.ts');
 const originalFetch = global.fetch;
 afterEach(() => { global.fetch = originalFetch; });
-const proposal = { id: 'proposal-a', revision: 4, title: 'Research', content: 'Current text', selected_sources: [{ id: 'source-a' }, { id: 'source-b' }] };
-const job = { proposal_id: 'proposal-a', base_revision: 4, state: 'succeeded', output: { base_revision: 4, text: 'Suggested text' } };
+const proposal = { id: 'proposal-a', revision: 4, title: 'Research', content: 'Current text', selected_sources: [{ id: 'source-a', version: 'v1', content_hash: 'hash-a' }, { id: 'source-b', version: 'v1', content_hash: 'hash-b' }] };
+const job = { proposal_id: 'proposal-a', base_revision: 4, source_refs: proposal.selected_sources, state: 'succeeded', output: { base_revision: 4, source_refs: proposal.selected_sources, text: 'Suggested text' } };
 
 test('draft acceptance rejects stale, unsaved, failed, or unrelated suggestions', () => {
   assert.equal(canApplyDraft(job, proposal, false), true);
@@ -84,9 +84,10 @@ test('search encodes query and submits real selected source IDs for draft jobs',
   const calls = [];
   global.fetch = async (url, options) => { calls.push([url, options]); return new Response(JSON.stringify({ items: [] })); };
   await api.search('climate & energy');
-  await api.draft('proposal-a', { section: 'Approach', instruction: 'Compare', source_ids: ['source-a'] });
+  await api.draft('proposal-a', { expected_revision: 4, section: 'Approach', instruction: 'Compare', source_ids: ['source-a'] });
   assert.equal(calls[0][0], '/api/v2/search?q=climate%20%26%20energy');
   assert.deepEqual(JSON.parse(calls[1][1].body).source_ids, ['source-a']);
+  assert.equal(JSON.parse(calls[1][1].body).expected_revision, 4);
 });
 
 
@@ -95,4 +96,19 @@ test('export downloads saved Markdown and surfaces server failure', async () => 
   assert.equal(await (await api.exportMarkdown('proposal-a')).text(), '# Saved research\n');
   global.fetch = async () => new Response(JSON.stringify({ error: { code: 'forbidden', message: 'Membership required' } }), { status: 403 });
   await assert.rejects(api.exportMarkdown('proposal-a'), error => error.status === 403 && error.message === 'Membership required');
+});
+
+
+test('draft acceptance checks exact source identities, versions, and hashes at the same revision', () => {
+  const changedVersion = [{ ...proposal.selected_sources[0], version: 'v2' }, proposal.selected_sources[1]];
+  const changedHash = [{ ...proposal.selected_sources[0], content_hash: 'changed-hash' }, proposal.selected_sources[1]];
+  const changedIdentity = [{ ...proposal.selected_sources[0], id: 'different-source' }, proposal.selected_sources[1]];
+  assert.equal(canApplyDraft({ ...job, source_refs: [...job.source_refs].reverse() }, proposal, false), true);
+  for (const refs of [changedVersion, changedHash, changedIdentity, proposal.selected_sources.slice(0, 1)]) {
+    assert.equal(canApplyDraft({ ...job, source_refs: refs }, proposal, false), false);
+    assert.equal(canApplyDraft({ ...job, output: { ...job.output, source_refs: refs } }, proposal, false), false);
+    assert.equal(canApplyDraft(job, { ...proposal, selected_sources: refs }, false), false);
+  }
+  assert.equal(canApplyDraft({ ...job, source_refs: undefined }, proposal, false), false);
+  assert.equal(canApplyDraft({ ...job, source_refs: [job.source_refs[0], job.source_refs[0]] }, proposal, false), false);
 });
