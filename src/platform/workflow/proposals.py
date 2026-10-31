@@ -1,4 +1,5 @@
 from datetime import timezone
+import re
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -49,11 +50,19 @@ def save_proposal(session: Session, proposal: Proposal, expected_revision: int, 
 
 
 def markdown_export(session: Session, proposal: Proposal) -> str:
-    sources = session.scalars(select(Source).join(ProposalSource, Source.id == ProposalSource.source_id).where(
-        ProposalSource.proposal_id == proposal.id, Source.id.in_(proposal.selected_source_ids))).all()
+    # Draft selection can change after text is accepted. Keep the bibliography
+    # for inline citations, but resolve every reference through this proposal.
+    cited_ids = re.findall(r'\[([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})\]', proposal.content)
+    source_ids = list(dict.fromkeys([*proposal.selected_source_ids, *cited_ids]))
+    sources = {source.id: source for source in session.scalars(select(Source).join(
+        ProposalSource, Source.id == ProposalSource.source_id).where(
+            ProposalSource.proposal_id == proposal.id, Source.id.in_(source_ids)))}
     result = f'# {proposal.title}\n\n{proposal.content}\n'
     if sources:
         result += '\n## Sources\n\n'
-        for source in sources:
+        for source_id in source_ids:
+            if source_id not in sources:
+                continue
+            source = sources[source_id]
             result += f'- [{source.id}] {source.title} — {source.origin} (version {source.version}, SHA-256 {source.content_hash})\n'
     return result
