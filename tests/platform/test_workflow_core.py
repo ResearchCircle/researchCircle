@@ -287,7 +287,8 @@ class WorkflowCoreTests(unittest.TestCase):
             config.attributes['connection'] = connection
             command.upgrade(config, 'head')
         expected = {'users', 'login_sessions', 'teams', 'memberships', 'invitations',
-                    'proposals', 'sources', 'proposal_sources', 'draft_jobs', 'alembic_version'}
+                    'proposals', 'sources', 'proposal_sources', 'draft_jobs', 'alembic_version',
+                    'opportunities', 'pursuits', 'pursuit_history', 'outcomes'}
         self.assertEqual(set(inspect(database.engine).get_table_names()), expected)
         with database.session_factory() as session:
             user = User(email='migration@example.test', name='Migration', password_hash='test-only-hash')
@@ -297,7 +298,7 @@ class WorkflowCoreTests(unittest.TestCase):
         with database.engine.begin() as connection:
             config.attributes['connection'] = connection
             command.upgrade(config, 'head')
-            self.assertEqual(connection.scalar(text('SELECT version_num FROM alembic_version')), '0001_workflow_core')
+            self.assertEqual(connection.scalar(text('SELECT version_num FROM alembic_version')), '0002_pursuits')
             command.check(config)
         with database.session_factory() as session:
             self.assertEqual(session.get(User, user_id).email, 'migration@example.test')
