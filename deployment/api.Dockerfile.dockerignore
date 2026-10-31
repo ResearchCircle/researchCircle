@@ -1,0 +1,16 @@
+**
+!pyproject.toml
+!src/
+!src/**
+!services/
+!services/**
+!packages/
+!packages/contracts/
+!packages/contracts/**
+!deployment/
+!deployment/**
+**/__pycache__
+**/*.pyc
+**/.env
+**/.env.*
+**/*evidence*.json

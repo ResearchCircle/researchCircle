@@ -1,0 +1,67 @@
+name: tbr-v2
+services:
+  proxy:
+    image: nginx:stable-alpine
+    ports:
+      - "127.0.0.1:${TBR_HTTP_PORT:-8080}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
+  api:
+    image: ${TBR_API_IMAGE:?Supply the application image built with T2 runtime dependencies}
+    command: ["python", "-m", "uvicorn", "services.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: &backend_environment
+      TBR_PROFILE: demo
+      TBR_MODEL_PROVIDER: local
+      TBR_MODEL_BASE_URL: ${TBR_MODEL_BASE_URL:?Supply the reachable private Orin endpoint}
+      TBR_MODEL_ID: ${TBR_MODEL_ID:?Supply the observed served model identifier}
+      TBR_DEV_IDENTITY: "false"
+      TBR_DATA_WORK: /var/lib/tbr-work
+      TBR_DB_HOST: db
+      TBR_DB_PORT: "5432"
+      TBR_DB_NAME: tbr
+      TBR_DB_USER: tbr
+      TBR_DB_PASSWORD: ${TBR_DB_PASSWORD:?Set a local uncommitted database password}
+    volumes:
+      - runtime-work:/var/lib/tbr-work
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+  worker:
+    image: ${TBR_API_IMAGE:?Supply the application image built with T2 runtime dependencies}
+    command: ["python", "-m", "${TBR_WORKER_MODULE:?Supply the real persisted-job worker module}"]
+    environment: *backend_environment
+    volumes:
+      - runtime-work:/var/lib/tbr-work
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 130s
+  web:
+    image: ${TBR_WEB_IMAGE:?Supply the Next.js image built from the checked-in frontend lock}
+    command: ["npm", "run", "start", "--", "--hostname", "0.0.0.0"]
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tbr
+      POSTGRES_USER: tbr
+      POSTGRES_PASSWORD: ${TBR_DB_PASSWORD:?Set a local uncommitted database password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tbr -d tbr"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+volumes:
+  postgres-data:
+  runtime-work:
