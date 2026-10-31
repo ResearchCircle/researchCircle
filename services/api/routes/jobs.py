@@ -17,6 +17,7 @@ router = APIRouter(prefix='/api/v2')
 
 class JobInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
+    expected_revision: int = Field(ge=1)
     section: str = Field(min_length=1, max_length=200)
     instruction: str = Field(min_length=1, max_length=8000)
     source_ids: list[UUID] = Field(default_factory=list, max_length=100)
@@ -34,11 +35,15 @@ def _visible_job(request, session, user, job_id, edit=False):
 def submit(proposal_id: UUID, body: JobInput, request: Request,
            session: Session = Depends(get_session), user: User = Depends(current_user)):
     proposal = require_proposal(session, user, str(proposal_id), edit=True)
+    if proposal.revision != body.expected_revision:
+        raise WorkflowError(409, 'revision_conflict', 'The proposal changed; reload before requesting a draft')
     if not body.section.strip() or not body.instruction.strip():
         raise WorkflowError(422, 'invalid_draft_request', 'Section and instruction are required')
     ids = [str(value) for value in body.source_ids]
     if len(ids) != len(set(ids)):
         raise WorkflowError(422, 'invalid_sources', 'Select each source once')
+    if set(ids) != set(proposal.selected_source_ids):
+        raise WorkflowError(409, 'source_selection_changed', 'Save the selected sources before requesting a draft')
     attached = {source.id: source for source in session.scalars(select(Source).join(ProposalSource).where(
         ProposalSource.proposal_id == proposal.id, Source.id.in_(ids)))}
     if len(attached) != len(ids):
@@ -51,7 +56,7 @@ def submit(proposal_id: UUID, body: JobInput, request: Request,
         snapshots.append(SourceSnapshot(**{key: getattr(source, key) for key in
                                           ('id', 'version', 'content_hash', 'title', 'origin', 'text', 'proposal_id', 'is_public')}))
     refs = tuple(SourceRef(source.id, source.version, source.content_hash) for source in snapshots)
-    captured = DraftRequest(proposal.id, proposal.revision, body.section.strip(), body.instruction.strip(), refs)
+    captured = DraftRequest(proposal.id, body.expected_revision, body.section.strip(), body.instruction.strip(), refs)
     try:
         job = request.app.state.jobs.enqueue(user.id, captured, tuple(snapshots))
     except JobError as error:

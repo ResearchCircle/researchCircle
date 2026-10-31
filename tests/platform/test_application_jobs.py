@@ -37,8 +37,12 @@ class ApplicationJobTests(unittest.TestCase):
         sample = self.client.get('/api/v2/search?q=sensor').json()['items'][0]
         attached = self.client.post(f"/api/v2/proposals/{self.proposal['id']}/sources/attach", json={'source_id': sample['source_id']})
         self.assertEqual(attached.status_code, 201)
+        saved = self.client.patch(f"/api/v2/proposals/{self.proposal['id']}", json={
+            'expected_revision': self.proposal['revision'], 'selected_source_ids': [sample['source_id']]})
+        self.assertEqual(saved.status_code, 200, saved.text)
         job = self.client.post(f"/api/v2/proposals/{self.proposal['id']}/jobs", json={
-            'section': 'Methods', 'instruction': 'Describe sensor evidence.', 'source_ids': [sample['source_id']]})
+            'expected_revision': saved.json()['revision'], 'section': 'Methods',
+            'instruction': 'Describe sensor evidence.', 'source_ids': [sample['source_id']]})
         self.assertEqual(job.status_code, 202, job.text)
         job = job.json()
         worker = GenerationWorker(self.app.state.jobs, DraftingService(ExtractiveFixtureProvider(), FixtureTokenCounter()),
@@ -64,13 +68,14 @@ class ApplicationJobTests(unittest.TestCase):
         finally:
             worker.close(wait=True)
 
-    def test_unattached_sources_and_other_team_job_reads_are_rejected(self):
+    def test_unsaved_sources_and_other_team_job_reads_are_rejected(self):
         sample = self.client.get('/api/v2/search?q=sensor').json()['items'][0]
         rejected = self.client.post(f"/api/v2/proposals/{self.proposal['id']}/jobs", json={
-            'section': 'Methods', 'instruction': 'Describe evidence.', 'source_ids': [sample['source_id']]})
-        self.assertEqual(rejected.status_code, 404)
+            'expected_revision': 1, 'section': 'Methods', 'instruction': 'Describe evidence.', 'source_ids': [sample['source_id']]})
+        self.assertEqual(rejected.status_code, 409)
+        self.assertEqual(rejected.json()['error']['code'], 'source_selection_changed')
         queued = self.client.post(f"/api/v2/proposals/{self.proposal['id']}/jobs", json={
-            'section': 'Methods', 'instruction': 'Describe evidence.', 'source_ids': []}).json()
+            'expected_revision': 1, 'section': 'Methods', 'instruction': 'Describe evidence.', 'source_ids': []}).json()
         with TestClient(self.app) as other:
             other.post('/api/v2/auth/register', json={'email': 'other@example.test', 'name': 'Other', 'password': 'long-fixture-password'})
             self.assertEqual(other.get('/api/v2/jobs/' + queued['id']).status_code, 403)
