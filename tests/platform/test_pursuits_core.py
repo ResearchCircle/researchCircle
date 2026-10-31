@@ -226,7 +226,7 @@ class PursuitsCoreTests(unittest.TestCase):
             command.upgrade(config, 'head')
             command.upgrade(config, 'head')
             command.check(config)
-            self.assertEqual(connection.scalar(text('SELECT version_num FROM alembic_version')), '0002_pursuits')
+            self.assertEqual(connection.scalar(text('SELECT version_num FROM alembic_version')), '0004_team_shortlist')
         with database.session_factory() as session:
             self.assertEqual(session.get(Proposal, proposal_id).content, 'Preserved text')
             self.assertEqual(session.get(Proposal, proposal_id).revision, 1)

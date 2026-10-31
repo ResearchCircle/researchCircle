@@ -4,6 +4,8 @@ from sqlalchemy import create_engine
 
 from src.platform.database import database_url_from_env
 from src.platform.database.models import Base
+from src.platform.database.public_records import PublicRecord
+from src.platform.database.shortlists import TeamShortlistEntry
 from src.platform.database.pursuits import Opportunity, Outcome, Pursuit, PursuitHistory  # noqa: F401
 from src.platform.workflow.draft_jobs import DraftJobRecord  # noqa: F401
 
