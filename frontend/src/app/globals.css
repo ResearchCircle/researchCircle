@@ -163,3 +163,12 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 350px; overflo
 .tracking-history ol { padding-left: 20px; font-size: 12px; }
 .tracking-history li { margin: 10px 0; }
 @media (max-width: 720px) { .tracking-fields { grid-template-columns: 1fr; } .pursuit-panel .section-heading { flex-wrap: wrap; } }
+
+.shortlist-item { border-top: 1px solid var(--line); padding: 19px 0 2px; margin-top: 17px; }
+.shortlist-item .result-meta { flex-wrap: wrap; }
+.shortlist-snippet { margin-top: 7px; font-size: 13px; color: #445c70; }
+.shortlist-origin { overflow-wrap: anywhere; margin: 8px 0; }
+.shortlist-note { margin-top: 15px; }
+.shortlist-panel > .muted { margin-top: 12px; }
+.result-actions > .button-row { margin: 0; justify-content: flex-end; }
+@media (max-width: 720px) { .result-actions { align-items: flex-start; flex-wrap: wrap; } }

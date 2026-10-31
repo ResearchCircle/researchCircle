@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, ApiError, type DraftJob, type Invitation, type Proposal, type SearchPage, type SourceSnapshot, type Team, type User } from '@/lib/api';
 import { appendSuggestion, canApplyDraft, hasEdits, safeOrigin } from '@/lib/editor';
 import PursuitPanel from '@/components/PursuitPanel';
+import ShortlistPanel from '@/components/ShortlistPanel';
+import { canChangeTeam, canAttachToProposal, sourceKindLabel, editShortlistDraft, acknowledgeShortlistDraft, type ShortlistDrafts } from '@/lib/shortlist';
 
 function Origin({ value }: { value: string }) {
   const href = safeOrigin(value);
@@ -45,10 +47,22 @@ export default function Workspace() {
   const [section, setSection] = useState('Research approach');
   const [instruction, setInstruction] = useState('');
   const [pollError, setPollError] = useState('');
+  const [shortlistVersion, setShortlistVersion] = useState(0);
+  const [shortlistDrafts, setShortlistDrafts] = useState<ShortlistDrafts>({});
+  const shortlistDirty = Object.values(shortlistDrafts).some(notes => Object.keys(notes).length > 0);
   const dirty = !!proposal && hasEdits(proposal, title, content, selected);
   const editable = proposal?.role !== 'viewer';
   const job = jobs.find(item => item.id === jobId) ?? jobs[0];
   const opening = useRef(0);
+  const selectedTeam = teams.find(team => team.id === teamId);
+
+  const clearEditor = useCallback(() => {
+    ++opening.current;
+    setProposal(null); setTitle(''); setContent(''); setSelected([]);
+    setSources([]); setJobs([]); setJobId(''); setConflict(null); setPollError('');
+    setSourceTitle(''); setSourceText(''); setSourceOrigin('');
+    setSection('Research approach'); setInstruction(''); setNewTitle(''); setInviteEmail('');
+  }, []);
 
   const refreshLists = useCallback(async () => {
     const [teamList, proposalList, inbox] = await Promise.all([api.teams(), api.proposals(), api.invitations()]);
@@ -65,11 +79,11 @@ export default function Workspace() {
   }, []);
   useEffect(() => { if (user) refreshLists().catch(err => setError(message(err))); }, [user, refreshLists]);
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty && !shortlistDirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
+  }, [dirty, shortlistDirty]);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true); setError(''); setNotice('');
@@ -86,7 +100,14 @@ export default function Workspace() {
     if (requestId !== opening.current) return;
     install(next); setSources(sourceList.items); setJobs(jobList.items); setJobId(jobList.items[0]?.id ?? ''); setPollError('');
   };
-  const guardEdits = () => !dirty || window.confirm('Discard unsaved changes and continue? Copy your text first if you want to keep it.');
+  const confirmDiscard = () => window.confirm('Discard unsaved changes and continue? Copy your text first if you want to keep it.');
+  const guardEdits = () => !dirty || confirmDiscard();
+  const activateTeam = (nextTeamId: string) => {
+    if (nextTeamId !== teamId) { clearEditor(); setTeamId(nextTeamId); setError(''); setNotice(''); }
+  };
+  const changeTeam = (nextTeamId: string) => {
+    if (canChangeTeam(teamId, nextTeamId, dirty, confirmDiscard)) activateTeam(nextTeamId);
+  };
   const save = async (nextContent = content) => {
     if (!proposal) return;
     try {
@@ -139,16 +160,16 @@ export default function Workspace() {
   </main>;
 
   return <div className="workspace">
-    <header className="topbar"><a className="brand" href="#main"><span className="brand-mark small">trb</span><span>Tiger Research Buddy<small>Research workspace</small></span></a><div className="account"><span>{user.name}<small>{user.email}</small></span><button disabled={busy} onClick={() => { if (guardEdits()) void run(async () => { await api.logout(); setUser(null); setProposal(null); setTeams([]); setProposals([]); setInvitations([]); setSources([]); setJobs([]); setResults(null); setConflict(null); setTitle(''); setContent(''); setSelected([]); setSourceTitle(''); setSourceText(''); setSourceOrigin(''); setInstruction(''); setQuery(''); setInviteEmail(''); setNewTitle(''); setTeamName(''); setNotice(''); }); }}>Sign out</button></div></header>
+    <header className="topbar"><a className="brand" href="#main"><span className="brand-mark small">trb</span><span>Tiger Research Buddy<small>Research workspace</small></span></a><div className="account"><span>{user.name}<small>{user.email}</small></span><button disabled={busy} onClick={() => { if ((!dirty && !shortlistDirty) || confirmDiscard()) void run(async () => { await api.logout(); setShortlistDrafts({}); clearEditor(); setTeamId(''); setUser(null); setProposal(null); setTeams([]); setProposals([]); setInvitations([]); setSources([]); setJobs([]); setResults(null); setConflict(null); setTitle(''); setContent(''); setSelected([]); setSourceTitle(''); setSourceText(''); setSourceOrigin(''); setInstruction(''); setQuery(''); setInviteEmail(''); setNewTitle(''); setTeamName(''); setNotice(''); }); }}>Sign out</button></div></header>
     <div className="feedback" aria-live="polite">{busy && <span role="status">Working…</span>}{notice && <span className="success" role="status">{notice}</span>}{error && <div className="alert error" role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError('')}>×</button></div>}</div>
     <div className="workspace-grid">
       <aside className="navigation" aria-label="Teams and proposals">
         <div className="section-heading"><h2>Your workspace</h2><button className="text-button" disabled={busy} onClick={() => void run(refreshLists)}>Refresh</button></div>
-        <label>Team<select value={teamId} disabled={busy} onChange={event => setTeamId(event.target.value)}><option value="" disabled>Choose a team</option>{teams.map(team => <option key={team.id} value={team.id}>{team.name} ({team.role})</option>)}</select></label>
+        <label>Team<select value={teamId} disabled={busy} onChange={event => changeTeam(event.target.value)}><option value="" disabled>Choose a team</option>{teams.map(team => <option key={team.id} value={team.id}>{team.name} ({team.role})</option>)}</select></label>
         {!teams.length && <p className="empty">Create a team to start a proposal, or accept an invitation.</p>}
-        <details><summary>Create a team</summary><form onSubmit={event => submit(event, async () => { const team = await api.createTeam(teamName); setTeamName(''); await refreshLists(); setTeamId(team.id); setNotice('Team created.'); })}><label>Team name<input value={teamName} onChange={event => setTeamName(event.target.value)} required maxLength={160} /></label><button disabled={busy}>Create team</button></form></details>
+        <details><summary>Create a team</summary><form onSubmit={event => { event.preventDefault(); if (guardEdits()) void run(async () => { const team = await api.createTeam(teamName); setTeamName(''); await refreshLists(); activateTeam(team.id); setNotice('Team created.'); }); }}><label>Team name<input value={teamName} onChange={event => setTeamName(event.target.value)} required maxLength={160} /></label><button disabled={busy}>Create team</button></form></details>
         {teams.find(team => team.id === teamId)?.role === 'owner' && <details><summary>Invite a teammate</summary><form onSubmit={event => submit(event, async () => { await api.invite(teamId, inviteEmail, inviteRole); setInviteEmail(''); setNotice('Invitation sent. Your teammate can accept it in their workspace.'); })}><p className="muted">Invite an existing account by email.</p><label>Teammate email<input type="email" value={inviteEmail} onChange={event => setInviteEmail(event.target.value)} required /></label><label>Access<select value={inviteRole} onChange={event => setInviteRole(event.target.value as 'editor' | 'viewer')}><option value="editor">Editor</option><option value="viewer">Viewer</option></select></label><button disabled={busy}>Send invitation</button></form></details>}
-        {invitations.length > 0 && <section className="inbox"><h3>Invitations</h3>{invitations.map(invite => <div key={invite.id}><p>{invite.team_name}<small>{invite.role} access</small></p><button disabled={busy} onClick={() => void run(async () => { const accepted = await api.accept(invite.id); await refreshLists(); setTeamId(accepted.team_id); setNotice('Invitation accepted.'); })}>Accept</button></div>)}</section>}
+        {invitations.length > 0 && <section className="inbox"><h3>Invitations</h3>{invitations.map(invite => <div key={invite.id}><p>{invite.team_name}<small>{invite.role} access</small></p><button disabled={busy} onClick={() => { if (canChangeTeam(teamId, invite.team_id, dirty, confirmDiscard)) void run(async () => { const accepted = await api.accept(invite.id); await refreshLists(); activateTeam(accepted.team_id); setNotice('Invitation accepted.'); }); }}>Accept</button></div>)}</section>}
         <div className="nav-divider" />
         <h2>Proposals</h2><p className="muted">Saved work in your selected team.</p>
         <nav aria-label="Saved proposals">{proposals.filter(item => item.team_id === teamId).map(item => <button className={`proposal-link ${item.id === proposal?.id ? 'active' : ''}`} aria-current={item.id === proposal?.id ? 'page' : undefined} disabled={busy} key={item.id} onClick={() => { if (guardEdits()) void run(() => openProposal(item.id)); }}><span>{item.title}</span><small>Revision {item.revision}</small></button>)}</nav>
@@ -164,10 +185,11 @@ export default function Workspace() {
           {conflict && <section className="conflict" aria-labelledby="conflict-heading"><h2 id="conflict-heading">Review the newer revision</h2><p>Your edits remain in the editor. The server has revision {conflict.revision}.</p><details><summary>Compare saved text</summary><h3>{conflict.title}</h3><pre>{conflict.content || '(Empty proposal)'}</pre></details><div className="button-row"><button disabled={busy} onClick={() => void run(() => copy(`# ${title}\n\n${content}`))}>Copy my edits</button><button disabled={busy} onClick={() => { install(conflict); setNotice('Loaded the saved revision.'); }}>Discard mine and load saved</button><button disabled={busy} onClick={() => { setProposal(conflict); setConflict(null); setNotice('Your edits are kept. Reconcile them in the editor, then save against the latest revision.'); }}>Keep my edits for reconciliation</button></div></section>}
         </section> : <section className="workspace-empty"><span className="paper-symbol" aria-hidden="true">≡</span><h1>A place for your next research question.</h1><p>Create a team and proposal, then bring in evidence from discovery or your own source text.</p><p className="muted">Your changes are saved only when you choose Save changes.</p></section>}
         {proposal && <PursuitPanel proposal={proposal} />}
-        <section className="discovery" aria-labelledby="discovery-heading"><div className="section-heading"><div><h2 id="discovery-heading">Discover evidence</h2><p className="muted">Search the sample corpus for papers and researcher examples.</p></div><span className="tag">Sample corpus</span></div><form className="search-form" onSubmit={event => submit(event, async () => { setResults(await api.search(query)); })}><label className="grow">Research topic<input value={query} onChange={event => setQuery(event.target.value)} placeholder="Try retrieval, collaboration, or climate" required /></label><button className="primary" disabled={busy}>Search</button></form>
+        {selectedTeam && <ShortlistPanel team={selectedTeam} proposal={proposal} attachedSourceIds={sources.map(source => source.id)} refreshVersion={shortlistVersion} workspaceBusy={busy} noteDrafts={shortlistDrafts[teamId] ?? {}} onNoteChange={(entryId, value, savedNote) => setShortlistDrafts(previous => editShortlistDraft(previous, teamId, entryId, value, savedNote))} onNoteSaved={(entryId, savedNote) => setShortlistDrafts(previous => acknowledgeShortlistDraft(previous, teamId, entryId, savedNote))} onRemove={entryId => setShortlistDrafts(previous => { const notes = { ...previous[teamId] }; delete notes[entryId]; return { ...previous, [teamId]: notes }; })} onAttach={sourceId => run(async () => { if (!proposal || !canAttachToProposal(teamId, proposal)) return; const source = await api.attach(proposal.id, sourceId); setSources(previous => [...previous.filter(item => item.id !== source.id), source]); setNotice('Saved source attached to the open proposal.'); })} />}
+        <section className="discovery" aria-labelledby="discovery-heading"><div className="section-heading"><div><h2 id="discovery-heading">Discover evidence</h2><p className="muted">Search public papers, listed authors, and clearly marked researcher examples.</p></div><span className="tag">Public and sample corpus</span></div><form className="search-form" onSubmit={event => submit(event, async () => { setResults(await api.search(query)); })}><label className="grow">Research topic<input value={query} onChange={event => setQuery(event.target.value)} placeholder="Try retrieval, collaboration, or climate" required /></label><button className="primary" disabled={busy}>Search</button></form>
           {results?.degraded && <p className="alert warning">Search is running with limited evidence. Check the source and match reason before using a result.</p>}
           {results && !results.items.length && <p className="empty">No results for this query. Try a broader research topic.</p>}
-          <div className="search-results">{results?.items.map(result => <article className="search-result" key={result.id}><div className="result-meta"><span className="tag">{result.kind === 'researcher' ? 'Researcher example' : 'Paper'}</span><span className={`evidence ${result.evidence_kind === 'synthetic' ? 'synthetic' : ''}`}>{result.evidence_kind === 'synthetic' ? 'Synthetic sample' : 'Public evidence'}</span></div><h3>{result.title}</h3><p>{result.snippet}</p><p className="match-reason">{result.reason}</p><div className="result-actions"><Origin value={result.origin} /><button disabled={busy || !proposal || !editable || sources.some(source => source.id === result.source_id)} onClick={() => void run(async () => { if (!proposal) return; const source = await api.attach(proposal.id, result.source_id); setSources(previous => [...previous.filter(item => item.id !== source.id), source]); setNotice('Source attached. Select it in Evidence to include it in a draft.'); })}>{sources.some(source => source.id === result.source_id) ? 'Attached' : 'Attach to proposal'}</button></div></article>)}</div>
+          <div className="search-results">{results?.items.map(result => <article className="search-result" key={result.id}><div className="result-meta"><span className="tag">{sourceKindLabel(result.kind, result.evidence_kind)}</span><span className={`evidence ${result.evidence_kind === 'synthetic' ? 'synthetic' : ''}`}>{result.evidence_kind === 'synthetic' ? 'Synthetic sample' : 'Public evidence'}</span></div><h3>{result.title}</h3><p>{result.snippet}</p><p className="match-reason">{result.reason}</p><div className="result-actions"><Origin value={result.origin} /><div className="button-row"><button disabled={busy || !selectedTeam || selectedTeam.role === 'viewer'} onClick={() => void run(async () => { await api.addShortlist(teamId, result.source_id); setShortlistVersion(previous => previous + 1); setNotice('Saved to the team shortlist.'); })}>Shortlist</button><button disabled={busy || !canAttachToProposal(teamId, proposal) || sources.some(source => source.id === result.source_id)} onClick={() => void run(async () => { if (!proposal) return; const source = await api.attach(proposal.id, result.source_id); setSources(previous => [...previous.filter(item => item.id !== source.id), source]); setNotice('Source attached. Select it in Evidence to include it in a draft.'); })}>{sources.some(source => source.id === result.source_id) ? 'Attached' : 'Attach to proposal'}</button></div></div></article>)}</div>
         </section>
       </main>
       <aside className="evidence-column" aria-label="Proposal evidence and draft suggestions"><section><div className="section-heading"><h2>Evidence</h2><span className="count">{sources.length}</span></div><p className="muted">Attach sources, then select the evidence your draft should use.</p>

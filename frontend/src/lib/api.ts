@@ -11,6 +11,8 @@ export type DraftResult = { text: string; citations: Citation[]; base_revision: 
 export type DraftJob = { id: string; proposal_id: string; base_revision: number; source_refs: SourceRef[]; state: 'queued' | 'running' | 'succeeded' | 'failed'; output: DraftResult | null; error: { code: string; message: string; retryable?: boolean } | null; created_at: string; started_at: string | null; finished_at: string | null };
 export type SaveInput = { expected_revision: number; title: string; content: string; selected_source_ids: string[] };
 
+export type ShortlistEntry = { id: string; team_id: string; source_id: string; version: string; content_hash: string; title: string; snippet: string; origin: string; kind: 'paper' | 'researcher'; evidence_kind: 'public' | 'synthetic'; note: string; created_at: string; created_by: string };
+
 export type Eligibility = 'unknown' | 'eligible' | 'ineligible';
 export type PursuitState = 'draft' | 'shortlisted' | 'collaborating' | 'submitted';
 export type OutcomeState = 'won' | 'lost' | 'withdrawn';
@@ -44,6 +46,10 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 }
 const post = <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 export const api = {
+  shortlist: (teamId: string) => request<{ items: ShortlistEntry[] }>(`/teams/${teamId}/shortlist`),
+  addShortlist: (teamId: string, sourceId: string, note?: string) => post<ShortlistEntry>(`/teams/${teamId}/shortlist`, { source_id: sourceId, ...(note === undefined ? {} : { note }) }),
+  updateShortlist: (teamId: string, entryId: string, note: string) => request<ShortlistEntry>(`/teams/${teamId}/shortlist/${entryId}`, { method: 'PATCH', body: JSON.stringify({ note }) }),
+  removeShortlist: (teamId: string, entryId: string) => request<void>(`/teams/${teamId}/shortlist/${entryId}`, { method: 'DELETE' }),
   opportunities: () => request<{ items: Opportunity[] }>('/opportunities'),
   createOpportunity: (body: OpportunityInput) => post<Opportunity>('/opportunities', body),
   pursuit: (id: string) => request<{ pursuit: Pursuit | null }>(`/proposals/${id}/pursuit`),
