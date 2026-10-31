@@ -6,6 +6,8 @@ Updated: 2026-10-30. **Working product first; advanced security later.** Superse
 
 **Spec:** [working product specification](17-v2-corrected-specification.md). This is a delivery plan for product functionality, not a security-platform build. The [old security-first plan](reference/security-first-delivery-plan.md) is deferred reference only.
 
+**Start work:** use the matching [copy-paste role prompt](../onboarding/README.md). Shared repository guardrails live in [AGENTS.md](../../AGENTS.md). Anurag will provide previously collected/processed data separately; follow [the handoff guide](../onboarding/DATA-HANDOFF.md) and preserve the received source snapshot.
+
 ## 1. Work split
 
 | Person | Primary responsibility | Concrete result |

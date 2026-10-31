@@ -2,6 +2,8 @@
 
 Updated 2026-10-30. Current priority: a working platform; advanced security follows later.
 
+New team members: start with [repo setup and copy-paste role prompts](../onboarding/README.md). Read [the data handoff guide](../onboarding/DATA-HANDOFF.md) before opening or importing the separately shared data snapshot.
+
 1. [Working product specification](17-v2-corrected-specification.md) — current features, architecture, scope and acceptance.
 2. [Four-person delivery plan](18-four-person-delivery-plan.md) — Anurag/Teammate 1/2/3 assignments, dependencies and schedule.
 3. [Conventions](CONVENTIONS-single-box.md) — repository working rules.

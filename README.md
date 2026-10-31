@@ -1,5 +1,7 @@
 # TigerResearchBuddy - RIT Research Collaboration Platform
 
+> **V2 team startup:** [setup and role prompts](docs/onboarding/README.md), [current product plan](docs/design/18-four-person-delivery-plan.md), and [shared-data handoff](docs/onboarding/DATA-HANDOFF.md). The current v2 plan takes precedence over legacy setup/feature descriptions below.
+
 > **AI-Powered Research Discovery & Collaboration for Rochester Institute of Technology**
 
 ## 🎯 Overview
