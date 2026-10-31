@@ -50,7 +50,7 @@ def integration_gaps(root: Path, env: Mapping[str, str]) -> list[str]:
     ]:
         if not (root / relative).exists():
             gaps.append(message)
-    module = env.get('TBR_WORKER_MODULE', '')
+    module = env.get('TBR_WORKER_MODULE', 'services.worker.generate')
     if not re.fullmatch(r'[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*', module):
         gaps.append('T2 worker entrypoint TBR_WORKER_MODULE is not configured.')
     else:

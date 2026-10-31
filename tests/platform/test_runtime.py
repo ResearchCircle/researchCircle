@@ -49,6 +49,17 @@ class RuntimeTests(unittest.TestCase):
             self.assertTrue(any('T2' in gap for gap in gaps))
             self.assertTrue(any('T3' in gap for gap in gaps))
 
+    def test_preflight_recognizes_the_builtin_worker_when_modules_exist(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ['src/platform/discovery', 'src/platform/database', 'src/platform/workflow', 'services/api/routes']:
+                (root / name).mkdir(parents=True)
+            for name in ['frontend/src/lib/api.ts', 'services/worker/generate.py']:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('')
+            self.assertEqual(integration_gaps(root, {}), [])
+
     def test_settings_are_literal_and_errors_do_not_echo_secrets(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / '.env'
