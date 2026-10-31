@@ -6,6 +6,15 @@ Build a working product first. Read `docs/design/17-v2-corrected-specification.m
 
 Advanced security, cryptographic erasure, key services, policy engines, revocation journals, CRDT editing, DOCX and federation are outside the first milestone. Keep ordinary login/membership, reliable saves, safe secret handling and truthful errors as feature behavior. Deliver a connected workflow before adding infrastructure.
 
+Current implementation direction: keep building the most critical product work
+across all four workstreams in this checkout, with small focused local commits.
+The user has authorized implementing the teammates' unfinished changes here;
+do not wait for their branches or restrict progress to the platform-lead slice.
+Review shared producer/consumer changes together. Continue implementation until
+the user explicitly asks to stop and prepare the handoff. Only then prepare the
+remaining-work handoff for others; a fixture demo or a calendar date does not
+trigger it. See `docs/design/20-continuous-critical-work.md` for current priorities.
+
 ## Ownership
 
 - Platform lead: Orin, local provider, drafting quality, deployment and integration (A-P1–A-P4).
