@@ -311,9 +311,10 @@ def attach_source(proposal_id: UUID, body: AttachInput, session: Session = Depen
     source = session.get(Source, str(body.source_id))
     if source is None or not source.is_public or source.proposal_id is not None:
         raise WorkflowError(404, 'source_not_found', 'Public source was not found')
-    if not session.get(ProposalSource, (proposal.id, source.id)):
-        session.add(ProposalSource(proposal_id=proposal.id, source_id=source.id))
-        session.commit()
+    insert = postgres_insert if session.get_bind().dialect.name == 'postgresql' else sqlite_insert
+    session.execute(insert(ProposalSource).values(proposal_id=proposal.id, source_id=source.id)
+                    .on_conflict_do_nothing(index_elements=['proposal_id', 'source_id']))
+    session.commit()
     return source_view(source)
 
 
