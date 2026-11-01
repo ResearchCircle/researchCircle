@@ -10,10 +10,16 @@ pending. No shared services, ingress settings or existing databases were changed
 - Default development API/web images are ARM64. Separate
   `tbr-v2-api:shared-prep-amd64` and `tbr-v2-web:shared-prep-amd64` images were built
   successfully for Linux AMD64 without replacing those development tags.
-- G14 is a candidate, not a confirmed ready target. Read-only SSH attempts through
-  its existing private and LAN aliases both timed out on 2026-11-01. Current CPU,
-  disk, Docker/Compose versions, occupied ports and private-ingress configuration
-  could not be verified. Do not reuse an assumed port or replace existing ingress.
+- A later check on 2026-11-01 connected to G14 through Tailscale SSH after its
+  authentication check. The LAN alias still timed out. G14 reports x86-64,
+  Ubuntu 26.04.1 LTS and 821.9 GB free disk space, matching the prepared AMD64
+  image architecture. Docker, Compose, containerd, Podman and nerdctl were absent;
+  the Docker service and socket were absent too. Noninteractive sudo failed.
+- Tailscale 1.104.2 is running, with no Serve configuration. Observed listening
+  TCP ports were 22, 53, 631, 41590 and 46742; recheck before binding a port.
+  The Orin peer was offline. No packages were installed and no remote settings,
+  services, ingress or source data were changed. Container runtime installation
+  and actual front-door validation remain prerequisites.
 - No newer teammate implementation branch was present in the fetched remotes.
   The cumulative integration baseline remains `b179a7e`.
 
@@ -44,8 +50,8 @@ Host. Verify the selected front door before sharing its address.
 ## Prepare artifacts locally
 
 Use unique tags for a reviewed revision. Build on the target natively, or specify
-its observed architecture when building here. The following AMD64 example is not
-an architecture measurement of the unreachable target:
+its observed architecture when building here. The following AMD64 build matches
+the architecture subsequently observed on G14:
 
 ```sh
 .venv/bin/python -m deployment.build --platform linux/amd64 \

@@ -22,6 +22,8 @@ Source snapshots, existing application projects and every database volume remain
 untouched. Use isolated fixture projects for local deployment-path verification;
 fixture evidence does not establish real-model or shared-host acceptance.
 
-Observed host inventory remains blocked by SSH timeouts on both existing aliases.
+Follow-up host inventory succeeded through Tailscale SSH; the LAN alias still
+timed out. G14 matches AMD64 but has no Docker/Compose and no noninteractive
+sudo. Runtime installation and ingress setup remain unperformed.
 Local ARM64 and AMD64-under-emulation checks passed. Shared deployment, actual
 front-door compatibility and real-model acceptance remain unperformed.

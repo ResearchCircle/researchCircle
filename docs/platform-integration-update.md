@@ -48,9 +48,12 @@ explicit `--platform` while preserving the native default and existing image tag
 
 [Preparation procedure](shared-host-preparation.md) and
 [local evidence](../deployment/evidence-shared-preparation.json) document the
-transfer path and limits. G14's private and LAN SSH attempts timed out, so its
-current architecture, disk, ports and ingress are unverified. No remote service
-or ingress changes were made. Target/access selection remains pending.
+transfer path and limits. A follow-up connected to G14 over Tailscale SSH:
+x86-64, 821.9 GB free, Ubuntu 26.04.1 LTS, no Docker/Compose or configured Serve
+ingress. The LAN path still timed out; noninteractive sudo was unavailable.
+The AMD64 image architecture matches this host, but runtime installation and
+actual front-door/persistence checks remain pending. No remote service, package
+or ingress changes were made. Orin was reported offline by Tailscale.
 
 ## Data preservation
 
