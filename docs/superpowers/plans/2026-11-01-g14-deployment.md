@@ -11,13 +11,23 @@ calls, fixture substitution in demo mode, source-data copying or public Funnel.
    installer uses existing signed Ubuntu packages (simulated: seven installs,
    zero removals), enables Docker and grants the existing login user access.
    Configure only empty private Serve ingress, preserving any existing config.
+   Before package installation, configure Docker's data-root and containerd's root
+   under `~/researchCircle/runtime/`. Refuse existing foreign roots, nonempty old
+   runtime data and symlink output paths; preserve unrelated config with private
+   backups. OS packages/service pointers remain in standard system locations.
+   Keep local configuration when package installation supplies a default file.
 2. Add optional host bind paths for PostgreSQL/work in the platform Compose file;
    defaults retain existing named volumes. Prove both configurations resolve and
    existing rehearsal behavior still works. New G14 state stays in the project.
 3. Transfer reviewed releases/images with checksums to new project directories.
    Store private settings mode 0600, named sessions, local provider and observed
    private Orin address. No inference success is assumed while Orin is offline.
-4. After runtime authentication/install, verify permissions, image architecture,
+4. After runtime authentication/install, load the bundle and initialize only the
+   newly prepared worker bind directory with UID/GID 10001 before the gated start:
+   `docker run --rm --user 0 --entrypoint chown --mount
+   type=bind,source=/home/anurag/researchCircle/state/tbr-researchcircle/work,target=/work
+   tbr-v2-api:g14-deploy 10001:10001 /work`.
+   Verify permissions, image architecture,
    loopback/private TLS routing, migration/schema gate, registration/save/restart
    persistence and cookie/origin checks on G14. Retain all test records.
 5. When approved T1 input and Orin exist, run actual persisted quality cases and a
@@ -28,3 +38,8 @@ Interface checks: Compose mount defaults must preserve existing core/rehearsal
 volumes; G14 bind directories require the application UID 10001; host launcher is
 stdlib-only so Python 3.14 need not install application dependencies. Runtime API
 images keep Python 3.12. Private HTTPS must preserve Host and configured scheme.
+
+Final review resolutions: both daemon stores now honor the project-root requirement;
+worker bind ownership is explicit; installer reads TBR_HTTP_PORT from private
+settings instead of assuming the env example's default; evidence distinguishes
+historical shared-preparation runs from current storage verification.
