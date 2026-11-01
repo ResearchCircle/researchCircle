@@ -1,6 +1,6 @@
 # Platform integration update
 
-Review branch: `anurag/a-p4-fresh-database`.
+Review branch: `anurag/a-p4-shared-host`.
 Shared review baseline: `b179a7e` (`anurag/a-p1-provider` when last fetched).
 
 ## Problem and resulting behavior
@@ -25,9 +25,32 @@ and report fixed, specific reasons without retaining raw failed model output.
 | [Scripted application scenarios](../scripts/orin/evidence-simulated-application.json) | Two-source acceptance/export, insufficient evidence, invalid quotes, truncation, concurrent-save protection and cancellation/draining against PostgreSQL. | Authored responses through an in-process API client. |
 | [Scripted browser checks](../scripts/orin/evidence-scripted-browser.json) | Citation display, append/save/export, failed/cancelled states and disabled stale acceptance in the real UI. | Synthetic simulation database and fixture model responses. |
 
-The full platform suite passed **177 tests**. The fresh-install rehearsal also
+The updated platform suite ran 183 tests: **181 passed**, with the two opt-in
+proxy tests skipped in the default run. Both proxy tests passed separately on
+native ARM64 and locally emulated AMD64 application images. The fresh-install rehearsal also
 verified that the schema-gate file in the tested image matches the checkout;
 runtime image IDs are recorded in its evidence.
+
+## Shared-host preparation
+
+The proxy previously lost the external HTTPS scheme, rejecting valid browser
+writes and failing to set secure cookies. `TBR_PUBLIC_SCHEME` now explicitly
+selects HTTP or HTTPS at the trusted front door; nginx renders its config and
+overwrites client scheme headers. The unpublished API trusts forwarded headers
+inside the single trusted application network. Do not publish its port or attach
+untrusted peers. Host preservation remains an actual target-ingress check.
+
+Separate AMD64 application images built successfully and passed the controlled
+TLS checks under local emulation, including login/cookies, proposal saves,
+restart persistence and rejected foreign/wrong-scheme origins. Native ARM64
+checks and the HTTP replacement/spoof smoke also passed. Builds support an
+explicit `--platform` while preserving the native default and existing image tags.
+
+[Preparation procedure](shared-host-preparation.md) and
+[local evidence](../deployment/evidence-shared-preparation.json) document the
+transfer path and limits. G14's private and LAN SSH attempts timed out, so its
+current architecture, disk, ports and ingress are unverified. No remote service
+or ingress changes were made. Target/access selection remains pending.
 
 ## Data preservation
 
@@ -92,6 +115,6 @@ update changes platform-owned deployment/drafting code, its tests and evidence.
 Inspect the cumulative update with:
 
 ```sh
-git log --oneline b179a7e..anurag/a-p4-fresh-database
-git diff --stat b179a7e..anurag/a-p4-fresh-database
+git log --oneline b179a7e..anurag/a-p4-shared-host
+git diff --stat b179a7e..anurag/a-p4-shared-host
 ```

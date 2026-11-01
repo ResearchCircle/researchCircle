@@ -1,0 +1,105 @@
+{
+  "recorded_date": "2026-11-01",
+  "status": "passed_local_preparation",
+  "scope": "Controlled local TLS and Docker application checks; not shared-target or real-model acceptance.",
+  "provider": "fixture",
+  "profile": "development",
+  "drafting_exercised": false,
+  "https_regression_before_fix": {
+    "registration_status": 403,
+    "wrong_scheme_origin_status": 422
+  },
+  "native_arm64_https": {
+    "tests": 2,
+    "passed": 2,
+    "project": "tbr-fresh-94fb9ba46c10"
+  },
+  "emulated_amd64_https": {
+    "tests": 2,
+    "passed": 2,
+    "project": "tbr-fresh-342e391adf30",
+    "checks": [
+      "frontend_html",
+      "registration",
+      "secure_httponly_samesite_cookie",
+      "authenticated_team_creation",
+      "proposal_creation_and_revision_save",
+      "session_and_saved_content_after_api_worker_restart",
+      "login_secure_cookie",
+      "foreign_origin_rejected",
+      "wrong_scheme_origin_rejected",
+      "client_scheme_spoof_ignored"
+    ],
+    "services_stopped": true,
+    "database_and_work_volumes_retained": true
+  },
+  "http_proxy_smoke": {
+    "status": "passed",
+    "proxy_image": "nginx:1.27-alpine",
+    "upstream_image": "python:3.12-slim",
+    "checks": [
+      "api_path_and_query",
+      "health_route",
+      "frontend_route",
+      "external_host_and_port",
+      "api_redirect_origin",
+      "frontend_redirect_origin",
+      "api_replacement_dns",
+      "client_scheme_spoof_ignored"
+    ],
+    "evidence": "disposable_http_fixtures; not product/browser acceptance"
+  },
+  "backend_suite": {
+    "command": ".venv/bin/python -m unittest discover -s tests/platform -q",
+    "tests_run": 183,
+    "passed": 181,
+    "skipped_opt_in_proxy_tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "environment_note": "Initial sandboxed execution could not bind local test servers; rerun with local socket access passed."
+  },
+  "images": [
+    {
+      "tag": "tbr-v2-api:shared-prep-amd64",
+      "architecture": "amd64",
+      "image_id": "sha256:e25963f75b45790e78babfa65432ef6f2ce3c0467b1645a7c08189a418f77337"
+    },
+    {
+      "tag": "tbr-v2-web:shared-prep-amd64",
+      "architecture": "amd64",
+      "image_id": "sha256:7fde7e3063b9ac7e88783bc70f44326787a102d8d799882ef6f91c0a3ca53ab7"
+    }
+  ],
+  "api_image_checkout_sha256_matches": {
+    "deployment/runtime.py": "dbbc8a8f1ac557586cbd1cb6d5d2777da65ea4c938f040e49b8d379ff8dbf5ca",
+    "deployment/schema.py": "d6f402f92059ca664ccd4ff5bfd892d2b0d740cfc5f93c776dc65cad2a5160ac",
+    "services/api/app.py": "70a867f65e3fe54fabc4be5232cc6698ce6093b9395746883346bde13df7db35"
+  },
+  "data_preservation": {
+    "baseline_files": 15986,
+    "current_files": 15986,
+    "removed_files": 0,
+    "changed_preexisting_files": 0,
+    "added_files": 0,
+    "sha256_checked_files": 15871,
+    "metadata_only_files": 115,
+    "all_preexisting_files_unchanged": true
+  },
+  "target_inventory": {
+    "candidate": "G14",
+    "private_ssh": "timed_out",
+    "lan_ssh": "timed_out",
+    "architecture": "unverified",
+    "available_ports": "unverified",
+    "existing_ingress": "unverified",
+    "remote_mutations": false
+  },
+  "remaining": [
+    "Confirm target/access and observe host readiness",
+    "Verify actual front-door Host/TLS behavior",
+    "Approve deployment before shared service or ingress changes",
+    "T1-approved drafting excerpts",
+    "Real Orin quality and persisted browser acceptance",
+    "T2 dependency lock/base-image digest review and backup/restore acceptance"
+  ]
+}
