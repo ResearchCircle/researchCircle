@@ -21,7 +21,8 @@ class Handler(BaseHTTPRequestHandler):
    self.end_headers()
    return
   body=json.dumps({'backend':sys.argv[2], 'path':self.path, 'host':self.headers['Host'],
-                   'forwarded_host':self.headers.get('X-Forwarded-Host')}).encode()
+                   'forwarded_host':self.headers.get('X-Forwarded-Host'),
+                   'forwarded_proto':self.headers.get('X-Forwarded-Proto')}).encode()
   self.send_response(200)
   self.send_header('Content-Length',str(len(body)))
   self.end_headers()
@@ -62,7 +63,8 @@ def main() -> int:
                 created.append(container)
             config = Path(__file__).with_name('nginx.conf').resolve()
             container = docker('run', '-d', '--network', network, '-p', '127.0.0.1::80',
-                               '--mount', f'type=bind,source={config},target=/etc/nginx/conf.d/default.conf,readonly',
+                               '--mount', f'type=bind,source={config},target=/etc/nginx/templates/default.conf.template,readonly',
+                               '-e', 'TBR_PUBLIC_SCHEME=http', '-e', 'NGINX_ENVSUBST_FILTER=^TBR_PUBLIC_SCHEME$',
                                args.proxy_image)
             created.append(container)
             port = int(docker('port', container, '80/tcp').rsplit(':', 1)[1])
@@ -71,7 +73,7 @@ def main() -> int:
             def request(path):
                 connection = http.client.HTTPConnection('127.0.0.1', port, timeout=2)
                 try:
-                    connection.request('GET', path)
+                    connection.request('GET', path, headers={'X-Forwarded-Proto': 'https'})
                     response = connection.getresponse()
                     return response.status, response.getheader('Location'), response.read()
                 finally:
@@ -92,7 +94,8 @@ def main() -> int:
                 status, _, raw = request(path)
                 value = json.loads(raw)
                 if (status != 200 or value['backend'] != backend or value['path'] != path
-                        or value['host'] != host or value['forwarded_host'] != host):
+                        or value['host'] != host or value['forwarded_host'] != host
+                        or value['forwarded_proto'] != 'http'):
                     raise RuntimeError('Proxy path/host forwarding did not preserve the browser origin.')
             for path in ('/api/v2/redirect', '/redirect'):
                 status, location, _ = request(path)
@@ -121,7 +124,7 @@ def main() -> int:
         print(json.dumps({'status': 'passed', 'proxy_image': args.proxy_image,
                           'upstream_image': args.upstream_image, 'checks': [
                               'api_path_and_query', 'health_route', 'frontend_route', 'external_host_and_port',
-                              'api_redirect_origin', 'frontend_redirect_origin', 'api_replacement_dns'],
+                              'api_redirect_origin', 'frontend_redirect_origin', 'api_replacement_dns', 'client_scheme_spoof_ignored'],
                           'evidence': 'disposable_http_fixtures; not product/browser acceptance'}))
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):

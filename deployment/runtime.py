@@ -22,6 +22,8 @@ class RuntimeConfig:
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]):
+        if env.get('TBR_PUBLIC_SCHEME', 'http') not in ('http', 'https'):
+            raise ValueError('TBR_PUBLIC_SCHEME must be http or https.')
         profile = env.get('TBR_PROFILE', 'development')
         provider = env.get('TBR_MODEL_PROVIDER', 'fixture')
         if profile not in ('development', 'demo') or provider not in ('fixture', 'local', 'ollama'):

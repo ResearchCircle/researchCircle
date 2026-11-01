@@ -48,6 +48,35 @@ Preflight checks structure/configuration, not release acceptance. Stop services
 without deleting volumes. Do not remove retained data as a setup shortcut. Web
 startup does not create tables; new schema changes require new migrations.
 
+## Shared HTTPS and target images
+
+The loopback proxy defaults to `TBR_PUBLIC_SCHEME=http`. Behind an approved TLS
+front door, set it to `https` and preserve the complete browser Host. Nginx renders
+its template on startup and overwrites client-supplied scheme headers. The API
+trusts forwarded headers from the private application's containers; never publish
+its port or attach untrusted peers. Changing the setting does not configure TLS.
+Use the launcher to recreate containers when updating this proxy configuration.
+
+Build explicitly for an observed target architecture with
+`python -m deployment.build --platform linux/amd64` (or `linux/arm64`), using
+separate tags. Native builds remain the default. Local builds do not transfer or
+deploy images. See [shared-host preparation](../docs/shared-host-preparation.md)
+for the reviewed boundary, transfer procedure and remaining target checks.
+
+The opt-in HTTPS integration check creates a new fixture PostgreSQL project,
+terminates real local TLS, verifies browser-origin behavior and secure cookies,
+and retains its records/volumes after stopping only its own services:
+
+```sh
+TBR_RUN_PROXY_TESTS=1 .venv/bin/python -m unittest discover \
+  -s tests/platform -p test_shared_proxy.py -v
+```
+
+It uses available development application images, `postgres:16.6-alpine` and
+`nginx:1.27-alpine`, port 18094, and requires `openssl`. The port must be unused.
+Override `TBR_PROXY_API_IMAGE` and `TBR_PROXY_WEB_IMAGE` to test separately tagged
+images. This controlled front door is not target-ingress or real-model acceptance.
+
 ## Fresh-database gate and rehearsal
 
 The shared launcher's `--start` sequence waits for PostgreSQL health, runs

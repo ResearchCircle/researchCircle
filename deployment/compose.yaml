@@ -4,15 +4,20 @@ services:
     image: ${TBR_PROXY_IMAGE:-nginx:stable-alpine}
     ports:
       - "127.0.0.1:${TBR_HTTP_PORT:-8080}:80"
+    environment:
+      TBR_PUBLIC_SCHEME: ${TBR_PUBLIC_SCHEME:-http}
+      NGINX_ENVSUBST_FILTER: ^TBR_PUBLIC_SCHEME$
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
     depends_on:
       - api
       - web
     restart: unless-stopped
   api:
     image: ${TBR_API_IMAGE:?Supply the application image built with T2 runtime dependencies}
-    command: ["python", "-m", "uvicorn", "services.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    # Only trusted application services share this network. Never publish API ports.
+    # The loopback proxy overwrites forwarded scheme from explicit configuration.
+    command: ["python", "-m", "uvicorn", "services.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
     environment: &backend_environment
       TBR_PROFILE: ${TBR_PROFILE:-development}
       TBR_MODEL_PROVIDER: ${TBR_MODEL_PROVIDER:-fixture}

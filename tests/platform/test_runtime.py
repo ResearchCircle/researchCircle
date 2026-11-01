@@ -24,6 +24,13 @@ class RuntimeTests(unittest.TestCase):
             with self.subTest(env=env), self.assertRaises(ValueError):
                 RuntimeConfig.from_env(env)
 
+    def test_public_scheme_must_be_an_explicit_supported_protocol(self):
+        for scheme in ('http', 'https'):
+            RuntimeConfig.from_env({'TBR_PUBLIC_SCHEME': scheme})
+        for scheme in ('', 'auto', 'https; invalid', 'ftp'):
+            with self.subTest(scheme=scheme), self.assertRaises(ValueError):
+                RuntimeConfig.from_env({'TBR_PUBLIC_SCHEME': scheme})
+
     def test_no_cloud_or_unknown_profile_fallback(self):
         for env in [{'TBR_MODEL_PROVIDER': 'gemini'}, {'TBR_PROFILE': 'unknown'},
                     {'TBR_MODEL_PROVIDER': 'local'}, {'TBR_MODEL_PROVIDER': 'local',
