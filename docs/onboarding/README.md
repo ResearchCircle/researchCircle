@@ -20,11 +20,11 @@ Paste the complete code block from the matching file into a new coding session o
 
 ## Get the checkout
 
-On a new machine, clone `https://github.com/anurag2796/tiger_research_buddy.git` using your authorized GitHub account, with branch `anurag/latest`. On an existing checkout, inspect `git status` first; fetch and fast-forward only if clean. Do not discard local work or force a diverged branch into place. If an old checkout cannot see this branch, inspect `git remote -v` and confirm the repository before changing remotes.
+On a new machine, clone `https://github.com/ResearchCircle/researchCircle.git` using your authorized GitHub account, with branch `anurag/latest`. On an existing checkout, inspect `git status` first; fetch and fast-forward only if clean. Do not discard local work or force a diverged branch into place. If an old checkout cannot see this branch, inspect `git remote -v` and confirm the repository before changing remotes.
 
 ```sh
-git clone --branch anurag/latest https://github.com/anurag2796/tiger_research_buddy.git
-cd tiger_research_buddy
+git clone --branch anurag/latest https://github.com/ResearchCircle/researchCircle.git
+cd researchCircle
 git status --short
 git branch --show-current
 ```

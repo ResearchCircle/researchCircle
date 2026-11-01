@@ -11,8 +11,8 @@ start from its current remote head; `main`, `dev`, `v2` and older ticket branche
 are not the current team baseline:
 
 ```sh
-git clone --branch anurag/latest https://github.com/anurag2796/tiger_research_buddy.git
-cd tiger_research_buddy
+git clone --branch anurag/latest https://github.com/ResearchCircle/researchCircle.git
+cd researchCircle
 git switch -c <role>/<ticket>
 ```
 
