@@ -31,7 +31,7 @@ services:
       TBR_DB_USER: tbr
       TBR_DB_PASSWORD: ${TBR_DB_PASSWORD:?Set a local uncommitted database password}
     volumes:
-      - runtime-work:/var/lib/tbr-work
+      - "${TBR_RUNTIME_WORK_MOUNT:-runtime-work}:/var/lib/tbr-work"
     depends_on:
       db:
         condition: service_healthy
@@ -43,7 +43,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - runtime-work:/var/lib/tbr-work
+      - "${TBR_RUNTIME_WORK_MOUNT:-runtime-work}:/var/lib/tbr-work"
     depends_on:
       db:
         condition: service_healthy
@@ -62,7 +62,7 @@ services:
       POSTGRES_USER: tbr
       POSTGRES_PASSWORD: ${TBR_DB_PASSWORD:?Set a local uncommitted database password}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - "${TBR_POSTGRES_MOUNT:-postgres-data}:/var/lib/postgresql/data"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tbr -d tbr"]
       interval: 5s

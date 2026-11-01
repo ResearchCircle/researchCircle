@@ -39,6 +39,22 @@ class RuntimeConfig:
         work = Path(env.get('TBR_DATA_WORK', '/tmp/tbr-v2-work')).expanduser().resolve()
         if source == work or source in work.parents or work in source.parents:
             raise ValueError('Source snapshot and runtime work directory must be separate, non-nested paths.')
+        mounts = []
+        for key in ('TBR_POSTGRES_MOUNT', 'TBR_RUNTIME_WORK_MOUNT'):
+            value = env.get(key)
+            if not value:
+                continue
+            path = Path(value)
+            if not path.is_absolute():
+                raise ValueError('Host storage mounts must use absolute paths.')
+            path = path.resolve()
+            for protected in (source, (ROOT / 'data').resolve()):
+                if path == protected or protected in path.parents or path in protected.parents:
+                    raise ValueError('Host storage mounts must be separate from source snapshots.')
+            mounts.append(path)
+        if len(mounts) == 2 and (mounts[0] == mounts[1] or mounts[0] in mounts[1].parents
+                                 or mounts[1] in mounts[0].parents):
+            raise ValueError('Database and runtime host storage must use separate non-nested paths.')
         return cls(profile, provider, url, model, source, work)
 
 

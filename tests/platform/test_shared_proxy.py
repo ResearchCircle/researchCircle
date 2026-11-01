@@ -1,5 +1,6 @@
 """Opt-in real proxy/API/TLS checks; retain isolated PostgreSQL test volumes."""
 import http.client
+import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import os
 from pathlib import Path
@@ -32,6 +33,15 @@ class SharedProxyTests(unittest.TestCase):
         cls.path.write_text(cls.path.read_text() + 'TBR_PUBLIC_SCHEME=https\n')
         print('Retained proxy rehearsal project: ' + settings['COMPOSE_PROJECT_NAME'])
         cls.env = {**os.environ, **settings, 'TBR_PUBLIC_SCHEME': 'https'}
+        if os.environ.get('TBR_PROXY_HOST_STORAGE') == '1':
+            state = cls.path.parent / 'state'
+            for key, name in [('TBR_POSTGRES_MOUNT', 'postgres'), ('TBR_RUNTIME_WORK_MOUNT', 'work')]:
+                target = state / name
+                target.mkdir(parents=True, mode=0o700)
+                cls.env[key] = str(target)
+            subprocess.run(['docker', 'run', '--rm', '--user', '0', '--entrypoint', 'chown',
+                            '--mount', 'type=bind,source=' + cls.env['TBR_RUNTIME_WORK_MOUNT'] + ',target=/work',
+                            settings['TBR_API_IMAGE'], '10001:10001', '/work'], check=True, capture_output=True)
         cls.command = ['docker', 'compose', '-p', settings['COMPOSE_PROJECT_NAME'],
                        '--env-file', str(cls.path), '-f', str(ROOT / 'deployment/compose.yaml')]
         cls.addClassCleanup(cls.docker, 'stop')
@@ -81,6 +91,21 @@ class SharedProxyTests(unittest.TestCase):
                                 capture_output=True, text=True, timeout=90)
         if result.returncode:
             raise AssertionError('Isolated proxy rehearsal operation failed; retained project can be inspected.')
+
+    @unittest.skipUnless(os.environ.get('TBR_PROXY_HOST_STORAGE') == '1', 'Requires explicit host bind storage')
+    def test_configured_storage_keeps_database_and_runtime_files_in_the_project(self):
+        result = subprocess.run([*self.command, 'config', '--format', 'json'], env=self.env,
+                                capture_output=True, text=True, check=True)
+        services = json.loads(result.stdout)['services']
+        for service, key, target in [('db', 'TBR_POSTGRES_MOUNT', '/var/lib/postgresql/data'),
+                                     ('api', 'TBR_RUNTIME_WORK_MOUNT', '/var/lib/tbr-work'),
+                                     ('worker', 'TBR_RUNTIME_WORK_MOUNT', '/var/lib/tbr-work')]:
+            with self.subTest(service=service):
+                mount = next(v for v in services[service]['volumes'] if v['target'] == target)
+                self.assertEqual(mount['type'], 'bind')
+                self.assertEqual(mount['source'], self.env[key])
+        self.assertTrue((Path(self.env['TBR_POSTGRES_MOUNT']) / 'PG_VERSION').is_file())
+        self.assertTrue((Path(self.env['TBR_RUNTIME_WORK_MOUNT']) / 'generation.lock').is_file())
 
     def test_https_registration_secure_session_save_and_reopen_after_restart(self):
         email, password = f'proxy-{uuid4().hex}@example.test', secrets.token_urlsafe(24)

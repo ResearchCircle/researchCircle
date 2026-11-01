@@ -48,6 +48,22 @@ class RuntimeTests(unittest.TestCase):
             config = RuntimeConfig.from_env({'TBR_DATA_SOURCE': str(source), 'TBR_DATA_WORK': str(Path(tmp) / 'work')})
             self.assertFalse(config.work_dir.exists())
 
+    def test_host_storage_requires_absolute_separate_paths_outside_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / 'source'
+            source.mkdir()
+            for key in ('TBR_POSTGRES_MOUNT', 'TBR_RUNTIME_WORK_MOUNT'):
+                for target in ('relative-path', str(source), str(source / 'nested'), str(Path(tmp))):
+                    with self.subTest(key=key, target=target), self.assertRaises(ValueError):
+                        RuntimeConfig.from_env({'TBR_DATA_SOURCE': str(source), key: target})
+            with self.assertRaises(ValueError):
+                RuntimeConfig.from_env({'TBR_DATA_SOURCE': str(source),
+                                        'TBR_POSTGRES_MOUNT': tmp + '/state',
+                                        'TBR_RUNTIME_WORK_MOUNT': tmp + '/state/work'})
+            RuntimeConfig.from_env({'TBR_DATA_SOURCE': str(source),
+                                    'TBR_POSTGRES_MOUNT': tmp + '/db',
+                                    'TBR_RUNTIME_WORK_MOUNT': tmp + '/work'})
+
     def test_staging_validation_reports_missing_team_dependencies(self):
         with tempfile.TemporaryDirectory() as tmp:
             gaps = integration_gaps(Path(tmp), {})
