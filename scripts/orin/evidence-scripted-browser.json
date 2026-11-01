@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "recorded_at": "2026-11-01 06:57:26 UTC",
+  "evidence": "scripted_responses",
+  "transport": "real_browser_same_origin_proxy",
+  "model_id": "fixture-scripted-v1",
+  "external_model_requests": 0,
+  "hardware_acceptance": "pending",
+  "scope": "Synthetic PostgreSQL simulation workspace; existing web UI; no shared deployment.",
+  "database_name": "tbr_simulation_be62322fda854405aca45949a94f9ad5",
+  "runtime_images": {
+    "api": "sha256:7d0731059576493e85142e8325fe3d1339c8709b83ef0d0eaa6610a5d09dacf3",
+    "web": "sha256:26e88eb997e79077e79e00628be755034b862807516c4d759040a7e1a0a34fe2"
+  },
+  "accepted_revision": 5,
+  "visible_citations": 2,
+  "append_status": 200,
+  "manual_text_preserved": true,
+  "collaborator_text_preserved": true,
+  "checks": {
+    "export_sources": 2,
+    "export_preserves_collaborator": true,
+    "invalid_quote_visible": true,
+    "invalid_quote_has_output": false,
+    "truncation_visible": true,
+    "insufficient_evidence_visible": true,
+    "stale_append_disabled": true,
+    "cancelled_visible": true,
+    "cancelled_has_output": false,
+    "insufficient_append_disabled_at_newer_revision": true
+  },
+  "job_ids": {
+    "two_source": "68e6ba5c-a774-48e2-beae-262752e6ae6b",
+    "insufficient": "e7f43345-1120-4223-b304-13cc5281b6d1",
+    "invalid_quote": "ed74dfac-f9a3-469c-a9a5-81c713213e12",
+    "truncated": "3d8567fa-2f4c-4113-a28b-61b39592d0be",
+    "concurrent_save": "03937a18-52b3-4723-ad9d-93060037448d",
+    "cancelled_during_generation": "f2651ab9-ded5-48e3-8691-bc7941e32b94"
+  }
+}

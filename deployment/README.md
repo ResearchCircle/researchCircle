@@ -110,6 +110,11 @@ demo profile. Its JSON summary contains no passwords or full source text. These
 checks cover API/worker behavior through an in-process client, not browser or Orin
 acceptance, model quality, measured token usage or inference latency.
 
+The separate `scripts/orin/evidence-scripted-browser.json` records the checked
+browser presentation of those scripted results: two citations, append/save and
+export, failed/cancelled jobs, insufficient evidence and stale acceptance. It uses
+an isolated synthetic database and still does not establish Orin acceptance.
+
 ```sh
 .venv/bin/python -m unittest discover -s tests/platform -q
 .venv/bin/python -m deployment.build --print-only
