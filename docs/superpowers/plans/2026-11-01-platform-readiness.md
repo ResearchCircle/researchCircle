@@ -26,28 +26,28 @@ application startup. A separate Docker project proves fresh-install persistence.
 Files: `deployment/schema.py`, `deployment/start.py`,
 `tests/platform/test_schema_gate.py`, `tests/platform/test_runtime.py`.
 
-- [ ] Add failing behavior tests: fresh schema upgrade, repeat upgrade preserves
+- [x] Add failing behavior tests: fresh schema upgrade, repeat upgrade preserves
   records, missing application table at recorded head fails verification, failed
   migration prevents API/worker startup, dry-run performs no migrations.
-- [ ] Implement `upgrade_and_verify(database=None) -> dict` using existing Alembic
+- [x] Implement `upgrade_and_verify(database=None) -> dict` using existing Alembic
   revisions, current-head comparison and metadata drift check. Emit safe errors.
-- [ ] Implement `start_stack(command, env, ready_timeout)` with DB-only startup,
+- [x] Implement `start_stack(command, env, ready_timeout)` with DB-only startup,
   one-off schema gate, application startup and existing HTTP readiness checks.
-- [ ] Run focused and complete platform tests, review and commit only task files.
+- [x] Run focused and complete platform tests, review and commit only task files.
 
 ## Task 2: Fresh installation rehearsal
 
 Files: `deployment/rehearse.py`, `deployment/evidence-fresh-start.json`,
 `deployment/README.md`, relevant tests under `tests/platform/`.
 
-- [ ] Create an explicit fixture-only rehearsal with a new project/volume, private
+- [x] Create an explicit fixture-only rehearsal with a new project/volume, private
   settings and loopback port. Reuse the shared startup orchestration.
-- [ ] Register a synthetic named user, create/save a proposal, restart API/worker,
+- [x] Register a synthetic named user, create/save a proposal, restart API/worker,
   then reopen through the persisted session and a fresh login.
-- [ ] Verify Alembic head, retain the database/volumes, and stop only new containers.
-- [ ] Compare the source snapshot against its read-only baseline. Record safe
+- [x] Verify Alembic head, retain the database/volumes, and stop only new containers.
+- [x] Compare the source snapshot against its read-only baseline. Record safe
   counts/digests and actual results, not credentials or source contents.
-- [ ] Review and commit the rehearsal and evidence.
+- [x] Review and commit the rehearsal and evidence.
 
 ## Task 3: Drafting acceptance criteria
 

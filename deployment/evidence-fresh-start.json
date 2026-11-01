@@ -1,0 +1,45 @@
+{
+  "status": "passed",
+  "profile": "development",
+  "provider": "fixture",
+  "fresh_volume_at_start": true,
+  "schema_heads": [
+    "0004_team_shortlist"
+  ],
+  "schema_verified": true,
+  "drafting_exercised": false,
+  "registration_status": 201,
+  "save_status": 200,
+  "saved_revision": 2,
+  "session_survived_restart": true,
+  "fresh_login_reopened_proposal": true,
+  "proposal_id": "ad1bcace-4950-45e0-91f7-6a926bda9cce",
+  "saved_content_sha256": "818c30079999b793d68245a1b353eec56ea4097b1988b423ea4b01aa9f437aa1",
+  "rehearsal_services_stopped": true,
+  "project": "tbr-fresh-185774c629e2",
+  "settings_location": "dist/rehearsals/tbr-fresh-185774c629e2/runtime.env",
+  "retained_volumes": [
+    "tbr-fresh-185774c629e2_postgres-data",
+    "tbr-fresh-185774c629e2_runtime-work"
+  ],
+  "database_volume_retained": true,
+  "recorded_at": "2026-11-01T08:30:49.184514+00:00",
+  "scope": "Fresh isolated local installation with fixture inference; no shared deployment or Orin acceptance.",
+  "runtime_image_ids": {
+    "api": "sha256:b59b094711b9c135029d9c2452c4362f1b3e141479c4603544c0cde71f9eea12",
+    "worker": "sha256:b59b094711b9c135029d9c2452c4362f1b3e141479c4603544c0cde71f9eea12",
+    "web": "sha256:317c8c6d244bbc5f19bc13f90ea0341f873dc6dcfb658d7cc9f8974addac81f6"
+  },
+  "schema_gate_sha256": "d6f402f92059ca664ccd4ff5bfd892d2b0d740cfc5f93c776dc65cad2a5160ac",
+  "data_preservation": {
+    "baseline_files": 15986,
+    "current_files": 15986,
+    "removed_files": 0,
+    "changed_preexisting_files": 0,
+    "added_files": 0,
+    "all_preexisting_files_unchanged": true,
+    "content_hash_limit_bytes": 16777216,
+    "sha256_checked_files": 15871,
+    "metadata_only_files": 115
+  }
+}

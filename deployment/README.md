@@ -48,6 +48,36 @@ Preflight checks structure/configuration, not release acceptance. Stop services
 without deleting volumes. Do not remove retained data as a setup shortcut. Web
 startup does not create tables; new schema changes require new migrations.
 
+## Fresh-database gate and rehearsal
+
+The shared launcher's `--start` sequence waits for PostgreSQL health, runs
+`python -m deployment.schema` in the API image, and starts API/worker/web/proxy
+only after that gate succeeds. The gate applies the existing Alembic migrations,
+compares the recorded head with the code, and checks actual schema against the
+application metadata. A stamped head with missing tables is rejected. Migration
+or schema failures block new application startup and never trigger a reset.
+Configuration-only execution performs no migrations or service startup.
+
+After building the application images, rehearse the same orchestration on a new
+local project without contacting a model service:
+
+```sh
+.venv/bin/python -m deployment.build
+.venv/bin/python -m deployment.rehearse
+```
+
+The rehearsal creates a unique `tbr-fresh-*` project with private settings under
+ignored `dist/rehearsals/`. It verifies registration and proposal saves, restarts
+API/worker, then reopens the saved proposal through the original session and a
+fresh login. It stops only its own services and retains every database/work
+volume and settings file. It refuses output paths inside or above source
+snapshots. Use `--db-image`, `--proxy-image`, `--api-image` and `--web-image` to
+select available images, and `--port` for another loopback port.
+
+`deployment/evidence-fresh-start.json` records the checked installation and data
+preservation scope. This uses the development fixture provider and exercises no
+drafting; real Orin and shared-target acceptance remain separate requirements.
+
 ## Ollama on your own machine
 
 For real-model testing without Orin, follow [CORE-HANDOFF.md](../docs/onboarding/CORE-HANDOFF.md). `--provider ollama` runs only in the development profile; the shared demo launcher refuses it. Token counts are estimates, and idle means reachable, because Ollama exposes neither.
