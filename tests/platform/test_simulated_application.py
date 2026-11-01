@@ -54,6 +54,12 @@ class SimulatedApplicationTests(unittest.TestCase):
                 self.assertEqual(cases['truncated']['error_code'], 'draft_truncated')
                 self.assertEqual(cases['concurrent_save']['accept_status'], 409)
                 self.assertTrue(cases['concurrent_save']['collaborator_text_preserved'])
+                self.assertIn('cancelled_during_generation', cases)
+                cancelled = cases['cancelled_during_generation']
+                self.assertEqual(cancelled['error_code'], 'cancelled')
+                self.assertTrue(cancelled['followup_queued_during_drain'])
+                self.assertTrue(cancelled['late_output_discarded'])
+                self.assertEqual(cancelled['followup_state'], 'succeeded')
                 self.assertEqual(result['external_model_requests'], 0)
             finally:
                 app.state.db.engine.dispose()

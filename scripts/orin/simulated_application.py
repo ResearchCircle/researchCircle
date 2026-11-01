@@ -40,9 +40,11 @@ def _read(response, status, step):
 class ScriptedProvider:
     def __init__(self, output, entered=None, release=None):
         self.output, self.entered, self.release = output, entered, release
+        self.calls = 0
 
     def generate(self, prompt, max_output_tokens, timeout_s):
         validate_request(prompt, max_output_tokens, timeout_s)
+        self.calls += 1
         if self.entered is not None:
             self.entered.set()
         if self.release is not None and not self.release.wait(timeout_s):
@@ -141,6 +143,39 @@ def run_scenarios(app, lease_path: Path) -> dict:
         _check(current['content'] == collaborator_text, 'collaborator_text_preserved')
         cases.append({'case': 'concurrent_save', 'job_id': job['id'], 'state': job['state'],
                       'accept_status': rejected.status_code, 'collaborator_text_preserved': True})
+
+        proposal = current
+        queued = enqueue('Describe the synthetic protocol.')
+        entered, release = Event(), Event()
+        provider = ScriptedProvider(response_for('two_source', source_ids), entered, release)
+        worker = make_worker(provider)
+        try:
+            worker.tick()
+            _check(entered.wait(2), 'cancellable_generation_started')
+            cancelled = _read(owner.post('/api/v2/jobs/' + queued['id'] + '/cancel'), 200, 'cancel_active_job')
+            _check(cancelled['error']['code'] == 'cancelled', 'cancellation_recorded')
+            followup = enqueue('Describe the same synthetic protocol after cancellation.')
+            worker.tick()
+            waiting = _read(owner.get('/api/v2/jobs/' + followup['id']), 200, 'read_waiting_followup')
+            _check(waiting['state'] == 'queued' and provider.calls == 1, 'followup_waits_for_drain')
+        finally:
+            release.set()
+            worker.close(wait=True)
+        cancelled = _read(owner.get('/api/v2/jobs/' + queued['id']), 200, 'read_cancelled_after_drain')
+        _check(cancelled['state'] == 'failed' and cancelled['error']['code'] == 'cancelled'
+               and cancelled['output'] is None, 'cancelled_late_output_discarded')
+        worker = make_worker(ScriptedProvider(response_for('two_source', source_ids)))
+        try:
+            worker.tick()
+        finally:
+            worker.close(wait=True)
+        completed = _read(owner.get('/api/v2/jobs/' + followup['id']), 200, 'read_followup_after_drain')
+        _check(completed['state'] == 'succeeded', 'followup_runs_after_drain')
+        _check(_read(owner.get(path), 200, 'read_after_cancellation')['content'] == collaborator_text,
+               'cancellation_does_not_change_proposal')
+        cases.append({'case': 'cancelled_during_generation', 'job_id': queued['id'], 'state': cancelled['state'],
+                      'error_code': cancelled['error']['code'], 'followup_queued_during_drain': True,
+                      'late_output_discarded': True, 'followup_job_id': followup['id'], 'followup_state': completed['state']})
         public = _read(owner.get('/api/v2/search?q=greenhouse'), 200, 'check_source_scope')
         _check(not public['items'], 'private_sources_not_published')
     return {'status': 'passed', 'evidence': 'scripted_responses', 'transport': 'in_process_api',

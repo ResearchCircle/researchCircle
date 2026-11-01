@@ -7,43 +7,53 @@
   "cases": [
     {
       "case": "two_source",
-      "job_id": "09bbccbf-583e-4f53-bbde-4f88ea9b911b",
+      "job_id": "68e6ba5c-a774-48e2-beae-262752e6ae6b",
       "state": "succeeded",
       "citations": 2,
       "accept_status": 200
     },
     {
       "case": "insufficient",
-      "job_id": "cd6e279c-d9d9-43e6-a089-2387e0f84657",
+      "job_id": "e7f43345-1120-4223-b304-13cc5281b6d1",
       "state": "succeeded",
       "insufficient_evidence": true
     },
     {
       "case": "invalid_quote",
-      "job_id": "31d661fb-691d-45cd-8db2-85d0e318610c",
+      "job_id": "ed74dfac-f9a3-469c-a9a5-81c713213e12",
       "state": "failed",
       "error_code": "invalid_citations"
     },
     {
       "case": "truncated",
-      "job_id": "025d3f66-39fd-4a19-b87d-9f394f8353b5",
+      "job_id": "3d8567fa-2f4c-4113-a28b-61b39592d0be",
       "state": "failed",
       "error_code": "draft_truncated"
     },
     {
       "case": "concurrent_save",
-      "job_id": "37565ecd-6783-4741-a1ce-f84f5fc780f9",
+      "job_id": "03937a18-52b3-4723-ad9d-93060037448d",
       "state": "succeeded",
       "accept_status": 409,
       "collaborator_text_preserved": true
+    },
+    {
+      "case": "cancelled_during_generation",
+      "job_id": "f2651ab9-ded5-48e3-8691-bc7941e32b94",
+      "state": "failed",
+      "error_code": "cancelled",
+      "followup_queued_during_drain": true,
+      "late_output_discarded": true,
+      "followup_job_id": "f2a459cc-73a4-411e-863d-47ff624273a8",
+      "followup_state": "succeeded"
     }
   ],
   "database": "postgresql",
-  "database_name": "tbr_simulation_ef198cd4dc774b1e931c821ee78c0b5e",
+  "database_name": "tbr_simulation_be62322fda854405aca45949a94f9ad5",
   "records_retained": true,
-  "recorded_at": "2026-11-01T06:49:27.389763+00:00",
+  "recorded_at": "2026-11-01T06:52:21.312489+00:00",
   "source_sha256": {
-    "scripts/orin/simulated_application.py": "a1745b0d5e1cde56982d47e2a7afee12be9c79a6c8c8ad3168623906789f1beb",
+    "scripts/orin/simulated_application.py": "2a2e3c7727813ceb424ae6b92285fafa03797386226b8360337f6e06cc0c2d40",
     "scripts/orin/simulated_responses.py": "7b754f06f646445df192a50e4fb9447b56d134bad0e245de6241bcedd9bd979d"
   }
 }

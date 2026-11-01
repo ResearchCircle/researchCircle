@@ -91,8 +91,10 @@ Authored model responses can exercise the application while Orin is offline:
 
 This runs the real API routes and persisted worker against temporary SQLite, with
 two named users and synthetic sources. It checks two-source acceptance/export,
-insufficient evidence, invalid quotes, truncated output and a concurrent save that
-must reject stale acceptance. Responses are scripted; no model service is called.
+insufficient evidence, invalid quotes, truncated output, a concurrent save that
+must reject stale acceptance, and cancellation that must discard late output and
+hold follow-up work until the first response drains. Responses are scripted; no
+model service is called.
 
 To run those same cases on PostgreSQL, first start the local fixture stack, then:
 
