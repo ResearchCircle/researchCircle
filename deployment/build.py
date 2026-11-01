@@ -8,10 +8,15 @@ from pathlib import Path
 from .runtime import ROOT
 
 
-def build_command(component: str, tag: str, api_requirements: str | None) -> list[str]:
+def build_command(component: str, tag: str, api_requirements: str | None,
+                  platform: str | None = None) -> list[str]:
     if component not in ('api', 'web'):
         raise ValueError('Image component must be api or web.')
+    if platform is not None and platform not in ('linux/amd64', 'linux/arm64'):
+        raise ValueError('Target platform must be linux/amd64 or linux/arm64.')
     command = ['docker', 'build', '-f', str(ROOT / f'deployment/{component}.Dockerfile'), '-t', tag]
+    if platform:
+        command.extend(['--platform', platform])
     if component == 'api':
         if not api_requirements or Path(api_requirements).is_absolute():
             raise ValueError('Supply a checkout-relative API requirements file.')
@@ -35,12 +40,14 @@ def main() -> int:
     parser.add_argument('--api-tag', default='tbr-v2-api:development')
     parser.add_argument('--web-tag', default='tbr-v2-web:development')
     parser.add_argument('--api-requirements', default='services/api/requirements.txt')
+    parser.add_argument('--platform', choices=['linux/amd64', 'linux/arm64'],
+                        help='Build explicitly for the target host architecture; defaults to native.')
     parser.add_argument('--print-only', action='store_true')
     args = parser.parse_args()
     try:
         components = ('api', 'web') if args.component == 'all' else (args.component,)
         commands = [build_command(component, args.api_tag if component == 'api' else args.web_tag,
-                                  args.api_requirements if component == 'api' else None) for component in components]
+                                  args.api_requirements if component == 'api' else None, platform=args.platform) for component in components]
         if args.print_only:
             print(json.dumps({'commands': commands, 'scope': 'Local images only; no deployment or acceptance claim.'}))
             return 0
