@@ -11,6 +11,10 @@ with the 2026-10-31 handoff. Each person now works their own workstream from the
 next-work table in `docs/onboarding/CORE-HANDOFF.md`. Review shared
 producer/consumer changes together.
 
+The current platform-lead objective is `docs/design/21-platform-readiness-goal.md`:
+fresh-database startup, real drafting acceptance criteria and one integration
+update. Preserve all existing parsed/downloaded data and databases.
+
 ## Ownership
 
 - Platform lead: Orin, local provider, drafting quality, deployment and integration (A-P1–A-P4).
