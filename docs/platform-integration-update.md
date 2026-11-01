@@ -25,7 +25,7 @@ and report fixed, specific reasons without retaining raw failed model output.
 | [Scripted application scenarios](../scripts/orin/evidence-simulated-application.json) | Two-source acceptance/export, insufficient evidence, invalid quotes, truncation, concurrent-save protection and cancellation/draining against PostgreSQL. | Authored responses through an in-process API client. |
 | [Scripted browser checks](../scripts/orin/evidence-scripted-browser.json) | Citation display, append/save/export, failed/cancelled states and disabled stale acceptance in the real UI. | Synthetic simulation database and fixture model responses. |
 
-The full platform suite passed **176 tests**. The fresh-install rehearsal also
+The full platform suite passed **177 tests**. The fresh-install rehearsal also
 verified that the schema-gate file in the tested image matches the checkout;
 runtime image IDs are recorded in its evidence.
 
@@ -39,7 +39,8 @@ The content-hash limit and counts are recorded with the evidence.
 
 Rehearsals use new `tbr-fresh-*` projects, private settings under ignored
 `dist/rehearsals/`, and separate named volumes. Output paths inside or above source
-snapshots are rejected. Cleanup stops only the new project's services and retains
+snapshots, including their transitive symlink targets, are rejected. Link cycles
+are handled without following them indefinitely. Cleanup stops only the new project's services and retains
 its volumes/settings. Existing application projects are not stopped or repurposed.
 Build contexts exclude collected data, repository metadata and private settings.
 

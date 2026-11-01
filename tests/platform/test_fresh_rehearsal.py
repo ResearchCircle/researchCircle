@@ -50,6 +50,28 @@ class FreshRehearsalTests(unittest.TestCase):
             self.assertEqual(first['TBR_DEV_IDENTITY'], 'false')
             self.assertEqual(list(source.iterdir()), [])
 
+    def test_output_cannot_enter_a_symlinked_source_directory(self):
+        module = self.module()
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source, received = root / 'snapshot', root / 'received-papers'
+            source.mkdir()
+            received.mkdir()
+            (source / 'papers').symlink_to(received, target_is_directory=True)
+            nested = root / 'nested-source'
+            nested.mkdir()
+            (received / 'more').symlink_to(nested, target_is_directory=True)
+            (nested / 'back').symlink_to(source, target_is_directory=True)
+            sentinel = received / 'already-downloaded.pdf'
+            sentinel.write_bytes(b'Synthetic preservation sentinel')
+            for output in (source / 'papers' / 'output', received / 'output', nested / 'output'):
+                with self.subTest(output=output), self.assertRaises(ValueError):
+                    module.prepare_rehearsal(output, 18092, IMAGES, source)
+            self.assertEqual(sentinel.read_bytes(), b'Synthetic preservation sentinel')
+            self.assertEqual({path.name for path in received.iterdir()}, {'already-downloaded.pdf', 'more'})
+            path, _ = module.prepare_rehearsal(root / 'working', 18092, IMAGES, source)
+            self.assertTrue(path.exists(), 'A source-link cycle must not prevent safe separate output')
+
 
 if __name__ == '__main__':
     unittest.main()

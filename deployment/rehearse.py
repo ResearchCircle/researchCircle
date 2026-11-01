@@ -20,9 +20,28 @@ def prepare_rehearsal(output_root: Path, port: int, images: dict[str, str],
                       source_dir: Path | None = None) -> tuple[Path, dict[str, str]]:
     source = (source_dir or Path(os.environ.get('TBR_DATA_SOURCE', ROOT / 'data'))).expanduser().resolve()
     output = output_root.expanduser().resolve()
-    for protected in {source, (ROOT / 'data').resolve()}:
+    pending = [source, (ROOT / 'data').resolve()]
+    inspected = set()
+
+    def unreadable(_error):
+        raise ValueError('Cannot verify source boundaries; rehearsal output was not created.')
+
+    while pending:
+        protected = pending.pop()
+        if protected in inspected:
+            continue
+        inspected.add(protected)
         if output == protected or protected in output.parents or output in protected.parents:
             raise ValueError('Rehearsal output must be separate from collected source data.')
+        if protected.is_dir():
+            for parent, directories, files in os.walk(protected, followlinks=False, onerror=unreadable):
+                for name in [*directories, *files]:
+                    candidate = Path(parent) / name
+                    if candidate.is_symlink():
+                        try:
+                            pending.append(candidate.resolve())
+                        except (OSError, RuntimeError):
+                            unreadable(None)
     if type(port) is not int or not 1 <= port <= 65535:
         raise ValueError('Rehearsal port must be an integer from 1 to 65535.')
     required = {'TBR_API_IMAGE', 'TBR_WEB_IMAGE', 'TBR_DB_IMAGE', 'TBR_PROXY_IMAGE'}

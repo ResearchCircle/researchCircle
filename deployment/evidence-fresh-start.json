@@ -37,9 +37,13 @@
     "removed_files": 0,
     "changed_preexisting_files": 0,
     "added_files": 0,
-    "all_preexisting_files_unchanged": true,
     "content_hash_limit_bytes": 16777216,
     "sha256_checked_files": 15871,
-    "metadata_only_files": 115
+    "metadata_only_files": 115,
+    "all_preexisting_files_unchanged": true
+  },
+  "additional_verification": {
+    "platform_tests_passed": 177,
+    "linked_source_path_guards": "direct and transitive links plus cycles tested"
   }
 }
