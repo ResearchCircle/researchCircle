@@ -142,6 +142,7 @@ tested version ranges; a complete dependency lock and reviewed base-image digest
 remain backend/deployment follow-up. Build commands do not push images.
 
 `deployment.start --env-file deployment/.env --start` remains the explicit shared
-demo launcher. It requires real named-session/local-model settings, does not run
-migrations, and does not prove release acceptance. Shared deployment still needs
+demo launcher. It requires real named-session/local-model settings, waits for the
+database to become healthy, applies existing migrations and verifies schema before
+starting application services. Shared deployment still needs
 the actual Orin-backed journey, target-host persistence checks and authorization.

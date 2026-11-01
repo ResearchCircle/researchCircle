@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import math
 import os
 import re
 import subprocess
@@ -28,6 +29,24 @@ def read_settings(path: Path) -> dict[str, str]:
     return values
 
 
+def start_stack(command: list[str], env: dict[str, str], ready_timeout: float = 60) -> None:
+    if type(ready_timeout) not in (int, float) or not math.isfinite(ready_timeout) or not 0 < ready_timeout <= 300:
+        raise ValueError('Readiness timeout must be greater than zero and at most 300 seconds.')
+    phases = [
+        (['up', '-d', '--wait', '--wait-timeout', str(math.ceil(ready_timeout)), 'db'],
+         'Database did not become healthy; application services were not started.'),
+        (['run', '--rm', '-T', '--no-deps', 'api', 'python', '-m', 'deployment.schema'],
+         'Database migration/schema gate failed; application services were not started.'),
+        (['up', '-d', 'api', 'worker', 'web', 'proxy'],
+         'Application startup failed; inspect service status.'),
+    ]
+    for arguments, message in phases:
+        result = subprocess.run([*command, *arguments], env=env, cwd=ROOT, capture_output=True, text=True)
+        if result.returncode:
+            raise ValueError(message)
+    wait_for_runtime(env.get('TBR_HTTP_PORT', '8080'), ready_timeout)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--env-file', type=Path, default=ROOT / 'deployment/.env')
@@ -46,15 +65,12 @@ def main() -> int:
         if gaps:
             print(json.dumps({'status': 'dependencies_missing', 'gaps': gaps}))
             return 1
-        command = ['docker', 'compose', '-f', str(ROOT / 'deployment/compose.yaml')]
+        command = ['docker', 'compose', '--env-file', str(args.env_file), '-f', str(ROOT / 'deployment/compose.yaml')]
         check = subprocess.run([*command, 'config', '--quiet'], env=env, capture_output=True, text=True)
         if check.returncode:
             raise ValueError('Compose configuration validation failed; review local settings.')
         if args.start:
-            result = subprocess.run([*command, 'up', '-d'], env=env, capture_output=True, text=True)
-            if result.returncode:
-                raise ValueError('Staged stack startup failed; inspect container status locally.')
-            wait_for_runtime(env.get('TBR_HTTP_PORT', '8080'), args.ready_timeout)
+            start_stack(command, env, args.ready_timeout)
         print(json.dumps({'status': 'started' if args.start else 'configuration_valid',
                           'acceptance': 'Browser flow, membership, persistence and backup/restore still require validation.'}))
         return 0
