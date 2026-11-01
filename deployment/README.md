@@ -72,6 +72,11 @@ Do not scale workers across hosts. UI cancellation/timeout does not prove infere
 ended. Shutdown waits for the actual call and sanitizes failed persistence writes.
 Abandoned running jobs are interrupted, not silently redelivered.
 
+An `invalid_citations` job now identifies the failed check in its fixed error
+message: response JSON/fields, selected source, support quote, duplicate reference
+or inline marker. These diagnostics contain no model output or source text. The
+checks still validate identity and verbatim quotes; claim support requires review.
+
 Actual Orin-backed application acceptance remains pending. Earlier standalone
 completions passed, but one persisted application run failed citation validation;
 later SSH/status probes timed out. A fixture browser pass is not Orin acceptance.
