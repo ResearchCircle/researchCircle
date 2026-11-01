@@ -56,17 +56,18 @@ under `scripts/orin/` only if required by approved input format.
 
 - [ ] Identify T1's reviewed excerpt pack and require origin, immutable source
   identity/version/hash, expected facts, forbidden claims and supporting quotes.
-- [ ] Define pass/fail cases for faithful single/two-source drafting, insufficient
+  T1 confirmed the excerpts are not ready; this input remains pending.
+- [x] Define pass/fail cases for faithful single/two-source drafting, insufficient
   evidence, disagreement, numeric fidelity and instructions embedded in sources.
-- [ ] Define separate structural and human claim-support judgments, plus actual
+- [x] Define separate structural and human claim-support judgments, plus actual
   model/usage/latency recording. Keep real execution pending until inputs/Orin exist.
-- [ ] Review and commit criteria without importing or altering collected data.
+- [x] Review and commit criteria without importing or altering collected data.
 
 ## Task 4: Integration update
 
 File: `docs/platform-integration-update.md`.
 
-- [ ] Compare against the team's pushed baseline and summarize the final platform
+- [x] Compare against the team's pushed baseline and summarize the final platform
   changes, test commands, evidence and unresolved real-model gates.
-- [ ] Include startup, citation diagnostics and existing simulation evidence in one
+- [x] Include startup, citation diagnostics and existing simulation evidence in one
   reviewable update. Do not push or open a PR without a request.
