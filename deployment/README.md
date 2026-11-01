@@ -83,6 +83,31 @@ later SSH/status probes timed out. A fixture browser pass is not Orin acceptance
 
 ## Verification and retained data
 
+Authored model responses can exercise the application while Orin is offline:
+
+```sh
+.venv/bin/python -m scripts.orin.simulated_application
+```
+
+This runs the real API routes and persisted worker against temporary SQLite, with
+two named users and synthetic sources. It checks two-source acceptance/export,
+insufficient evidence, invalid quotes, truncated output and a concurrent save that
+must reject stale acceptance. Responses are scripted; no model service is called.
+
+To run those same cases on PostgreSQL, first start the local fixture stack, then:
+
+```sh
+docker compose -p tbr-core --env-file dist/core-runtime.env -f deployment/compose.yaml \
+  run --rm -T --no-deps --volume "$PWD/scripts/orin:/app/scripts/orin:ro" \
+  api python -m scripts.orin.simulated_application --postgres
+```
+
+The PostgreSQL run creates, migrates and retains a new `tbr_simulation_*` database;
+scenario records never enter the existing workspace. The command refuses a shared
+demo profile. Its JSON summary contains no passwords or full source text. These
+checks cover API/worker behavior through an in-process client, not browser or Orin
+acceptance, model quality, measured token usage or inference latency.
+
 ```sh
 .venv/bin/python -m unittest discover -s tests/platform -q
 .venv/bin/python -m deployment.build --print-only
