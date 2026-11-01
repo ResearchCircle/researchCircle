@@ -1,7 +1,10 @@
 # Platform integration update
 
-Review branch: `anurag/a-p4-g14-deploy`.
+Review branch: `anurag/latest`.
 Shared review baseline: `b179a7e` (`anurag/a-p1-provider` when last fetched).
+
+The shared integration base is now `anurag/latest`. Its remaining v2 work also
+includes [Collaboration Hub, graph and research chat restoration](design/23-v2-remaining-feature-restoration.md); these features are not implemented by this update.
 
 ## Problem and resulting behavior
 
@@ -125,6 +128,6 @@ update changes platform-owned deployment/drafting code, its tests and evidence.
 Inspect the cumulative update with:
 
 ```sh
-git log --oneline b179a7e..anurag/a-p4-g14-deploy
-git diff --stat b179a7e..anurag/a-p4-g14-deploy
+git log --oneline b179a7e..anurag/latest
+git diff --stat b179a7e..anurag/latest
 ```

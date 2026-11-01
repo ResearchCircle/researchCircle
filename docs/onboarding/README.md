@@ -2,9 +2,10 @@
 
 **Current implementation:** read [the core handoff](CORE-HANDOFF.md) first. Named
 accounts, proposals/sources, public records, shortlists, persisted jobs, editor,
-tracking records and local runtime now exist.
+tracking records and local runtime now exist. Collaboration Hub, graph visualization
+and previous research chat are retained code awaiting [explicit restoration](../design/23-v2-remaining-feature-restoration.md).
 
-Updated 2026-10-31. Start from branch `anurag/a-p1-provider`, not `v2`, until it is merged. The goal is a working research platform; advanced security follows later.
+Updated 2026-11-01. Always use `anurag/latest` as the current shared team base. The goal is a working research platform; advanced security follows later.
 
 ## Which prompt to use
 
@@ -15,20 +16,20 @@ Paste the complete code block from the matching file into a new coding session o
 | Teammate 1 | [Data and discovery](prompts/teammate-1-data-discovery.md) | Real data snapshot import, then collaborator matching |
 | Teammate 2 | [Workflow backend](prompts/teammate-2-backend-workflow.md) | Backup/membership checks on the current schema, then dependency lock |
 | Teammate 3 | [Frontend and user journey](prompts/teammate-3-frontend.md) | Member management UI, then wider browser coverage |
-| Anurag | [Orin and drafting](prompts/anurag-orin-drafting.md) | One real persisted Orin browser job, then shared demo |
+| Anurag | [Orin and drafting](prompts/anurag-orin-drafting.md) | Real Orin quality/browser acceptance, then chat-provider integration |
 
 ## Get the checkout
 
-On a new machine, clone `https://github.com/ResearchCircle/researchCircle.git` using your authorized GitHub account, then check out `anurag/a-p1-provider`. On an existing checkout, inspect `git status` first; fetch and fast-forward only if clean. Do not discard local work or force a diverged branch into place. The old remote URL redirects to this repository; no remote rewrite is required for an existing checkout.
+On a new machine, clone `https://github.com/anurag2796/tiger_research_buddy.git` using your authorized GitHub account, with branch `anurag/latest`. On an existing checkout, inspect `git status` first; fetch and fast-forward only if clean. Do not discard local work or force a diverged branch into place. If an old checkout cannot see this branch, inspect `git remote -v` and confirm the repository before changing remotes.
 
 ```sh
-git clone --branch anurag/a-p1-provider https://github.com/ResearchCircle/researchCircle.git
-cd researchCircle
+git clone --branch anurag/latest https://github.com/anurag2796/tiger_research_buddy.git
+cd tiger_research_buddy
 git status --short
 git branch --show-current
 ```
 
-For work, create a role/ticket branch from it, such as `teammate-1/d-p2-matching`, `teammate-2/backup-smoke` or `teammate-3/member-ui`. The prompts request local implementation, not a direct push to a shared branch. Ask the human only for genuinely missing access/input; do not pause routine work for repeated confirmations.
+For work, fetch origin and create a role/ticket branch from current `origin/anurag/latest`, such as `teammate-1/d-p2-matching`, `teammate-2/backup-smoke` or `teammate-3/member-ui`. Target ticket reviews/PRs at `anurag/latest`. The prompts request local implementation, not a direct push to a shared branch. Ask the human only for genuinely missing access/input; do not pause routine work for repeated confirmations.
 
 ## Local setup expectations
 

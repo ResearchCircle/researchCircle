@@ -1,21 +1,25 @@
 # Working core and next work
 
-Updated 2026-10-31. Read this before anything else in onboarding: the core product
+Updated 2026-11-01. Read this before anything else in onboarding: the core product
 exists. Do not rebuild it from earlier starter tickets or fixtures. Where an older
 plan or prompt disagrees with this file, check the code and then trust the code.
 
 ## Get the code
 
-The work is on `anurag/a-p1-provider`. It is **not yet merged into `v2`**, so a
-plain clone of `v2` does not contain it. Branch from it until that merge happens:
+The ongoing shared integration branch is **`anurag/latest`**. Teammates always
+start from its current remote head; `main`, `dev`, `v2` and older ticket branches
+are not the current team baseline:
 
 ```sh
-git clone --branch anurag/a-p1-provider https://github.com/ResearchCircle/researchCircle.git
-cd researchCircle
+git clone --branch anurag/latest https://github.com/anurag2796/tiger_research_buddy.git
+cd tiger_research_buddy
 git switch -c <role>/<ticket>
 ```
 
-Open PRs against `anurag/a-p1-provider` until it is merged, then against `v2`.
+Open ticket PRs against `anurag/latest`. Fetch before starting work; preserve local
+changes and use short ticket branches rather than pushing unreviewed work directly
+to the shared base. Existing ticket branches can integrate the new base through a
+reviewed merge; never reset/clean or force push to discard divergence.
 
 ## Run the local product
 
@@ -135,7 +139,14 @@ journey.
 | T2 | Add a complete Python dependency lock and reviewed base-image digests. | A fresh image build is reproducible and the existing test commands still pass. |
 | T3 | Build member role change/removal UI on the existing `PATCH`/`DELETE /teams/{id}/members/{member_id}` routes. | Owners can manage members; the last-owner error is shown clearly; a browser story covers it. |
 | T3 | Extend browser coverage to busy/offline/mobile states, improve conflict/source usability, and add `docs/qa/product-demo.md`. | Existing stories stay green; failed saves preserve edits; no synthetic source appears as real evidence. |
+| T1 + T2 + T3; platform integration | **R-V2-1: Restore Collaboration Hub** — idea input, evidence-backed faculty matching and shortlist/proposal continuation. | Connected browser journey with real source-linked candidates and explicit gaps; no automatic enrollment or unsupported impact scores. |
+| T1 + T2 + T3; platform integration | **R-V2-2: Restore graph visualization** — reviewed graph data/route and interactive workspace surface. | Actual stable nodes/relationships render with inspectable provenance; public graph excludes proposal-only sources. |
+| Platform lead + T1 + T2 + T3 | **R-V2-3: Restore previous research chat** — multi-turn grounded Q&A, conversation/source UX and reviewed v2 contracts. | Real local-model chat with supported citations, truthful failures and shared inference admission; private context stays scoped. |
 | Platform lead | Restore Orin reachability, complete one persisted model-backed browser job, fix the citation failure if it recurs, and finish shared-demo model acceptance. Private G14 deployment, schema/startup, HTTPS and restart persistence passed on 2026-11-01. | Actual cited output is inspected and accepted without overwrite; deployed provider is local; sessions, restart persistence and routing work on the target. |
+
+The three restoration tickets are pending additional v2 scope, not active features.
+See [restoration details and ownership](../design/23-v2-remaining-feature-restoration.md).
+Existing P1 acceptance does not prove these features have been restored.
 
 Coordinate producer/consumer changes rather than creating a second DTO or application
 root. [Plan 19](../design/19-core-implementation-plan.md) describes the core contract;

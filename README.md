@@ -1,5 +1,7 @@
 # TigerResearchBuddy - RIT Research Collaboration Platform
 
+> **Team branch:** use `anurag/latest` for the current implementation and remaining work. Collaboration Hub, graph visualization and the previous research chat are retained but awaiting [restoration](docs/design/23-v2-remaining-feature-restoration.md).
+
 > **V2 team startup:** [setup and role prompts](docs/onboarding/README.md), [current product plan](docs/design/18-four-person-delivery-plan.md), and [shared-data handoff](docs/onboarding/DATA-HANDOFF.md). The current v2 plan takes precedence over legacy setup/feature descriptions below.
 
 > **AI-Powered Research Discovery & Collaboration for Rochester Institute of Technology**
@@ -241,7 +243,7 @@ The application will open in your browser at `http://localhost:8501`
 
 For comprehensive information about the system architecture, core modules, algorithms, and setup instructions, please visit the [Project Wiki](docs/wiki/).
 
-- **[System Architecture](docs/wiki/01_system_architecture.md)** - High-level overview of the Two-Lobe Brain
+- **[System Architecture](docs/wiki/01_architecture.md)** - High-level overview of the Two-Lobe Brain
 - **[Algorithm Deep Dives](docs/wiki/10_algorithms_deepdive.md)** - Explanations of RRF, Entity Resolution, and VLM validation
 - **[Detailed Setup & Usage](docs/wiki/11_usage_and_setup.md)** - Exhaustive command-line configuration options
 - **[Project Journey & History](docs/project_journey.md)** - The chronological history and architecture review of the project

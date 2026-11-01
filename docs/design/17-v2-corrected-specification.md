@@ -12,6 +12,12 @@ The [earlier hardening design](reference/security-hardening-specification.md) is
 
 The first demo uses public/synthetic papers, sample proposals and seeded test users. The first usable alpha supports named accounts and ordinary proposal membership. This release does not claim confidential-workspace certification, cryptographic erasure or immediate revocation guarantees. Do not market the early product as providing those properties.
 
+Scope addition, 2026-11-01: the original Collaboration Hub, graph visualization and
+research chat must be tracked as remaining v2 restoration work. Their retained
+code is disconnected from the active workspace. See [restoration tickets](23-v2-remaining-feature-restoration.md)
+for owners, integration and acceptance. Existing P1 acceptance remains distinct
+from completing those additional v2 features.
+
 ## 2. Product stages
 
 | Stage | User-visible result | Acceptance |

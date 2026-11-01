@@ -8,6 +8,9 @@ Updated: 2026-10-30. **Working product first; advanced security later.** Superse
 
 **Start work:** use the matching [copy-paste role prompt](../onboarding/README.md). Shared repository guardrails live in [AGENTS.md](../../AGENTS.md). Anurag will provide previously collected/processed data separately; follow [the handoff guide](../onboarding/DATA-HANDOFF.md) and preserve the received source snapshot.
 
+Current team base (2026-11-01): **`anurag/latest`**. Start short ticket branches
+from its fetched remote head and target integration reviews there.
+
 ## 1. Work split
 
 | Person | Primary responsibility | Concrete result |
@@ -68,6 +71,23 @@ For each ticket: add the focused behavioral check, implement against the shared 
 | **U-P4 / T3** | Export/outcome UI, homelab E2E and `docs/qa/product-demo.md` | U-P1–U-P3, B-P4 | One real browser journey covers the whole release with database persistence and real Orin output. T2 + Anurag review. |
 
 Focused backend tests belong in `tests/platform/`; frontend component tests in `frontend/tests/`. Use real local database for persistence/revision/membership tests. No requirement to stand up a separate adversarial security test platform before finishing these tickets.
+
+## 4.1 Remaining v2 feature restoration
+
+The original Collaboration Hub, graph visualization and research chat are now
+explicit pending work, in addition to the remaining core tasks in CORE-HANDOFF.
+Their components/modules exist but are not integrated into the active app. See
+[restoration scope and acceptance](23-v2-remaining-feature-restoration.md).
+
+| Ticket | T1 | T2 | T3 | Platform lead |
+|---|---|---|---|---|
+| R-V2-1 Collaboration Hub | Evidence-backed matches/reasons | Reviewed v2 routes/storage | Idea/results/shortlist/proposal UX | Provider/deployment integration where needed |
+| R-V2-2 Graph | Stable supported nodes/edges/provenance | Reviewed graph API and scoping | Interactive graph/evidence navigation | Routing/integration checks |
+| R-V2-3 Research chat | Grounded retrieval/source refs | Chat/job/history contract and routes | Conversation/source/error UX | Local provider, context limits and shared inference admission |
+
+Teammates implement their own slices and review shared producer/consumer changes
+together. Do not report any restoration complete until its actual browser journey
+and required real data/model behavior are demonstrated.
 
 ## 5. API handoffs
 

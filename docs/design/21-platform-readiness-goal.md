@@ -13,6 +13,12 @@ Current platform-lead objective, set on 2026-11-01:
 3. Prepare one reviewable platform update containing the startup fix, citation
    diagnostics and simulation evidence. Retrieval, database-schema implementation
    and frontend work remain with their assigned owners.
+4. Include the platform slice of [remaining v2 restoration](23-v2-remaining-feature-restoration.md):
+   local-provider/serialized-inference support for research chat and integration of
+   the restored Collaboration Hub and graph surfaces. T1 owns retrieval/matching/
+   graph evidence, T2 routes/storage contracts and T3 the restored UI/browser flows.
+   Shared producer/consumer changes require review; retained components are pending
+   work, not completed features.
 
 Preserve every previously parsed/downloaded source, existing database and unrelated
 working-tree file. Do not clear, reset, recrawl, reindex, drop databases or delete
