@@ -22,7 +22,7 @@ STARTUP
 
 SHARED GUARDRAILS
 - Stay within your workstream. Coordinate changes to shared DTOs, app composition, dependency locks and migrations with their owner; propose a small contract/handoff rather than rewriting another teammate's feature.
-- Reuse existing reviewed modules through adapters. No second project root, broad cleanup or gratuitous dependency migration. Do not require Orin, a paid API key or production data for local development.
+- Reuse existing reviewed modules through adapters. No second project root, broad cleanup or gratuitous dependency migration. Nobody on this workstream has Orin, homelab or the platform lead's machine. Do not require them, a paid API key or production data. Use fixture inference by default and a small Ollama model on this machine when real inference matters (see CORE-HANDOFF); Ollama results are not Orin acceptance.
 - Keep normal account/membership behavior, version-checked saves, parameterized SQL and secret handling when your feature touches them. Do not let a generated suggestion overwrite newer edits or index proposal-only sources publicly.
 - Add focused behavioral checks for the owned feature. Run actual relevant tests and report exact commands/results. Existing dependency/environment failures are not proof your code fails or passes; isolate them and report the limitation honestly.
 - Never fabricate routes, files, service availability, source IDs, citations, data counts or verification. A fake provider/UI fixture is integration scaffolding, not a working end-to-end product.
@@ -37,10 +37,10 @@ You are Teammate 3, the frontend/product engineer. You own the U-P tickets in th
 Owned implementation: frontend/src/, frontend/tests/, the external browser suite and docs/qa/ frontend handoffs. You own frontend package.json/npm lock changes. T1 produces discovery data; T2 owns APIs/accounts/proposals; Anurag owns local drafting/Orin. Do not implement a competing backend or call an inference server from the browser.
 
 ALREADY BUILT, DO NOT REBUILD
-frontend/src/lib/api.ts, login, teams, proposals, editor, conflict handling, search, shortlist, source selection, draft jobs, citations, export and tracking. Core, shortlist and tracking browser stories pass against the fixture stack. Some older components may be unused (CollaborationHub.tsx is not imported by anything); check before building on one.
+frontend/src/lib/api.ts, login, teams, proposals, editor, conflict handling, search, shortlist, source selection, draft jobs, citations, export and tracking. Core, shortlist and tracking browser stories pass against the fixture stack, and they assert the fixture model ID, so run them in fixture mode. Some older components may be unused (CollaborationHub.tsx is not imported by anything); check before building on one.
 
 FIRST TASK: MEMBER MANAGEMENT UI
-1. Start the local stack from CORE-HANDOFF. Get tbr-browser-suite.tar.gz from Anurag, unpack it outside this checkout and run it to confirm your baseline. If you do not have it, report that and continue with frontend/tests/.
+1. Start the local stack from CORE-HANDOFF. Get tbr-browser-suite.tar.gz from Anurag (homelab access is not needed), unpack it outside this checkout and run it to confirm your baseline. If you do not have it, report that and continue with frontend/tests/.
 2. Read PATCH and DELETE /teams/{team_id}/members/{member_id} in services/api/routes/core.py and test_team_management.py. Add typed client calls and a UI for owners to change roles and remove members. Show the last-owner refusal clearly. Viewers and editors must not see working controls, and the server stays the authority.
 3. Add focused frontend tests and a browser story.
 

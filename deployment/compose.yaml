@@ -35,6 +35,8 @@ services:
     image: ${TBR_API_IMAGE:?Supply the application image built with T2 runtime dependencies}
     command: ["python", "-m", "${TBR_WORKER_MODULE:?Supply the real persisted-job worker module}"]
     environment: *backend_environment
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - runtime-work:/var/lib/tbr-work
     depends_on:

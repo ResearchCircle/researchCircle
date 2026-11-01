@@ -11,7 +11,7 @@ from src.platform.drafting.fixtures import FixtureTokenCounter
 from src.platform.drafting.service import DraftingService
 from src.platform.drafting.worker import GenerationWorker
 from src.platform.models.fixtures import ExtractiveFixtureProvider
-from src.platform.models.provider import LocalModelProvider
+from src.platform.models.provider import LocalModelProvider, OllamaModelProvider
 from src.platform.workflow.draft_jobs import PersistedJobStore
 
 
@@ -35,7 +35,8 @@ def main() -> int:
     if config.provider == 'fixture':
         provider, counter, idle = ExtractiveFixtureProvider(), FixtureTokenCounter(), lambda: True
     else:
-        provider = LocalModelProvider(config.model_base_url, config.model_id)
+        provider_type = OllamaModelProvider if config.provider == 'ollama' else LocalModelProvider
+        provider = provider_type(config.model_base_url, config.model_id)
         counter, idle = provider, provider.is_idle
     stopped = False
 

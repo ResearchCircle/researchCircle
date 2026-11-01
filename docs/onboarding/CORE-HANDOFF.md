@@ -85,6 +85,28 @@ records matter.
 - **Nothing has run against a real model in the application** (see below), and there
   is no shared deployment.
 
+## Test with a real model on your own machine
+
+Fixture inference is the default, and the browser suite expects it. To try real drafts, you do not need Orin, the homelab or Anurag's machine. Install [Ollama](https://ollama.com/download), then:
+
+```sh
+ollama pull mistral
+.venv/bin/python -m deployment.dev --provider ollama --model-id mistral:latest --build
+```
+
+Omit `--build` when the images already match the checkout. Run `--provider fixture` again before using the browser suite. If sign-up fails straight after a restart, wait a few seconds and retry: the command reports `started` slightly before the API is ready.
+
+| Model | Memory used | Drafting checks | Browser drafts | Median draft time |
+|---|---:|---:|---:|---:|
+| `qwen3:14b` | 10 GB | 6 of 6 | 3 of 3 | 7.2 s |
+| `mistral:latest` | 5.5 GB | 5 of 6 | 2 of 2 | 3.3 s |
+| `qwen3:8b` | not measured | 3 of 6 | not run | 3.4 s |
+| `llama3.2:3b` | not measured | 1 of 6 | not run | 2.7 s |
+
+Use `mistral` unless you have the memory for `qwen3:14b`, which also handled the two-source case that `mistral` failed. A failed check is a safe failure: the job ends with `invalid_citations` and nothing is added to the proposal.
+
+Measured on 2026-10-31 on an Apple M4 Max with a small synthetic set, so expect different speed on other machines and treat the scores as a rough guide. These checks prove each quote appears word for word in the source, not that the draft's claims are right, so read the drafts. Ollama results never count as Orin acceptance, and the shared demo launcher refuses this provider.
+
 ## Evidence
 
 See [core acceptance](../qa/core-acceptance.md) and its JSON evidence. On 2026-10-31,

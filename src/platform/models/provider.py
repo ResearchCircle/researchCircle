@@ -65,12 +65,13 @@ class LocalModelProvider:
     """
 
     _MAX_RESPONSE_BYTES = 1024 * 1024
+    _LOCAL_NAMES = ('localhost',)
 
     def __init__(self, base_url: str, model_id: str):
         try:
             url = urlsplit(base_url)
             host = url.hostname
-            local = host == 'localhost'
+            local = host in self._LOCAL_NAMES
             if host and not local:
                 address = ipaddress.ip_address(host)
                 local = address.is_private or address in ipaddress.ip_network('100.64.0.0/10')
@@ -199,3 +200,55 @@ class LocalModelProvider:
             return ModelResult(text=text, model_id=self.model_id, usage=usage, finish_reason=reason)
         except (ValueError, KeyError, IndexError, TypeError, UnicodeError, RecursionError):
             raise ProviderError('provider_invalid_response', 'Local provider returned an invalid completion.', False) from None
+
+
+class OllamaModelProvider(LocalModelProvider):
+    """Development-only inference on a teammate's own machine through Ollama.
+
+    Uses the native chat API because the OpenAI-compatible route cannot set the
+    context size, and Ollama silently truncates prompts that exceed it. Ollama has
+    no tokenizer or running-request endpoint, so token counts are estimates and
+    idle means reachable. Results do not count as Orin acceptance.
+    """
+
+    _LOCAL_NAMES = ('localhost', 'host.docker.internal')
+    _NUM_CTX = 8192 + 512
+    # Fixes the reply's shape only. Small models otherwise return citations as an
+    # object; the citation checks still decide whether the content is valid.
+    _DRAFT_FORMAT = {'type': 'object', 'required': ['text', 'citations', 'insufficient_evidence'], 'properties': {
+        'text': {'type': 'string'}, 'insufficient_evidence': {'type': 'boolean'},
+        'citations': {'type': 'array', 'items': {'type': 'object', 'required': ['source_id', 'quote'], 'properties': {
+            'source_id': {'type': 'string'}, 'quote': {'type': 'string'}}}}}}
+
+    def generate(self, prompt: str, max_output_tokens: int, timeout_s: float) -> ModelResult:
+        validate_request(prompt, max_output_tokens, timeout_s)
+        payload = {'model': self.model_id, 'messages': [{'role': 'user', 'content': prompt}],
+                   'stream': False, 'think': False, 'format': self._DRAFT_FORMAT,
+                   'options': {'num_ctx': self._NUM_CTX, 'num_predict': max_output_tokens, 'temperature': 0}}
+        return self._parse(self._request('POST', '/api/chat', payload, timeout_s))
+
+    def count_input_tokens(self, prompt: str, timeout_s: float) -> int:
+        validate_request(prompt, 512, timeout_s)
+        # Three bytes per token overestimates English, keeping prompts within num_ctx.
+        return len(prompt.encode('utf-8')) // 3 + 32
+
+    def is_idle(self, timeout_s: float = 5) -> bool:
+        validate_request('idle probe', 1, timeout_s)
+        self._request('GET', '/api/version', None, timeout_s)
+        return True
+
+    def _parse(self, raw: bytes) -> ModelResult:
+        try:
+            payload = json.loads(raw)
+            text = payload['message']['content']
+            reason = payload['done_reason']
+            if (payload['model'] != self.model_id or payload['done'] is not True
+                    or not isinstance(text, str) or not text.strip() or reason not in ('stop', 'length')):
+                raise ValueError
+            prompt_tokens, output_tokens = payload.get('prompt_eval_count'), payload.get('eval_count')
+            usage = None
+            if type(prompt_tokens) is int and type(output_tokens) is int:
+                usage = TokenUsage(prompt_tokens, output_tokens, prompt_tokens + output_tokens)
+            return ModelResult(text=text, model_id=self.model_id, usage=usage, finish_reason=reason)
+        except (ValueError, KeyError, TypeError, UnicodeError, RecursionError):
+            raise ProviderError('provider_invalid_response', 'Ollama returned an invalid completion.', False) from None

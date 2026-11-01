@@ -34,13 +34,13 @@ For work, create a role/ticket branch from it, such as `teammate-1/d-p2-matching
 
 Use Python 3.12 and Docker with Compose. Follow [the core handoff](CORE-HANDOFF.md) for the exact run and test commands. `services/api/requirements.txt` is the backend dependency file; use `npm ci` in `frontend`. Avoid installing the old root `requirements.txt` or initializing a model while working on the core product.
 
-The legacy `.env.example` mentions Gemini. That is not a requirement for these tasks. Do not obtain paid keys or copy Anurag's `.env`. Model fixtures unblock local work; only Anurag validates Orin.
+The legacy `.env.example` mentions Gemini. That is not a requirement for these tasks. Do not obtain paid keys or copy Anurag's `.env`. You do not need access to Anurag's machine, homelab or Orin. Fixture inference covers most work; for real-model testing, run a small Ollama model on your own machine as described in [the core handoff](CORE-HANDOFF.md). Only Anurag validates Orin.
 
 ## Receive the collected data
 
-Anurag will share the data separately; a clone does not contain the complete corpus. Follow [Data handoff](DATA-HANDOFF.md). Keep the supplied source copy unchanged and place working indexes/output elsewhere. Each teammate reports what files are actually present before relying on them.
+Anurag will send the data folder directly (about 10 GB); a clone does not contain the corpus. Follow [Data handoff](DATA-HANDOFF.md). Keep the supplied source copy unchanged and place working indexes/output elsewhere. Each teammate reports what files are actually present before relying on them.
 
-Inspection of the platform lead's checkout `data/` folder on 2026-10-30 and 2026-10-31 found approximately 44 KB: tracked prompt templates/taxonomy and empty artifact folders. It did **not** expose collected researcher JSON, research cards, populated Chroma, PDFs or a SQLite database. This is a limitation of that folder, not a claim that Anurag has no collected data elsewhere. A teammate receiving a fuller copy must inspect that copy rather than repeat these counts.
+Without it, a checkout's `data/` holds only tracked prompt templates and a taxonomy. Each teammate reports what files are actually present before relying on them.
 
 ## Continue a session
 

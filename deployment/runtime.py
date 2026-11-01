@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
-from src.platform.models.provider import LocalModelProvider
+from src.platform.models.provider import LocalModelProvider, OllamaModelProvider
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,13 +24,15 @@ class RuntimeConfig:
     def from_env(cls, env: Mapping[str, str]):
         profile = env.get('TBR_PROFILE', 'development')
         provider = env.get('TBR_MODEL_PROVIDER', 'fixture')
-        if profile not in ('development', 'demo') or provider not in ('fixture', 'local'):
-            raise ValueError('Use development/demo profile and an explicit fixture/local provider.')
+        if profile not in ('development', 'demo') or provider not in ('fixture', 'local', 'ollama'):
+            raise ValueError('Use development/demo profile and an explicit fixture/local/ollama provider.')
         if profile == 'demo' and (provider != 'local' or env.get('TBR_DEV_IDENTITY', '').lower() not in ('', '0', 'false')):
             raise ValueError('Shared demo requires the local provider and disables development identity.')
         url, model = env.get('TBR_MODEL_BASE_URL'), env.get('TBR_MODEL_ID')
         if provider == 'local':
             LocalModelProvider(url, model)
+        elif provider == 'ollama':
+            OllamaModelProvider(url, model)
         source = Path(env.get('TBR_DATA_SOURCE', str(ROOT / 'data'))).expanduser().resolve()
         work = Path(env.get('TBR_DATA_WORK', '/tmp/tbr-v2-work')).expanduser().resolve()
         if source == work or source in work.parents or work in source.parents:

@@ -22,7 +22,7 @@ STARTUP
 
 SHARED GUARDRAILS
 - Stay within your workstream. Coordinate changes to shared DTOs, app composition, dependency locks and migrations with their owner; propose a small contract/handoff rather than rewriting another teammate's feature.
-- Reuse existing reviewed modules through adapters. No second project root, broad cleanup or gratuitous dependency migration. Do not require Orin, a paid API key or production data for local development.
+- Reuse existing reviewed modules through adapters. No second project root, broad cleanup or gratuitous dependency migration. Nobody on this workstream has Orin, homelab or the platform lead's machine. Do not require them, a paid API key or production data. Use fixture inference by default and a small Ollama model on this machine when real inference matters (see CORE-HANDOFF); Ollama results are not Orin acceptance.
 - Keep normal account/membership behavior, version-checked saves, parameterized SQL and secret handling when your feature touches them. Do not let a generated suggestion overwrite newer edits or index proposal-only sources publicly.
 - Add focused behavioral checks for the owned feature. Run actual relevant tests and report exact commands/results. Existing dependency/environment failures are not proof your code fails or passes; isolate them and report the limitation honestly.
 - Never fabricate routes, files, service availability, source IDs, citations, data counts or verification. A fake provider/UI fixture is integration scaffolding, not a working end-to-end product.

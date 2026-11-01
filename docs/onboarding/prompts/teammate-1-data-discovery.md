@@ -22,7 +22,7 @@ STARTUP
 
 SHARED GUARDRAILS
 - Stay within your workstream. Coordinate changes to shared DTOs, app composition, dependency locks and migrations with their owner; propose a small contract/handoff rather than rewriting another teammate's feature.
-- Reuse existing reviewed modules through adapters. No second project root, broad cleanup or gratuitous dependency migration. Do not require Orin, a paid API key or production data for local development.
+- Reuse existing reviewed modules through adapters. No second project root, broad cleanup or gratuitous dependency migration. Nobody on this workstream has Orin, homelab or the platform lead's machine. Do not require them, a paid API key or production data. Use fixture inference by default and a small Ollama model on this machine when real inference matters (see CORE-HANDOFF); Ollama results are not Orin acceptance.
 - Keep normal account/membership behavior, version-checked saves, parameterized SQL and secret handling when your feature touches them. Do not let a generated suggestion overwrite newer edits or index proposal-only sources publicly.
 - Add focused behavioral checks for the owned feature. Run actual relevant tests and report exact commands/results. Existing dependency/environment failures are not proof your code fails or passes; isolate them and report the limitation honestly.
 - Never fabricate routes, files, service availability, source IDs, citations, data counts or verification. A fake provider/UI fixture is integration scaffolding, not a working end-to-end product.
@@ -41,8 +41,8 @@ ALREADY BUILT, DO NOT REBUILD
 Immutable public records (public_store.py), bounded Crossref and RIT imports, BM25 search (public_search.py) and saved shortlists. The corpus is tiny and search is always marked degraded.
 
 FIRST TASK: REAL DATA IMPORT
-1. Inventory the supplied snapshot read-only and summarize which faculty JSON, research cards, source documents, graph exports and indexes exist. Explain missing/unknown artifacts. Do not print complete content. Record source model/dimension compatibility as known/unknown rather than trusting a config default.
-2. Pick the smallest useful input format and import a reviewed subset through import_public_records with explicit source/output paths. Return a count summary and rejected-record reasons. Do not rewrite the original snapshot. If you have not received the snapshot, say so and start the next task instead.
+1. Confirm the supplied folder against the table in DATA-HANDOFF, read-only, and report differences. tiger_research.db is mostly logs; start from research_cards/, papers/ and the faculty JSON. Stored home-directory paths will not resolve on this machine. Do not print complete content. Record source model/dimension compatibility as known/unknown rather than trusting a config default.
+2. Pick the smallest useful input format and import a reviewed subset through import_public_records with explicit source/output paths. Return a count summary and rejected-record reasons. Do not rewrite the original snapshot. Import a small reviewed subset, not all 2,900 papers. If you have not received the folder, say so and start the next task instead.
 3. Test duplicate import and malformed input with a tiny synthetic fixture. Run 3-5 real queries and report the results honestly.
 
 NEXT TASKS

@@ -42,6 +42,10 @@ Preflight checks structure/configuration, not release acceptance. Stop services
 without deleting volumes. Do not remove retained data as a setup shortcut. Web
 startup does not create tables; new schema changes require new migrations.
 
+## Ollama on your own machine
+
+For real-model testing without Orin, follow [CORE-HANDOFF.md](../docs/onboarding/CORE-HANDOFF.md). `--provider ollama` runs only in the development profile; the shared demo launcher refuses it. Token counts are estimates, and idle means reachable, because Ollama exposes neither.
+
 ## Local model mode
 
 Only the platform lead needs the existing Orin service. Observe the served model

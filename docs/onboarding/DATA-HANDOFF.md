@@ -2,7 +2,7 @@
 
 ## Source and local paths
 
-Anurag shares the collected data separately. Keep the delivered folder as an immutable source snapshot, preferably outside your checkout. Record its location as `TBR_DATA_SOURCE` and a separate writable location as `TBR_DATA_WORK`. These are **onboarding/adapter configuration names**, not existing legacy environment support. T1 implements explicit path injection for the new adapter; simply exporting a variable does not redirect old code.
+Anurag sends the collected data folder directly, about 10 GB in 15,986 files. It is not in Git, and you do not need access to his machine. Keep the delivered folder as an immutable source snapshot, preferably outside your checkout. Record its location as `TBR_DATA_SOURCE` and a separate writable location as `TBR_DATA_WORK`. These are **onboarding/adapter configuration names**, not existing legacy environment support. T1 implements explicit path injection for the new adapter; simply exporting a variable does not redirect old code.
 
 Example local arrangement (replace with your own absolute paths):
 
@@ -13,6 +13,26 @@ researchCircle/                Git checkout, separate from those data paths
 ```
 
 The current `src/utils/config.py` hardcodes PROJECT_ROOT/data and creates directories at import time. `CrawlConfig` defaults to restricted mode and chooses `data/restricted/chroma`; full mode chooses `data/chroma`. Never symlink the only source snapshot into a writable legacy path or assume a new env var overrides it. Pass a working-copy path through an adapter or consciously use a disposable checkout-local copy. Do not create copies until source/destination paths and disk capacity have been checked; never copy a directory into itself or over the source.
+
+## What the folder contains
+
+Counted on 2026-10-31. Confirm against your copy; do not treat these as guarantees.
+
+| Path | Files | Size | Notes |
+|---|---|---|---|
+| `pdfs/` | 2,932 | 9.4 GB | Source PDFs. Skip them unless your task needs them. |
+| `papers/` | 2,932 | 139 MB | Per-paper JSON. |
+| `research_cards/` | 2,108 | 11 MB | Distilled paper cards. Likely the most useful starting point. |
+| `rit_data_v2.json`, `comprehensive_data.json`, `rit_data.json` | 3 | 3.5 MB | Faculty and paper records (top-level `faculty` keys). |
+| `tiger_brain.json`, `*.gml`, `kuzu_db` | 5 | about 155 MB | Graph exports and a graph database. |
+| `chroma/` | 14 | 38 MB | Existing vector index. Check its embedding model before querying. |
+| `cache/` | 7,842 | 243 MB | Parser output cache. |
+| `restricted/` | 124 | 220 MB | A smaller crawl with the same layout. |
+| `tiger_research.db` | 1 | 80 MB | **Mostly logs.** Its faculty, publication and tag tables are empty, so do not import from it. |
+
+Stored paths in about 2,990 files point at Anurag's home directory. Those paths do not exist on your machine, so resolve files relative to your copy instead. Publishing rights for the PDFs and paper text have not been reviewed, so never commit or publish them. A scan of the non-PDF text files found no credentials.
+
+If you keep the folder at `data/` inside your checkout, `.gitignore` blocks everything there except `.gitkeep`, `prompts/` and `taxonomies/`. Still treat it as read-only, and write indexes elsewhere.
 
 ## Inventory before importing
 

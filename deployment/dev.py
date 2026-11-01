@@ -28,6 +28,10 @@ def configure_development(path: Path, provider: str, base_url: str | None, model
         if not base_url or not model_id:
             raise ValueError('Local inference requires --base-url and --model-id from observation.')
         values.update(TBR_MODEL_BASE_URL=base_url, TBR_MODEL_ID=model_id)
+    elif provider == 'ollama':
+        if not model_id:
+            raise ValueError('Ollama inference requires --model-id for a model you have pulled.')
+        values.update(TBR_MODEL_BASE_URL=base_url or 'http://host.docker.internal:11434/v1', TBR_MODEL_ID=model_id)
     else:
         values.pop('TBR_MODEL_BASE_URL', None)
         values.pop('TBR_MODEL_ID', None)
@@ -43,7 +47,7 @@ def configure_development(path: Path, provider: str, base_url: str | None, model
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--env-file', type=Path, default=ROOT / 'dist/core-runtime.env')
-    parser.add_argument('--provider', choices=['fixture', 'local'], default='fixture')
+    parser.add_argument('--provider', choices=['fixture', 'local', 'ollama'], default='fixture')
     parser.add_argument('--base-url')
     parser.add_argument('--model-id')
     parser.add_argument('--build', action='store_true')
