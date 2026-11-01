@@ -1,7 +1,8 @@
 # Shared-host preparation
 
-Prepared 2026-11-01. This is a reviewable staging procedure, not an executed shared
-installation. T1's approved drafting excerpts and real Orin acceptance remain
+Prepared 2026-11-01. This records the preparation procedure and earlier checks.
+The authorized G14 deployment subsequently completed; see [current deployment
+status](g14-deployment-status.md) and its actual evidence. T1's approved drafting excerpts and real Orin acceptance remain
 pending. No shared services, ingress settings or existing databases were changed.
 
 ## Observed readiness

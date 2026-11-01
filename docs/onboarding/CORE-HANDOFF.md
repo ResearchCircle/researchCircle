@@ -83,7 +83,8 @@ records matter.
 - **Fixture drafts are not inference.** They are labeled excerpts. Citation checks
   validate identity and quoted text, not that a claim follows from its source.
 - **Real Orin-backed application acceptance remains pending.** Local Ollama
-  application checks are recorded below; there is no shared deployment.
+  application checks are recorded below. A private G14 deployment now exists; see
+  [current deployment status](../g14-deployment-status.md). Real drafting remains pending.
 
 ## Test with a real model on your own machine
 
@@ -134,7 +135,7 @@ journey.
 | T2 | Add a complete Python dependency lock and reviewed base-image digests. | A fresh image build is reproducible and the existing test commands still pass. |
 | T3 | Build member role change/removal UI on the existing `PATCH`/`DELETE /teams/{id}/members/{member_id}` routes. | Owners can manage members; the last-owner error is shown clearly; a browser story covers it. |
 | T3 | Extend browser coverage to busy/offline/mobile states, improve conflict/source usability, and add `docs/qa/product-demo.md`. | Existing stories stay green; failed saves preserve edits; no synthetic source appears as real evidence. |
-| Platform lead | Restore Orin reachability, complete one persisted model-backed browser job, fix the citation failure if it recurs, and stage the shared demo. | Actual cited output is inspected and accepted without overwrite; deployed provider is local; sessions, restart persistence and routing work on the target. |
+| Platform lead | Restore Orin reachability, complete one persisted model-backed browser job, fix the citation failure if it recurs, and finish shared-demo model acceptance. Private G14 deployment, schema/startup, HTTPS and restart persistence passed on 2026-11-01. | Actual cited output is inspected and accepted without overwrite; deployed provider is local; sessions, restart persistence and routing work on the target. |
 
 Coordinate producer/consumer changes rather than creating a second DTO or application
 root. [Plan 19](../design/19-core-implementation-plan.md) describes the core contract;

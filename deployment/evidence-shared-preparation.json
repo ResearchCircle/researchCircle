@@ -120,5 +120,6 @@
     "T1-approved drafting excerpts",
     "Real Orin quality and persisted browser acceptance",
     "T2 dependency lock/base-image digest review and backup/restore acceptance"
-  ]
+  ],
+  "superseded_target_status": "See evidence-g14-deployment.json for the later authorized deployment and current test totals."
 }

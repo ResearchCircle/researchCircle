@@ -1,6 +1,6 @@
 # Platform integration update
 
-Review branch: `anurag/a-p4-shared-host`.
+Review branch: `anurag/a-p4-g14-deploy`.
 Shared review baseline: `b179a7e` (`anurag/a-p1-provider` when last fetched).
 
 ## Problem and resulting behavior
@@ -25,9 +25,10 @@ and report fixed, specific reasons without retaining raw failed model output.
 | [Scripted application scenarios](../scripts/orin/evidence-simulated-application.json) | Two-source acceptance/export, insufficient evidence, invalid quotes, truncation, concurrent-save protection and cancellation/draining against PostgreSQL. | Authored responses through an in-process API client. |
 | [Scripted browser checks](../scripts/orin/evidence-scripted-browser.json) | Citation display, append/save/export, failed/cancelled states and disabled stale acceptance in the real UI. | Synthetic simulation database and fixture model responses. |
 
-The updated platform suite ran 183 tests: **181 passed**, with the two opt-in
-proxy tests skipped in the default run. Both proxy tests passed separately on
-native ARM64 and locally emulated AMD64 application images. The fresh-install rehearsal also
+The latest platform suite ran 192 tests: **189 passed**, with three opt-in
+proxy tests skipped in the default run. The three project-bind-storage/TLS
+checks passed separately; the two default-volume TLS checks also passed. Earlier
+TLS checks passed on native ARM64 and locally emulated AMD64 images. The fresh-install rehearsal also
 verified that the schema-gate file in the tested image matches the checkout;
 runtime image IDs are recorded in its evidence.
 
@@ -46,14 +47,20 @@ restart persistence and rejected foreign/wrong-scheme origins. Native ARM64
 checks and the HTTP replacement/spoof smoke also passed. Builds support an
 explicit `--platform` while preserving the native default and existing image tags.
 
-[Preparation procedure](shared-host-preparation.md) and
-[local evidence](../deployment/evidence-shared-preparation.json) document the
-transfer path and limits. A follow-up connected to G14 over Tailscale SSH:
-x86-64, 821.9 GB free, Ubuntu 26.04.1 LTS, no Docker/Compose or configured Serve
-ingress. The LAN path still timed out; noninteractive sudo was unavailable.
-The AMD64 image architecture matches this host, but runtime installation and
-actual front-door/persistence checks remain pending. No remote service, package
-or ingress changes were made. Orin was reported offline by Tailscale.
+[Preparation procedure](shared-host-preparation.md),
+[current G14 status](g14-deployment-status.md) and
+[actual deployment evidence](../deployment/evidence-g14-deployment.json) describe
+the executed platform slice. G14 now runs Docker 29.1.3 and Compose 2.40.3;
+Docker/containerd storage, application data, releases and configuration stay under
+`~/researchCircle`. OS packages and service pointer files use standard system paths.
+
+The private Tailscale HTTPS endpoint passed certificate, routing, cookie/origin,
+registration, revision saves and PostgreSQL/API/worker restart checks. A fresh
+login and the real browser reopened saved text; a browser Markdown download
+contained the saved content. Schema `0004_team_shortlist` is verified. The deployed
+profile is `demo` with the local provider and no development identity switch.
+Orin remains offline, and T1's approved excerpt pack is absent, so model quality
+and the complete model-backed browser workflow remain pending.
 
 ## Data preservation
 
@@ -107,9 +114,9 @@ real model, browser and target-host release acceptance.
   forbidden claims and exact support must be populated/reviewed before scoring.
 - Real Orin generation quality/latency and a successful persisted browser job
   remain pending. The earlier failed attempt remains in the evidence record.
-- Shared-target selection/authorization and target-host persistence/routing checks
-  remain pending. Nothing in this update has been pushed or deployed to a shared
-  environment.
+- Authorized private G14 deployment and basic persistence/routing checks passed.
+  The source/images were transferred directly; no Git branch was pushed and no PR
+  or merge was performed. Real drafting acceptance remains pending.
 
 Retrieval/matching remain with T1; database schema, routes and dependency locks
 remain with T2; member UI and browser-suite development remain with T3. This
@@ -118,6 +125,6 @@ update changes platform-owned deployment/drafting code, its tests and evidence.
 Inspect the cumulative update with:
 
 ```sh
-git log --oneline b179a7e..anurag/a-p4-shared-host
-git diff --stat b179a7e..anurag/a-p4-shared-host
+git log --oneline b179a7e..anurag/a-p4-g14-deploy
+git diff --stat b179a7e..anurag/a-p4-g14-deploy
 ```

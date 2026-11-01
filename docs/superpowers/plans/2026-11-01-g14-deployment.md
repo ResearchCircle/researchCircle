@@ -43,3 +43,18 @@ Final review resolutions: both daemon stores now honor the project-root requirem
 worker bind ownership is explicit; installer reads TBR_HTTP_PORT from private
 settings instead of assuming the env example's default; evidence distinguishes
 historical shared-preparation runs from current storage verification.
+
+## Execution evidence
+
+- Tasks 1–4 completed: interactive install succeeded; Docker/Compose and both
+  daemon roots verified; checksummed app release/images loaded; private Serve
+  certificate/Host/scheme confirmed; gated schema `0004` and real PostgreSQL,
+  API/worker restart plus retained/fresh login and browser save/export passed.
+- Local suite: 192 run, 189 passed, three opt-in checks skipped. Three bind-storage
+  and two default-volume TLS checks passed separately; seven runtime-storage
+  preservation tests passed. `deployment/evidence-g14-deployment.json` records
+  actual image IDs, paths, statuses and the scope of browser checks.
+- Task 5 pending: Orin still reports offline; approved T1 excerpts are not present
+  in fetched branches. No real drafting/model quality pass is claimed.
+- Task 6 completed for the deployed platform slice: review findings addressed,
+  data preservation checked and local commits/evidence recorded. No push/PR/merge.

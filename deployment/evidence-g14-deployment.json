@@ -1,0 +1,265 @@
+{
+  "recorded_date": "2026-11-01",
+  "status": "deployed_platform_checks_passed_drafting_pending",
+  "private_url": "https://g14.taild3eaea.ts.net",
+  "access": "Tailscale tailnet only; named account registration/login",
+  "project_root": "/home/anurag/researchCircle",
+  "application_revision": "5b10581d410343e7779a2726ad99da4adf213e2c",
+  "host_setup_revision": "01e24b4",
+  "runtime": {
+    "docker_version": "29.1.3",
+    "compose_version": "2.40.3+ds1-0ubuntu1",
+    "docker_root": "/home/anurag/researchCircle/runtime/docker",
+    "containerd_root": "/home/anurag/researchCircle/runtime/containerd",
+    "system_services_enabled": [
+      "docker",
+      "containerd",
+      "tailscaled"
+    ]
+  },
+  "configuration": {
+    "profile": "demo",
+    "provider": "local",
+    "development_identity": false,
+    "private_settings_mode": "0600",
+    "postgres_data": "/home/anurag/researchCircle/state/tbr-researchcircle/postgres",
+    "worker_data": "/home/anurag/researchCircle/state/tbr-researchcircle/work",
+    "worker_directory_uid_gid": "10001:10001"
+  },
+  "ingress_checks": {
+    "certificate_verified": true,
+    "frontend_html_status": 200,
+    "api_health_status": 200,
+    "same_origin_invalid_payload_status": 422,
+    "foreign_origin_status": 403,
+    "client_scheme_spoof_ignored": true,
+    "only_published_application_port": "127.0.0.1:18088",
+    "funnel_configured": false
+  },
+  "api_acceptance": {
+    "status": "passed",
+    "private_https_url": "https://g14.taild3eaea.ts.net",
+    "tls_certificate_verified": true,
+    "profile": "demo",
+    "provider": "local",
+    "inference_exercised": false,
+    "registration_status": 201,
+    "save_status": 200,
+    "saved_revision": 2,
+    "stale_save_status": 409,
+    "secure_httponly_samesite_session_cookie": true,
+    "secure_login_cookie": true,
+    "postgres_api_worker_restarted": true,
+    "session_survived_restart": true,
+    "fresh_login_reopened_proposal": true,
+    "anonymous_proposal_access_blocked": true,
+    "schema_heads": [
+      "0004_team_shortlist"
+    ],
+    "schema_verified_after_restart": true,
+    "proposal_id": "9cd8f60d-c96f-4cdc-9c1b-d9478fdf1a5a",
+    "saved_content_sha256": "455047b9fc131ca9ef123a6e789d8c0b35a9849f14e94e70e8c2fd23a9551245",
+    "existing_and_test_data_retained": true
+  },
+  "browser_acceptance": {
+    "registration": true,
+    "team_creation": true,
+    "proposal_creation_status": 201,
+    "save_status": 200,
+    "proposal_id": "867f172d-5faa-47c2-8128-237eebc066d7",
+    "saved_revision": 2,
+    "postgres_api_worker_restart": true,
+    "session_retained_after_reload": true,
+    "saved_text_reopened": true,
+    "markdown_download_status": 200,
+    "markdown_download_bytes": 93,
+    "markdown_download_contains_saved_text": true,
+    "download_failure": null,
+    "real_model_job_exercised": false,
+    "test_notes": [
+      "Setup retried after unsupported browser-runtime imports; no registration had occurred.",
+      "Proposal creation was retried after waiting for team state to settle.",
+      "Download response bodies were empty in network instrumentation; actual download stream and API export content were verified."
+    ],
+    "console_note": "Initial unauthenticated /auth/me returned the expected 401; no error remained after authenticated reload.",
+    "test_browser_signed_out": true,
+    "console_errors_after_authenticated_reload": 0
+  },
+  "local_verification": {
+    "backend_command": ".venv/bin/python -m unittest discover -s tests/platform -q",
+    "tests_run": 192,
+    "passed": 189,
+    "skipped_opt_in_tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "bind_storage_https_tests_passed": 3,
+    "default_named_volume_https_tests_passed": 2,
+    "runtime_storage_guard_tests_passed": 7,
+    "host_installer_syntax_and_compilation": "passed; hashes match local reviewed files"
+  },
+  "data_preservation": {
+    "baseline_files": 15986,
+    "current_files": 15986,
+    "removed_files": 0,
+    "added_files": 0,
+    "changed_preexisting_files": 0,
+    "sha256_checked_files": 15871,
+    "metadata_only_files": 115,
+    "all_preexisting_files_unchanged": true
+  },
+  "services": [
+    {
+      "service": "api",
+      "running": true,
+      "restart_count": 0,
+      "image_id": "sha256:f4530e3d3df123142743560368a1a42fda61da7f5525f508a03282e5177c129c",
+      "profile": "demo",
+      "provider": "local",
+      "development_identity": "false",
+      "mounts": [
+        {
+          "source": "/home/anurag/researchCircle/state/tbr-researchcircle/work",
+          "target": "/var/lib/tbr-work",
+          "type": "bind"
+        }
+      ],
+      "published_ports": {}
+    },
+    {
+      "service": "db",
+      "running": true,
+      "restart_count": 0,
+      "image_id": "sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab",
+      "profile": null,
+      "provider": null,
+      "development_identity": null,
+      "mounts": [
+        {
+          "source": "/home/anurag/researchCircle/state/tbr-researchcircle/postgres",
+          "target": "/var/lib/postgresql/data",
+          "type": "bind"
+        }
+      ],
+      "published_ports": {
+        "5432/tcp": null
+      }
+    },
+    {
+      "service": "proxy",
+      "running": true,
+      "restart_count": 0,
+      "image_id": "sha256:0e52bd054126cdc040b1276c0af347aeb02a41b9cfe305d6094767ac30e97949",
+      "profile": null,
+      "provider": null,
+      "development_identity": null,
+      "mounts": [
+        {
+          "source": "/home/anurag/researchCircle/releases/5b10581d4103/deployment/nginx.conf",
+          "target": "/etc/nginx/templates/default.conf.template",
+          "type": "bind"
+        }
+      ],
+      "published_ports": {
+        "80/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "18088"
+          }
+        ]
+      }
+    },
+    {
+      "service": "web",
+      "running": true,
+      "restart_count": 0,
+      "image_id": "sha256:f5bf716a421aedc4084321930d2b646bbe3f3a2976d37ae7742b516edd339cc1",
+      "profile": null,
+      "provider": null,
+      "development_identity": null,
+      "mounts": [],
+      "published_ports": {}
+    },
+    {
+      "service": "worker",
+      "running": true,
+      "restart_count": 0,
+      "image_id": "sha256:f4530e3d3df123142743560368a1a42fda61da7f5525f508a03282e5177c129c",
+      "profile": "demo",
+      "provider": "local",
+      "development_identity": "false",
+      "mounts": [
+        {
+          "source": "/home/anurag/researchCircle/state/tbr-researchcircle/work",
+          "target": "/var/lib/tbr-work",
+          "type": "bind"
+        }
+      ],
+      "published_ports": {}
+    }
+  ],
+  "images": [
+    {
+      "tags": [
+        "tbr-v2-api:g14-deploy"
+      ],
+      "id": "sha256:f4530e3d3df123142743560368a1a42fda61da7f5525f508a03282e5177c129c",
+      "architecture": "amd64",
+      "digests": [
+        "tbr-v2-api@sha256:f4530e3d3df123142743560368a1a42fda61da7f5525f508a03282e5177c129c"
+      ]
+    },
+    {
+      "tags": [
+        "tbr-v2-web:g14-deploy"
+      ],
+      "id": "sha256:f5bf716a421aedc4084321930d2b646bbe3f3a2976d37ae7742b516edd339cc1",
+      "architecture": "amd64",
+      "digests": [
+        "tbr-v2-web@sha256:f5bf716a421aedc4084321930d2b646bbe3f3a2976d37ae7742b516edd339cc1"
+      ]
+    },
+    {
+      "tags": [
+        "postgres:16-alpine"
+      ],
+      "id": "sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab",
+      "architecture": "amd64",
+      "digests": [
+        "postgres@sha256:0cefaabd882e42bcb2a2f3dc56d3ce4770560ba62fd7f197f1a2e008fd5731ab"
+      ]
+    },
+    {
+      "tags": [
+        "nginx:stable-alpine"
+      ],
+      "id": "sha256:0e52bd054126cdc040b1276c0af347aeb02a41b9cfe305d6094767ac30e97949",
+      "architecture": "amd64",
+      "digests": [
+        "nginx@sha256:0e52bd054126cdc040b1276c0af347aeb02a41b9cfe305d6094767ac30e97949"
+      ]
+    }
+  ],
+  "schema": {
+    "status": "schema_ready",
+    "heads": [
+      "0004_team_shortlist"
+    ],
+    "schema_verified": true
+  },
+  "remaining": {
+    "orin_online": false,
+    "t1_approved_excerpt_pack_available": false,
+    "real_drafting_acceptance": "pending",
+    "model_backed_browser_workflow": "pending"
+  },
+  "source_snapshot_copied_to_g14": false,
+  "test_records_retained": true,
+  "final_running_services": [
+    "api",
+    "db",
+    "proxy",
+    "web",
+    "worker"
+  ],
+  "final_database_health": "healthy"
+}
