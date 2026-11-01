@@ -23,6 +23,12 @@ starts the API, worker, frontend and proxy. Repeat without `--build` when images
 match the checkout. Existing records and the source snapshot are preserved.
 There is no shared default password or development identity switch.
 
+The launcher reports `started` only after the API health response and frontend
+HTML respond through the local proxy. It waits up to 60 seconds; use
+`--ready-timeout 120` for slower startup (maximum 300 seconds). A readiness timeout
+returns a failure and preserves the settings, containers and database for inspection.
+This checks HTTP readiness, not model availability or release acceptance.
+
 Private settings are in ignored `dist/core-runtime.env`, mode 0600. They are reused,
 not regenerated on every run. Do not share settings or database dumps. Source and
 work paths must be separate; no source snapshot is mounted or copied into images.
@@ -66,7 +72,7 @@ Do not scale workers across hosts. UI cancellation/timeout does not prove infere
 ended. Shutdown waits for the actual call and sanitizes failed persistence writes.
 Abandoned running jobs are interrupted, not silently redelivered.
 
-Actual model-backed application acceptance remains pending. Earlier standalone
+Actual Orin-backed application acceptance remains pending. Earlier standalone
 completions passed, but one persisted application run failed citation validation;
 later SSH/status probes timed out. A fixture browser pass is not Orin acceptance.
 

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .runtime import ROOT, RuntimeConfig
 from .start import read_settings
+from .readiness import wait_for_runtime
 
 
 def configure_development(path: Path, provider: str, base_url: str | None, model_id: str | None) -> dict[str, str]:
@@ -51,11 +52,13 @@ def main() -> int:
     parser.add_argument('--base-url')
     parser.add_argument('--model-id')
     parser.add_argument('--build', action='store_true')
+    parser.add_argument('--ready-timeout', type=float, default=60, help='Wait up to this many seconds for API and web readiness')
     args = parser.parse_args()
     try:
         settings = configure_development(args.env_file, args.provider, args.base_url, args.model_id)
+        startup_env = {**os.environ, **settings}
         if args.build:
-            subprocess.run([sys.executable, '-m', 'deployment.build'], cwd=ROOT, check=True)
+            subprocess.run([sys.executable, '-m', 'deployment.build'], cwd=ROOT, env=startup_env, check=True)
         compose = ['docker', 'compose', '-p', 'tbr-core', '--env-file', str(args.env_file),
                    '-f', str(ROOT / 'deployment/compose.yaml')]
         commands = [[*compose, 'config', '--quiet'], [*compose, 'up', '-d', 'db'],
@@ -63,9 +66,10 @@ def main() -> int:
                     [*compose, 'run', '--rm', '-T', 'api', 'python', '-m', 'services.api.bootstrap'],
                     [*compose, 'up', '-d', 'api', 'worker', 'web', 'proxy']]
         for command in commands:
-            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
+            result = subprocess.run(command, cwd=ROOT, env=startup_env, capture_output=True, text=True)
             if result.returncode:
                 raise RuntimeError('Local workspace startup failed; inspect development service status. Existing data was preserved.')
+        wait_for_runtime(settings['TBR_HTTP_PORT'], args.ready_timeout)
         print(json.dumps({'status': 'started', 'url': f'http://127.0.0.1:{settings["TBR_HTTP_PORT"]}',
                           'provider': args.provider, 'schema': 'migrated', 'accounts': 'register through the browser',
                           'sources': 'labeled synthetic samples', 'scope': 'Isolated local development; no shared deployment.'}))

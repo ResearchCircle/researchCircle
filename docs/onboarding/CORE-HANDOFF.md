@@ -82,8 +82,8 @@ records matter.
   availability are recorded as unknown.
 - **Fixture drafts are not inference.** They are labeled excerpts. Citation checks
   validate identity and quoted text, not that a claim follows from its source.
-- **Nothing has run against a real model in the application** (see below), and there
-  is no shared deployment.
+- **Real Orin-backed application acceptance remains pending.** Local Ollama
+  application checks are recorded below; there is no shared deployment.
 
 ## Test with a real model on your own machine
 
@@ -94,7 +94,11 @@ ollama pull mistral
 .venv/bin/python -m deployment.dev --provider ollama --model-id mistral:latest --build
 ```
 
-Omit `--build` when the images already match the checkout. Run `--provider fixture` again before using the browser suite. If sign-up fails straight after a restart, wait a few seconds and retry: the command reports `started` slightly before the API is ready.
+Omit `--build` when the images already match the checkout. Run `--provider fixture`
+again before using the browser suite. The launcher waits for the API and frontend
+through the proxy before reporting `started`; a readiness timeout returns a failure
+and preserves the database. Use `--ready-timeout 120` if startup needs more than
+the default 60 seconds. Model availability is a separate check.
 
 | Model | Memory used | Drafting checks | Browser drafts | Median draft time |
 |---|---:|---:|---:|---:|

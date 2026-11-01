@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 from .runtime import ROOT, RuntimeConfig, integration_gaps
+from .readiness import wait_for_runtime
 
 
 def read_settings(path: Path) -> dict[str, str]:
@@ -31,6 +32,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--env-file', type=Path, default=ROOT / 'deployment/.env')
     parser.add_argument('--start', action='store_true', help='Start the staged local stack after prerequisites pass')
+    parser.add_argument('--ready-timeout', type=float, default=60, help='Wait up to this many seconds for API and web readiness')
     args = parser.parse_args()
     try:
         env = {**read_settings(args.env_file), **os.environ}
@@ -52,6 +54,7 @@ def main() -> int:
             result = subprocess.run([*command, 'up', '-d'], env=env, capture_output=True, text=True)
             if result.returncode:
                 raise ValueError('Staged stack startup failed; inspect container status locally.')
+            wait_for_runtime(env.get('TBR_HTTP_PORT', '8080'), args.ready_timeout)
         print(json.dumps({'status': 'started' if args.start else 'configuration_valid',
                           'acceptance': 'Browser flow, membership, persistence and backup/restore still require validation.'}))
         return 0
