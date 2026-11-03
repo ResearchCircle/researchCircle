@@ -33,6 +33,27 @@ export type TeamDetails = Team & {
   members: TeamMember[];
 };
 
+export type GraphNode = {
+  id: string;
+  name: string;
+  type: 'faculty' | 'paper' | 'topic';
+  origin?: string | null;
+  evidence_kind?: 'public' | 'synthetic';
+  metadata?: Record<string, any>;
+};
+
+export type GraphLink = {
+  source: string;
+  target: string;
+  relationship: string;
+  evidence?: string;
+};
+
+export type GraphData = {
+  nodes: GraphNode[];
+  links: GraphLink[];
+};
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public retryable = false) { super(message); this.name = 'ApiError'; }
 }
@@ -111,4 +132,9 @@ export const api = {
   draft: (id: string, body: { expected_revision: number; section: string; instruction: string; source_ids: string[] }) => post<DraftJob>(`/proposals/${id}/jobs`, body),
   job: (id: string) => request<DraftJob>(`/jobs/${id}`),
   cancel: (id: string) => post<DraftJob>(`/jobs/${id}/cancel`),
+  graph: (limit = 150, topic?: string) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (topic) params.set('topic', topic);
+    return request<GraphData>(`/graph?${params.toString()}`);
+  },
 };

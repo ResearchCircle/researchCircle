@@ -7,6 +7,7 @@ import PursuitPanel from '@/components/PursuitPanel';
 import ShortlistPanel from '@/components/ShortlistPanel';
 import { canChangeTeam, canAttachToProposal, sourceKindLabel, editShortlistDraft, acknowledgeShortlistDraft, type ShortlistDrafts } from '@/lib/shortlist';
 import TeamMembersPanel from '@/components/TeamMembersPanel';
+import GraphViewer from '@/components/GraphViewer';
 function Origin({ value }: { value: string }) {
   const href = safeOrigin(value);
   return href ? <a href={href} target="_blank" rel="noopener noreferrer">View source</a> : <span className="muted">{value || 'No external link'}</span>;
@@ -32,6 +33,7 @@ export default function Workspace() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [currentView, setCurrentView] = useState<'workspace' | 'graph'>('workspace');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
@@ -174,8 +176,32 @@ export default function Workspace() {
   </main>;
 
   return <div className="workspace">
-    <header className="topbar"><a className="brand" href="#main"><span className="brand-mark small">trb</span><span>Tiger Research Buddy<small>Research workspace</small></span></a><div className="account"><span>{user.name}<small>{user.email}</small></span><button disabled={busy} onClick={() => { if ((!dirty && !shortlistDirty) || confirmDiscard()) void run(async () => { await api.logout(); setShortlistDrafts({}); clearEditor(); setTeamId(''); setUser(null); setProposal(null); setTeams([]); setProposals([]); setInvitations([]); setSources([]); setJobs([]); setResults(null); setConflict(null); setTitle(''); setContent(''); setSelected([]); setSourceTitle(''); setSourceText(''); setSourceOrigin(''); setInstruction(''); setQuery(''); setInviteEmail(''); setNewTitle(''); setTeamName(''); setNotice(''); }); }}>Sign out</button></div></header>
+    <header className="topbar">
+      <a className="brand" href="#main"><span className="brand-mark small">trb</span><span>Tiger Research Buddy<small>Research workspace</small></span></a>
+      <div className="view-switcher" role="tablist" aria-label="Workspace views">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={currentView === 'workspace'}
+          className={`view-tab ${currentView === 'workspace' ? 'active' : ''}`}
+          onClick={() => setCurrentView('workspace')}
+        >
+          Workspace
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={currentView === 'graph'}
+          className={`view-tab ${currentView === 'graph' ? 'active' : ''}`}
+          onClick={() => setCurrentView('graph')}
+        >
+          Knowledge Graph
+        </button>
+      </div>
+      <div className="account"><span>{user.name}<small>{user.email}</small></span><button disabled={busy} onClick={() => { if ((!dirty && !shortlistDirty) || confirmDiscard()) void run(async () => { await api.logout(); setShortlistDrafts({}); clearEditor(); setTeamId(''); setUser(null); setProposal(null); setTeams([]); setProposals([]); setInvitations([]); setSources([]); setJobs([]); setResults(null); setConflict(null); setTitle(''); setContent(''); setSelected([]); setSourceTitle(''); setSourceText(''); setSourceOrigin(''); setInstruction(''); setQuery(''); setInviteEmail(''); setNewTitle(''); setTeamName(''); setNotice(''); }); }}>Sign out</button></div>
+    </header>
     <div className="feedback" aria-live="polite">{busy && <span role="status">Working…</span>}{notice && <span className="success" role="status">{notice}</span>}{error && <div className="alert error" role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError('')}>×</button></div>}</div>
+    {currentView === 'workspace' ? (
     <div className="workspace-grid">
       <aside className="navigation" aria-label="Teams and proposals">
         <div className="section-heading"><h2>Your workspace</h2><button className="text-button" disabled={busy} onClick={() => void run(refreshLists)}>Refresh</button></div>
@@ -219,5 +245,29 @@ export default function Workspace() {
       {jobs.length > 0 && <section className="job-section"><h2>Draft suggestions</h2><label>Job history<select value={job?.id ?? ''} onChange={event => setJobId(event.target.value)}>{jobs.map(item => <option value={item.id} key={item.id}>{item.state} · revision {item.base_revision} · {new Date(item.created_at).toLocaleTimeString()}</option>)}</select></label>{pollError && <p className="alert error" role="alert">Status refresh failed: {pollError} Retrying…</p>}{job && <><div className="job-status" role="status"><span className={`status-dot ${job.state}`} />{job.state === 'failed' && job.error?.code === 'cancelled' ? 'Cancelled' : job.state}<span className="muted">Based on revision {job.base_revision}</span></div>{(job.state === 'queued' || job.state === 'running') && <button disabled={busy} onClick={() => void run(async () => { const next = await api.cancel(job.id); setJobs(previous => previous.map(item => item.id === next.id ? next : item)); })}>Cancel draft</button>}{job.error && <p className="alert error" role="alert">{job.error.message}</p>}{job.output && <><div className="suggestion-text">{job.output.text}</div>{job.output.insufficient_evidence && <p className="alert warning">The draft reports insufficient evidence. Check its claims against the sources.</p>}<div className="button-row"><button disabled={busy} onClick={() => void run(() => copy(job.output!.text))}>Copy suggestion</button><button className="primary" disabled={busy || !editable || !proposal || !!conflict || !canApplyDraft(job, proposal, dirty)} onClick={() => void run(async () => { if (proposal && canApplyDraft(job, proposal, dirty)) await save(appendSuggestion(content, job.output!.text)); })}>Append suggestion and save</button></div>{proposal && !canApplyDraft(job, proposal, dirty) && <p className="alert warning">This suggestion cannot be applied directly because its proposal revision or source versions differ, or there are unsaved edits. Copy it and reconcile the text in the editor.</p>}<h3 className="citations-heading">Supporting citations</h3>{!job.output.citations.length && <p className="muted">No citations were returned.</p>}{job.output.citations.map((citation, index) => <blockquote className="citation" key={`${citation.source_id}-${index}`}><p>“{citation.quote}”</p><footer><strong>{citation.title}</strong><small>Version {citation.version}</small><Origin value={citation.origin} /></footer></blockquote>)}</>}</>}</section>}
       </aside>
     </div>
+    ) : (
+      <main id="main" className="graph-view-shell">
+        <GraphViewer
+          onSearchTopic={(topic) => {
+            setQuery(topic);
+            setCurrentView('workspace');
+            void run(async () => {
+              setResults(await api.search(topic));
+            });
+          }}
+          onAttachSource={(sourceId) => {
+            if (proposal && canAttachToProposal(teamId, proposal)) {
+              void run(async () => {
+                const source = await api.attach(proposal.id, sourceId);
+                setSources(previous => [...previous.filter(item => item.id !== source.id), source]);
+                setNotice('Graph source attached to the open proposal.');
+              });
+            }
+          }}
+          attachedSourceIds={sources.map(s => s.id)}
+          proposalOpen={!!proposal && editable}
+        />
+      </main>
+    )}
   </div>;
 }
