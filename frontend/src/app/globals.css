@@ -172,3 +172,35 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 350px; overflo
 .shortlist-panel > .muted { margin-top: 12px; }
 .result-actions > .button-row { margin: 0; justify-content: flex-end; }
 @media (max-width: 720px) { .result-actions { align-items: flex-start; flex-wrap: wrap; } }
+
+.team-member {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.team-member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.team-member-info small {
+  overflow-wrap: anywhere;
+}
+
+.team-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+.team-member-actions label {
+  min-width: 110px;
+}
