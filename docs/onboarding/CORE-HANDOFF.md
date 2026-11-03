@@ -1,6 +1,6 @@
 # Working core and next work
 
-Updated 2026-11-01. Read this before anything else in onboarding: the core product
+Updated 2026-11-03. Read this before anything else in onboarding: the core product
 exists. Do not rebuild it from earlier starter tickets or fixtures. Where an older
 plan or prompt disagrees with this file, check the code and then trust the code.
 
@@ -78,8 +78,11 @@ records matter.
 
 - **Search is keyword-only.** Every response is marked `degraded`; there is no
   semantic retrieval yet.
-- **The corpus is tiny.** Three papers, their listed authors, three RIT profiles and
-  six fictional samples. The collected data snapshot has not been imported.
+- **The corpus is tiny.** Eleven Crossref records, their listed authors, three
+  curated RIT profiles, five user-approved snapshot profiles and six fictional
+  samples. Only the five selected RIT profiles from the collected snapshot were
+  imported into this isolated local app; papers/cards and the rest of the snapshot
+  remain unimported.
 - **Listed authors are unresolved.** Crossref authors are not linked to the RIT
   profiles, even if they are the same person.
 - **RIT facts are not current-status claims.** Affiliation currentness and
@@ -132,9 +135,10 @@ journey.
 
 | Owner | Task | Done means |
 |---|---|---|
-| T1 | Inventory the received data snapshot read-only, then import a reviewed subset through `import_public_records` with a separate work path. | Reimport is idempotent; 3–5 real queries return linked public evidence; proposal-only sources never enter search; corpus/index/model identity is reported honestly. |
-| T1 | Add `src/platform/discovery/matching.py`: evidence-backed collaborator ranking, including author-to-profile resolution only where evidence supports it. | Results show reasons and gaps; ranking never enrolls anyone; missing identity/evidence stays unknown. |
-| T1 | Add semantic retrieval behind the existing search contract once model/index compatibility is known; then the opportunity import (D-P3). | `degraded` becomes false only when semantic retrieval really ran; unknown deadlines/eligibility stay unknown. |
+| T1 | Inventory the received data snapshot read-only; a sanitized manifest and bounded five-record RIT profile adapter are in place. The user approved these facts for the isolated local app, and the five selected profiles are imported. | Reimport is idempotent; 3–5 real queries return linked public evidence; proposal-only sources never enter search; corpus/index/model identity is reported honestly. |
+| T1 | Add `src/platform/discovery/matching.py`: the `/api/v2/collaborators/matches` route and `/collaborators` surface return inspectable provenance, exact evidence terms, ranked lexical coverage and catalog gaps; idea text is not persisted. Fixed AI/ML/NLP/RAG aliases require a complete phrase or the acronym and are not semantic matching. Only canonical RIT profiles and visibly synthetic examples are eligible. Saving a match stores only its source-term rationale, not the research idea. | Keyword-only/degraded. On 2026-11-03 the isolated app contained three official RIT profiles, eleven Crossref records and five snapshot profiles (five were inserted; reimport left all five unchanged). Five live topics—AI, machine learning, natural language processing, information retrieval and robotics—returned source-linked profiles. The browser returned four explainable candidates from eight RIT profiles for `AI`, labeled snapshot currentness/availability unknown, and saved an evidence-term note without sending an invitation. SQLite regressions cover aliases, full-phrase precision, ranking, gaps, authenticated shortlist persistence, proposal attachment and no enrollment. This does not prove semantic matching or availability/currentness. |
+| T1 | D-P3 owned slice: `src/platform/ingestion/opportunities.py` normalizes a bounded JSON envelope to the existing team-scoped opportunity API payload; a synthetic sample is imported through that route in tests. Unknown deadlines and eligibility stay unknown; source links and timezone offsets are preserved. The local filter helper supports text, exact eligibility and an offset-aware deadline bound. | API server-side query filters still need T2 review; sample records are synthetic, not a real funding catalog. No source-specific opportunity dataset was provided. |
+| T1 | Add semantic retrieval behind the existing search contract once model/index compatibility is known; then D-P4 search/drafting quality examples. | `degraded` becomes false only when semantic retrieval really ran; unknown deadlines/eligibility stay unknown. |
 | T2 | Rerun `deployment.backup_smoke` and `deployment.membership_smoke` against schema `0004`, and add any missing PostgreSQL regressions. | Restore fingerprints cover public records and shortlists; role change/removal, duplicate retries and migrations lose no data. |
 | T2 | Add a complete Python dependency lock and reviewed base-image digests. | A fresh image build is reproducible and the existing test commands still pass. |
 | T3 | Build member role change/removal UI on the existing `PATCH`/`DELETE /teams/{id}/members/{member_id}` routes. | Owners can manage members; the last-owner error is shown clearly; a browser story covers it. |

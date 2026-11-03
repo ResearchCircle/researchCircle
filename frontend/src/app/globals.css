@@ -46,6 +46,9 @@ small { display: block; font-size: 11px; color: var(--muted); font-weight: 400; 
 .warning { background: #fff8e9; color: #76551b; border-color: #e6cc91; }
 .success { color: #136b51; }
 .empty { color: var(--muted); padding: 13px 0; font-size: 12px; }
+.coverage-note { margin: 14px 0; padding: 12px 14px; border: 1px solid var(--line); border-left: 3px solid var(--teal); border-radius: 5px; background: #f7fafb; color: var(--muted); font-size: 12px; }
+.coverage-note strong { color: var(--ink); }
+.coverage-note p { margin-top: 5px; }
 .brand-mark { width: 59px; height: 59px; border-radius: 14px 14px 14px 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 23px; letter-spacing: -2px; background: var(--teal); color: white; font-weight: 700; }
 .brand-mark.small { width: 38px; height: 38px; font-size: 18px; border-radius: 9px 9px 9px 3px; }
 .auth-shell { min-height: 100vh; max-width: 1120px; margin: auto; display: flex; align-items: center; justify-content: center; gap: 90px; padding: 60px 32px; }

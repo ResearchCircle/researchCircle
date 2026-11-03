@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { api, type Proposal, type ShortlistEntry, type Team } from '@/lib/api';
 import { safeOrigin } from '@/lib/editor';
 import { RequestScope } from '@/lib/pursuits';
@@ -63,6 +64,7 @@ function TeamShortlist({ team, proposal, attachedSourceIds, refreshVersion, work
   };
 
   return <section className="discovery shortlist-panel" aria-labelledby="shortlist-heading">
+    <p><Link href="/collaborators">Find collaborators from a research idea</Link></p>
     <div className="section-heading"><div><h2 id="shortlist-heading">Team shortlist</h2><p className="muted">Saved evidence for {team.name}. Save papers, author evidence, and sample candidates before starting a proposal.</p></div><button disabled={disabled} onClick={() => void refresh()}>Refresh shortlist</button></div>
     {loading && <p className="empty" role="status">Loading team shortlist…</p>}
     {busy && <p className="muted" role="status">Updating shortlist…</p>}
@@ -73,7 +75,7 @@ function TeamShortlist({ team, proposal, attachedSourceIds, refreshVersion, work
       <div className="result-meta"><span className="tag">{sourceKindLabel(item.kind, item.evidence_kind, item.identity_status)}</span><span className={`evidence ${item.evidence_kind === 'synthetic' ? 'synthetic' : ''}`}>{item.evidence_kind === 'synthetic' ? 'Synthetic sample' : 'Public evidence'}</span><small>Version {item.version}</small></div>
       <h3>{item.title}</h3><p className="shortlist-snippet">{item.snippet}</p>
       <p className="muted shortlist-origin">{item.origin}</p>{safeOrigin(item.origin) && <a href={safeOrigin(item.origin)} target="_blank" rel="noopener noreferrer">View shortlist source</a>}
-      <label className="shortlist-note">Note for {item.title}<textarea rows={2} value={noteDrafts[item.id] ?? item.note} maxLength={2000} disabled={!editable || disabled} onChange={event => onNoteChange(item.id, event.target.value, item.note)} /></label>
+      <label className="shortlist-note">Team note or saved match explanation for {item.title}<small>Collaborator-match notes contain only the overlapping source terms, not the original research idea.</small><textarea rows={2} value={noteDrafts[item.id] ?? item.note} maxLength={2000} disabled={!editable || disabled} onChange={event => onNoteChange(item.id, event.target.value, item.note)} /></label>
       <div className="button-row">{editable && <><button disabled={disabled || (noteDrafts[item.id] ?? item.note) === item.note} onClick={() => void run(async current => {
         const saved = await api.updateShortlist(team.id, item.id, noteDrafts[item.id] ?? item.note);
         onNoteSaved(saved.id, saved.note);

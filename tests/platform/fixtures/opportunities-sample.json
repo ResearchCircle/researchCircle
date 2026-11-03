@@ -1,0 +1,20 @@
+{
+  "opportunities": [
+    {
+      "title": "Synthetic Early-Career Research Award",
+      "source_url": "https://example.test/opportunities/early-career",
+      "deadline": null,
+      "deadline_timezone": null,
+      "notes": "Synthetic test data; not a real funding call.",
+      "eligibility": "unknown"
+    },
+    {
+      "title": "Synthetic Research Infrastructure Grant",
+      "source_url": "https://example.test/opportunities/infrastructure",
+      "deadline": "2027-01-15T17:00:00-05:00",
+      "deadline_timezone": "America/New_York",
+      "notes": "Synthetic test data; deadline is illustrative.",
+      "eligibility": "unknown"
+    }
+  ]
+}
