@@ -90,6 +90,20 @@ test('search encodes query and submits real selected source IDs for draft jobs',
   assert.equal(JSON.parse(calls[1][1].body).expected_revision, 4);
 });
 
+test('collaborator matching sends the idea in a same-origin POST body', async () => {
+  let observed;
+  global.fetch = async (url, options) => {
+    observed = { url, options };
+    return new Response(JSON.stringify({ items: [], degraded: true, method: 'keyword_overlap', next_cursor: null }));
+  };
+  const result = await api.matchCollaborators('water quality & sensors');
+  assert.equal(observed.url, '/api/v2/collaborators/matches');
+  assert.equal(observed.options.method, 'POST');
+  assert.equal(observed.options.credentials, 'same-origin');
+  assert.deepEqual(JSON.parse(observed.options.body), { idea: 'water quality & sensors' });
+  assert.equal(result.method, 'keyword_overlap');
+});
+
 
 test('export downloads saved Markdown and surfaces server failure', async () => {
   global.fetch = async url => { assert.equal(url, '/api/v2/proposals/proposal-a/export'); return new Response('# Saved research\n', { headers: { 'Content-Type': 'text/markdown' } }); };

@@ -86,3 +86,48 @@ The directory name `restricted` means a limited crawl mode in legacy code. It do
 ## Handoff from T1
 
 Deliver the manifest, selected usable input formats, field mapping, stable source ID rule, duplicate/rejection counts, the read-only input/writable output contract, an idempotent small import example, 3–5 source-linked queries, and the exact test command. Label synthetic evidence separately from shared-corpus evidence. Missing model/index compatibility is a bounded dependency, not a reason to block the whole team.
+
+### T1 local snapshot pass
+
+The local checkout contains the ignored source snapshot. A sanitized count/schema manifest is at [the T1 snapshot inventory](../qa/evidence/t1-snapshot-inventory.json); it contains no machine-specific path or raw profile/document text. The adapter reads only an explicitly supplied `rit_data_v2.json` and selects at most five records with a canonical HTTPS RIT computing-directory URL, a short name and bounded research-interest labels. Its field mapping is `name` to title, `url` to external ID and provenance, and `research_interests` to searchable text. It does not retain biography, email, education, publications, awards, lab, college, title, or course fields. The canonical profile URL is the external identity; `import_public_records` generates immutable source-version IDs from that identity and the content hash. Identical reimports are unchanged; changed content retires the prior public snapshot without mutating its source.
+
+The observed scan counted 1,002 records, found 99 eligible profile facts, rejected 903, and selected five. The five passed ephemeral SQLite idempotence/source-link checks and were then imported into the isolated local app database after the user confirmed reuse for that local app: first import inserted five; reimport left all five unchanged. Five live collaborator queries returned canonical source-linked profiles. This confirmation is local to this app and does not establish approval for another deployment. Profile affiliation/currentness remains unknown; paper/card rights remain unreviewed and those records are excluded.
+
+Start with non-persistent validation:
+
+```sh
+python -m src.platform.ingestion.import_rit_snapshot \
+  --source-file /absolute/path/to/data/rit_data_v2.json
+```
+
+Database writes require an explicitly configured application database and both
+`--apply --confirm-public-source-rights`. The user confirmed the five selected
+profile facts for this isolated local app, and that bounded import has completed;
+this is not a blanket grant for another deployment or for other snapshot content.
+The explicit flag remains required for every write. The snapshot path must not
+point into `restricted/`. PDFs/cards remain excluded, vector-index compatibility
+is unverified, and search remains BM25-only/degraded.
+
+Focused adapter and in-memory persistence tests:
+
+```sh
+.venv/bin/python -m pytest tests/platform/test_rit_snapshot.py -q
+```
+
+### Manual opportunity data
+
+`src/platform/ingestion/opportunities.py` accepts a JSON envelope containing at
+most 50 manually reviewed records and emits payloads for the existing
+`POST /api/v2/opportunities` contract. It preserves source URLs, requires timezone
+offsets for known deadlines, validates optional IANA timezone names, and defaults
+eligibility to `unknown`; it never infers deadline or eligibility. The matching
+filter contract supports case-insensitive text in title/notes, exact eligibility,
+and an offset-aware `deadline_before` bound; undated opportunities do not match a
+deadline bound. The API route remains membership-scoped and the UI's manual form
+continues to use that same route.
+
+`tests/platform/fixtures/opportunities-sample.json` contains synthetic-only
+examples; it is not a real funding call. API integration tests import those
+payloads through the existing route and verify that unknown values and source
+links survive. Query parameters on the API list route still need review with T2
+before adding a shared server-side filter contract.

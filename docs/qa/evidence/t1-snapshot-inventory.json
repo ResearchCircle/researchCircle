@@ -1,0 +1,88 @@
+{
+  "observed_on": "2026-11-03",
+  "source_snapshot": "Local checkout ignored data/ tree; no absolute machine path recorded.",
+  "source_policy": "Read-only. No PDFs, extracted paper text, contact details, or restricted-mode records are imported by the T1 profile adapter.",
+  "inventory": {
+    "pdfs": {
+      "standard": {
+        "files": 2932,
+        "bytes": 10081129625
+      },
+      "restricted_mode": {
+        "files": 56,
+        "bytes": 218671077
+      }
+    },
+    "paper_json": {
+      "standard": {
+        "files": 2932,
+        "bytes": 139620499
+      },
+      "restricted_mode": {
+        "files": 56,
+        "bytes": 2577141
+      }
+    },
+    "research_cards": {
+      "standard": {
+        "files": 2108,
+        "bytes": 8348206
+      },
+      "restricted_mode": {
+        "files": 1,
+        "bytes": 2910
+      },
+      "reuse_status": "Unreviewed; excluded from this import."
+    },
+    "rit_data_v2.json": {
+      "faculty_records": 1002,
+      "schema_keys": [
+        "awards",
+        "bio",
+        "college",
+        "courses_taught",
+        "department",
+        "education",
+        "email",
+        "id",
+        "lab_name",
+        "name",
+        "publications",
+        "research_interests",
+        "title",
+        "url"
+      ],
+      "official_https_rit_urls": 1002,
+      "eligible_directory_profiles_with_safe_interest_facts": 99,
+      "adapter_limit": 5,
+      "persistent_import_performed": true,
+      "local_application_import": {
+        "selected": 5,
+        "inserted": 5,
+        "reimport_unchanged": 5,
+        "retired": 0
+      }
+    },
+    "validation": {
+      "dry_run_selected": 5,
+      "ephemeral_sqlite_inserted": 5,
+      "ephemeral_sqlite_reimport_unchanged": 5,
+      "source_linked_interest_queries": 5,
+      "profiles_retrieved_by_source_link": 5,
+      "application_database_written": true,
+      "application_database_scope": "Isolated local app database only.",
+      "search_status": "BM25-only; degraded remains true"
+    },
+    "vector_indexes": {
+      "standard_files": 14,
+      "restricted_mode_files": 9,
+      "reuse_status": "Not opened; embedding identity and compatibility remain unverified."
+    },
+    "parser_cache": {
+      "files": 7842,
+      "bytes": 230852870,
+      "reuse_status": "Not opened or imported."
+    }
+  },
+  "rights_and_currentness": "The user confirmed reuse of the selected facts for the isolated local app. Affiliation currentness remains unknown. The adapter requires explicit confirmation before any database write."
+}

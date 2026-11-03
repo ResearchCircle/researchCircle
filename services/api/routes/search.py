@@ -1,14 +1,31 @@
-from fastapi import APIRouter, Query, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 
-from src.platform.database.models import Source
-from src.platform.discovery.search import list_samples
-from src.platform.discovery.public_search import search_public
-from src.platform.database.public_records import PublicRecord
 from services.api.dependencies import get_session
+from src.platform.database.models import Source
+from src.platform.database.public_records import PublicRecord
+from src.platform.discovery.matching import match_collaborators
+from src.platform.discovery.public_search import search_public
+from src.platform.discovery.search import list_samples
 from src.platform.workflow.errors import WorkflowError
 
 router = APIRouter(prefix='/api/v2')
+SessionDependency = Annotated[Session, Depends(get_session)]
+
+
+class CollaboratorMatchInput(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    idea: str = Field(min_length=1, max_length=1000)
+
+    @field_validator('idea')
+    @classmethod
+    def nonblank_idea(cls, value):
+        if not value.strip():
+            raise ValueError('Research idea is required.')
+        return value.strip()
 
 
 def seed_samples(session: Session) -> int:
@@ -31,6 +48,11 @@ def seed_samples(session: Session) -> int:
 
 
 @router.get('/search')
-def search_catalog(q: str = Query(default='', max_length=1000), limit: int = Query(default=10, ge=1, le=100),
-                   session: Session = Depends(get_session)):
+def search_catalog(session: SessionDependency, q: str = Query(default='', max_length=1000),
+                   limit: int = Query(default=10, ge=1, le=100)):
     return search_public(session, q, limit)
+
+
+@router.post('/collaborators/matches')
+def collaborator_matches(body: CollaboratorMatchInput, session: SessionDependency):
+    return match_collaborators(session, body.idea)

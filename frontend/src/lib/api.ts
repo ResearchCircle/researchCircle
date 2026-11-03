@@ -6,6 +6,26 @@ export type SourceSnapshot = SourceRef & { title: string; origin: string; text: 
 export type Proposal = { id: string; team_id: string; title: string; content: string; revision: number; role: Team['role']; selected_sources: SourceRef[]; updated_at: string };
 export type SearchResult = SourceRef & { source_id: string; title: string; snippet: string; origin: string; score: number; reason: string; kind: 'paper' | 'researcher'; evidence_kind: 'public' | 'synthetic'; identity_status?: string; text: string };
 export type SearchPage = { items: SearchResult[]; degraded: boolean; next_cursor: string | null };
+export type CollaboratorMatch = Pick<SearchResult, 'source_id' | 'version' | 'content_hash' | 'title' | 'snippet' | 'origin' | 'kind' | 'evidence_kind' | 'identity_status'> & {
+  candidate_status: 'public_profile' | 'snapshot_profile' | 'synthetic_example';
+  matched_terms: string[];
+  evidence_terms: string[];
+  idea_coverage: number;
+  reason: string;
+};
+export type CollaboratorCoverage = {
+  eligible_profile_count: number;
+  matching_profile_count: number;
+  uncovered_terms: string[];
+  note: string;
+};
+export type CollaboratorMatchPage = {
+  items: CollaboratorMatch[];
+  degraded: true;
+  method: 'keyword_overlap';
+  coverage: CollaboratorCoverage;
+  next_cursor: null;
+};
 export type Citation = { source_id: string; version: string; content_hash: string; title: string; origin: string; quote: string };
 export type DraftResult = { text: string; citations: Citation[]; base_revision: number; source_refs: SourceRef[]; model_id: string | null; insufficient_evidence: boolean; finish_reason: string };
 export type DraftJob = { id: string; proposal_id: string; base_revision: number; source_refs: SourceRef[]; state: 'queued' | 'running' | 'succeeded' | 'failed'; output: DraftResult | null; error: { code: string; message: string; retryable?: boolean } | null; created_at: string; started_at: string | null; finished_at: string | null };
@@ -128,6 +148,7 @@ export const api = {
   addSource: (id: string, body: { title: string; text: string; origin: string }) => post<SourceSnapshot>(`/proposals/${id}/sources`, body),
   attach: (id: string, source_id: string) => post<SourceSnapshot>(`/proposals/${id}/sources/attach`, { source_id }),
   search: (q: string) => request<SearchPage>(`/search?q=${encodeURIComponent(q)}`),
+  matchCollaborators: (idea: string) => post<CollaboratorMatchPage>('/collaborators/matches', { idea }),
   jobs: (id: string) => request<{ items: DraftJob[] }>(`/proposals/${id}/jobs`),
   draft: (id: string, body: { expected_revision: number; section: string; instruction: string; source_ids: string[] }) => post<DraftJob>(`/proposals/${id}/jobs`, body),
   job: (id: string) => request<DraftJob>(`/jobs/${id}`),

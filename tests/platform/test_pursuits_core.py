@@ -1,14 +1,15 @@
 """Manual workflow checks against real isolated SQLAlchemy transactions."""
+import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Barrier
-import unittest
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select, text
 
 from services.api.app import create_app
+from src.platform.ingestion.opportunities import load_opportunities
 
 
 class PursuitsCoreTests(unittest.TestCase):
@@ -63,6 +64,23 @@ class PursuitsCoreTests(unittest.TestCase):
                 'team_id': self.team['id'], 'title': 'Invalid', **fields})
             self.assertEqual(response.status_code, 422, response.text)
         self.assertEqual(len(self.client.get('/api/v2/opportunities').json()['items']), 2)
+
+    def test_imported_sample_uses_existing_team_opportunity_contract(self):
+        sample = Path(__file__).parent / 'fixtures' / 'opportunities-sample.json'
+        payloads = load_opportunities(sample)
+        imported = []
+        for payload in payloads:
+            response = self.client.post('/api/v2/opportunities', json={
+                'team_id': self.team['id'], **payload,
+            })
+            self.assertEqual(response.status_code, 201, response.text)
+            imported.append(response.json())
+        listed = self.client.get('/api/v2/opportunities').json()['items']
+        self.assertEqual([row['id'] for row in listed], [row['id'] for row in imported])
+        self.assertTrue(all(row['eligibility'] == 'unknown' for row in listed))
+        self.assertEqual(listed[0]['source_url'], payloads[0]['source_url'])
+        self.assertIsNone(listed[0]['deadline'])
+        self.assertEqual(listed[1]['deadline_timezone'], 'America/New_York')
 
     def test_pursuit_history_linkage_and_outcome_retry_survive_reopening(self):
         opportunity = self.opportunity()
@@ -206,6 +224,7 @@ class PursuitsCoreTests(unittest.TestCase):
     def test_upgrade_from_core_baseline_preserves_existing_proposal(self):
         from alembic import command
         from alembic.config import Config
+
         from src.platform.database import Database
         from src.platform.database.models import Proposal, Team
         database = Database(f"sqlite:///{Path(self.tmp.name) / 'upgrade.db'}")

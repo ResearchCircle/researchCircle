@@ -4,21 +4,30 @@ from sqlalchemy import select
 
 from ..database.models import Source
 from ..database.public_records import PublicRecord
-from .search import _TOKEN, _STOP_WORDS
+from .search import _STOP_WORDS, _TOKEN
 
 
 def _tokens(text):
     return [token.casefold() for token in _TOKEN.findall(text) if token.casefold() not in _STOP_WORDS]
 
 
-def search_public(session, query: str, limit: int = 10) -> dict:
-    if not isinstance(query, str) or type(limit) is not int or not 1 <= limit <= 100:
-        raise ValueError('Use a string query and an integer limit from 1 to 100.')
+def search_public(session, query: str, limit: int = 10, kind: str | None = None) -> dict:
+    if (not isinstance(query, str) or type(limit) is not int or not 1 <= limit <= 100
+            or kind not in (None, 'paper', 'researcher')):
+        raise ValueError('Use a string query, an integer limit from 1 to 100, and a valid optional source kind.')
     terms = _tokens(query)
-    entries = session.execute(select(Source, PublicRecord).join(PublicRecord, PublicRecord.source_id == Source.id).where(
-        PublicRecord.is_current.is_(True), Source.is_public.is_(True), Source.proposal_id.is_(None))).all()
+    statement = select(Source, PublicRecord).join(
+        PublicRecord, PublicRecord.source_id == Source.id
+    ).where(
+        PublicRecord.is_current.is_(True),
+        Source.is_public.is_(True),
+        Source.proposal_id.is_(None),
+    )
+    if kind is not None:
+        statement = statement.where(PublicRecord.kind == kind)
+    entries = session.execute(statement).all()
     if not terms or not entries:
-        return dict(items=[], degraded=True, next_cursor=None)
+        return {'items': [], 'degraded': True, 'next_cursor': None}
     corpus = [_tokens(source.title + ' ' + source.title + ' ' + source.text) or [''] for source, _ in entries]
     # Same reviewed BM25Okapi engine as HybridRetriever; no VectorStore/config import.
     # Positive epsilon avoids losing common-term matches in very small corpora.
@@ -39,4 +48,4 @@ def search_public(session, query: str, limit: int = 10) -> dict:
                           **({'identity_status': metadata.metadata_json['identity_status']}
                              if metadata.metadata_json.get('identity_status') else {})))
     items.sort(key=lambda row: (-row['score'], row['id']))
-    return dict(items=items[:limit], degraded=True, next_cursor=None)
+    return {'items': items[:limit], 'degraded': True, 'next_cursor': None}
