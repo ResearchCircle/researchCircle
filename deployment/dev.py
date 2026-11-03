@@ -13,7 +13,7 @@ from .start import read_settings
 from .readiness import wait_for_runtime
 
 
-def configure_development(path: Path, provider: str, base_url: str | None, model_id: str | None) -> dict[str, str]:
+def configure_development(path: Path, provider: str, base_url: str | None, model_id: str | None, api_key: str | None = None) -> dict[str, str]:
     values = read_settings(path) if path.exists() else {}
     if values and values.get('COMPOSE_PROJECT_NAME') != 'tbr-core':
         raise ValueError('Use a separate environment file for the tbr-core development stack.')
@@ -33,6 +33,13 @@ def configure_development(path: Path, provider: str, base_url: str | None, model
         if not model_id:
             raise ValueError('Ollama inference requires --model-id for a model you have pulled.')
         values.update(TBR_MODEL_BASE_URL=base_url or 'http://host.docker.internal:11434/v1', TBR_MODEL_ID=model_id)
+    elif provider == 'meta':
+        key = api_key or os.environ.get('META_API_KEY') or values.get('META_API_KEY')
+        if not key:
+            raise ValueError('Meta inference requires --api-key or META_API_KEY environment variable.')
+        values.update(META_API_KEY=key,
+                      TBR_MODEL_BASE_URL=base_url or 'https://api.meta.ai/v1',
+                      TBR_MODEL_ID=model_id or 'meta/llama-3.3-70b-instruct')
     else:
         values.pop('TBR_MODEL_BASE_URL', None)
         values.pop('TBR_MODEL_ID', None)
@@ -48,14 +55,15 @@ def configure_development(path: Path, provider: str, base_url: str | None, model
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--env-file', type=Path, default=ROOT / 'dist/core-runtime.env')
-    parser.add_argument('--provider', choices=['fixture', 'local', 'ollama'], default='fixture')
+    parser.add_argument('--provider', choices=['fixture', 'local', 'ollama', 'meta'], default='fixture')
+    parser.add_argument('--api-key', help='API key for Meta Model API (dev.meta.ai)')
     parser.add_argument('--base-url')
     parser.add_argument('--model-id')
     parser.add_argument('--build', action='store_true')
     parser.add_argument('--ready-timeout', type=float, default=60, help='Wait up to this many seconds for API and web readiness')
     args = parser.parse_args()
     try:
-        settings = configure_development(args.env_file, args.provider, args.base_url, args.model_id)
+        settings = configure_development(args.env_file, args.provider, args.base_url, args.model_id, args.api_key)
         startup_env = {**os.environ, **settings}
         if args.build:
             subprocess.run([sys.executable, '-m', 'deployment.build'], cwd=ROOT, env=startup_env, check=True)

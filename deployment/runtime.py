@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
-from src.platform.models.provider import LocalModelProvider, OllamaModelProvider
+from src.platform.models.provider import LocalModelProvider, OllamaModelProvider, MetaModelProvider
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +19,7 @@ class RuntimeConfig:
     model_id: str | None
     source_dir: Path
     work_dir: Path
+    meta_api_key: str | None = None
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]):
@@ -26,15 +27,20 @@ class RuntimeConfig:
             raise ValueError('TBR_PUBLIC_SCHEME must be http or https.')
         profile = env.get('TBR_PROFILE', 'development')
         provider = env.get('TBR_MODEL_PROVIDER', 'fixture')
-        if profile not in ('development', 'demo') or provider not in ('fixture', 'local', 'ollama'):
-            raise ValueError('Use development/demo profile and an explicit fixture/local/ollama provider.')
+        if profile not in ('development', 'demo') or provider not in ('fixture', 'local', 'ollama', 'meta'):
+            raise ValueError('Use development/demo profile and an explicit fixture/local/ollama/meta provider.')
         if profile == 'demo' and (provider != 'local' or env.get('TBR_DEV_IDENTITY', '').lower() not in ('', '0', 'false')):
             raise ValueError('Shared demo requires the local provider and disables development identity.')
         url, model = env.get('TBR_MODEL_BASE_URL'), env.get('TBR_MODEL_ID')
+        meta_key = env.get('META_API_KEY') or env.get('MODEL_API_KEY')
         if provider == 'local':
             LocalModelProvider(url, model)
         elif provider == 'ollama':
             OllamaModelProvider(url, model)
+        elif provider == 'meta':
+            if not meta_key:
+                raise ValueError('Meta provider requires META_API_KEY or MODEL_API_KEY in environment.')
+            MetaModelProvider(meta_key, model or 'meta/llama-3.3-70b-instruct', url or 'https://api.meta.ai/v1')
         source = Path(env.get('TBR_DATA_SOURCE', str(ROOT / 'data'))).expanduser().resolve()
         work = Path(env.get('TBR_DATA_WORK', '/tmp/tbr-v2-work')).expanduser().resolve()
         if source == work or source in work.parents or work in source.parents:
@@ -55,7 +61,7 @@ class RuntimeConfig:
         if len(mounts) == 2 and (mounts[0] == mounts[1] or mounts[0] in mounts[1].parents
                                  or mounts[1] in mounts[0].parents):
             raise ValueError('Database and runtime host storage must use separate non-nested paths.')
-        return cls(profile, provider, url, model, source, work)
+        return cls(profile, provider, url, model, source, work, meta_key)
 
 
 def integration_gaps(root: Path, env: Mapping[str, str]) -> list[str]:

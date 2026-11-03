@@ -252,3 +252,127 @@ class OllamaModelProvider(LocalModelProvider):
             return ModelResult(text=text, model_id=self.model_id, usage=usage, finish_reason=reason)
         except (ValueError, KeyError, TypeError, UnicodeError, RecursionError):
             raise ProviderError('provider_invalid_response', 'Ollama returned an invalid completion.', False) from None
+
+
+class MetaModelProvider:
+    """Synchronous provider for Meta's Model API (dev.meta.ai / api.meta.ai).
+
+    Uses HTTPS chat completions with Bearer token authentication.
+    Drop-in OpenAI-compatible chat format.
+    """
+
+    _MAX_RESPONSE_BYTES = 1024 * 1024
+
+    def __init__(
+        self,
+        api_key: str,
+        model_id: str = 'meta/llama-3.3-70b-instruct',
+        base_url: str = 'https://api.meta.ai/v1'
+    ):
+        if not isinstance(api_key, str) or not api_key.strip():
+            raise ValueError('api_key must be an explicit nonempty token')
+        if not isinstance(model_id, str) or not model_id.strip():
+            raise ValueError('model_id must be an explicit nonempty model identifier')
+        url = urlsplit(base_url)
+        if url.scheme not in ('https', 'http') or not url.hostname:
+            raise ValueError('base_url must be an HTTP or HTTPS endpoint with a valid host')
+        self.api_key = api_key.strip()
+        self.model_id = model_id.strip()
+        self.is_https = url.scheme == 'https'
+        self.host = url.hostname
+        self.port = url.port or (443 if self.is_https else 80)
+        self.base_path = url.path.rstrip('/')
+
+    def generate(self, prompt: str, max_output_tokens: int, timeout_s: float) -> ModelResult:
+        validate_request(prompt, max_output_tokens, timeout_s)
+        payload = {
+            'model': self.model_id,
+            'messages': [{'role': 'user', 'content': prompt}],
+            'max_tokens': max_output_tokens,
+            'temperature': 0,
+            'stream': False
+        }
+        path = f"{self.base_path}/chat/completions" if self.base_path else "/chat/completions"
+        raw = self._request('POST', path, payload, timeout_s)
+        return self._parse(raw)
+
+    def count_input_tokens(self, prompt: str, timeout_s: float) -> int:
+        validate_request(prompt, 512, timeout_s)
+        return len(prompt.encode('utf-8')) // 3 + 32
+
+    def is_idle(self, timeout_s: float = 5) -> bool:
+        return True
+
+    def _request(self, method: str, path: str, payload: dict | None, timeout_s: float) -> bytes:
+        body = json.dumps(payload).encode('utf-8') if payload is not None else None
+        deadline = time.monotonic() + timeout_s
+        conn_cls = http.client.HTTPSConnection if self.is_https else http.client.HTTPConnection
+        connection = conn_cls(self.host, self.port, timeout=timeout_s)
+        expired = threading.Event()
+        timer = None
+        try:
+            connection.connect()
+            transport = connection.sock
+
+            def expire() -> None:
+                expired.set()
+                try:
+                    transport.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+
+            timer = threading.Timer(max(0, deadline - time.monotonic()), expire)
+            timer.daemon = True
+            timer.start()
+            headers = {
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+            connection.request(method, path, body=body, headers=headers)
+            with connection.getresponse() as response:
+                status = response.status
+                if status in (401, 403):
+                    raise ProviderError('provider_unauthorized', 'Meta API rejected credentials; verify your API key.', False)
+                if status == 429:
+                    raise ProviderError('provider_busy', 'Meta API rate limit reached.', True)
+                if status >= 500:
+                    raise ProviderError('provider_unavailable', 'Meta API service unavailable.', True)
+                if status != 200:
+                    raise ProviderError('provider_rejected', f'Meta API rejected the request ({status}).', False)
+                raw = response.read(self._MAX_RESPONSE_BYTES + 1)
+            if expired.is_set() or time.monotonic() >= deadline:
+                raise TimeoutError
+        except (OSError, http.client.HTTPException) as exc:
+            if expired.is_set() or isinstance(exc, TimeoutError):
+                raise ProviderError('provider_timeout', 'Meta API timed out.', True) from None
+            raise ProviderError('provider_unavailable', f'Could not complete the Meta API request: {exc}', True) from None
+        finally:
+            if timer is not None:
+                timer.cancel()
+                timer.join()
+            connection.close()
+        if len(raw) > self._MAX_RESPONSE_BYTES:
+            raise ProviderError('provider_invalid_response', 'Meta API response exceeded size limit.', False)
+        return raw
+
+    def _parse(self, raw: bytes) -> ModelResult:
+        try:
+            payload = json.loads(raw)
+            if 'choices' not in payload or not payload['choices']:
+                raise ValueError('Missing choices')
+            choice = payload['choices'][0]
+            text = choice['message']['content']
+            reason = choice.get('finish_reason', 'stop')
+            if not isinstance(text, str) or not text.strip():
+                raise ValueError('Invalid choice content')
+            usage = None
+            if payload.get('usage') is not None:
+                prompt_tokens = payload['usage'].get('prompt_tokens', 0)
+                completion_tokens = payload['usage'].get('completion_tokens', 0)
+                total_tokens = payload['usage'].get('total_tokens', prompt_tokens + completion_tokens)
+                usage = TokenUsage(prompt_tokens, completion_tokens, total_tokens)
+            return ModelResult(text=text, model_id=self.model_id, usage=usage, finish_reason=reason or 'stop')
+        except (ValueError, KeyError, IndexError, TypeError, UnicodeError, RecursionError):
+            raise ProviderError('provider_invalid_response', 'Meta API returned an invalid response structure.', False) from None
+
