@@ -6,7 +6,7 @@ import { appendSuggestion, canApplyDraft, hasEdits, safeOrigin } from '@/lib/edi
 import PursuitPanel from '@/components/PursuitPanel';
 import ShortlistPanel from '@/components/ShortlistPanel';
 import { canChangeTeam, canAttachToProposal, sourceKindLabel, editShortlistDraft, acknowledgeShortlistDraft, type ShortlistDrafts } from '@/lib/shortlist';
-
+import TeamMembersPanel from '@/components/TeamMembersPanel';
 function Origin({ value }: { value: string }) {
   const href = safeOrigin(value);
   return href ? <a href={href} target="_blank" rel="noopener noreferrer">View source</a> : <span className="muted">{value || 'No external link'}</span>;
@@ -183,6 +183,9 @@ export default function Workspace() {
         {!teams.length && <p className="empty">Create a team to start a proposal, or accept an invitation.</p>}
         <details><summary>Create a team</summary><form onSubmit={event => { event.preventDefault(); if (guardEdits()) void run(async () => { const team = await api.createTeam(teamName); setTeamName(''); await refreshLists(); activateTeam(team.id); setNotice('Team created.'); }); }}><label>Team name<input value={teamName} onChange={event => setTeamName(event.target.value)} required maxLength={160} /></label><button disabled={busy}>Create team</button></form></details>
         {teams.find(team => team.id === teamId)?.role === 'owner' && <details><summary>Invite a teammate</summary><form onSubmit={event => submit(event, async () => { await api.invite(teamId, inviteEmail, inviteRole); setInviteEmail(''); setNotice('Invitation sent. Your teammate can accept it in their workspace.'); })}><p className="muted">Invite an existing account by email.</p><label>Teammate email<input type="email" value={inviteEmail} onChange={event => setInviteEmail(event.target.value)} required /></label><label>Access<select value={inviteRole} onChange={event => setInviteRole(event.target.value as 'editor' | 'viewer')}><option value="editor">Editor</option><option value="viewer">Viewer</option></select></label><button disabled={busy}>Send invitation</button></form></details>}
+
+        {selectedTeam && user && (<TeamMembersPanel key={selectedTeam.id} team={selectedTeam} currentUserId={user.id} onChanged={refreshLists} beforeSelfChange={() => (!dirty && !shortlistDirty) || confirmDiscard()}/>)}
+
         {invitations.length > 0 && <section className="inbox"><h3>Invitations</h3>{invitations.map(invite => <div key={invite.id}><p>{invite.team_name}<small>{invite.role} access</small></p><button disabled={busy} onClick={() => { if (canChangeTeam(teamId, invite.team_id, dirty, confirmDiscard)) void run(async () => { const accepted = await api.accept(invite.id); await refreshLists(); activateTeam(accepted.team_id); setNotice('Invitation accepted.'); }); }}>Accept</button></div>)}</section>}
         <div className="nav-divider" />
         <h2>Proposals</h2><p className="muted">Saved work in your selected team.</p>

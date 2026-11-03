@@ -22,6 +22,17 @@ export type Pursuit = { id: string; proposal_id: string; opportunity_id: string 
 export type Outcome = { id: string; pursuit_id: string; outcome: OutcomeState; award_reference: string | null; recorded_at: string };
 export type OutcomeInput = { outcome: OutcomeState; idempotency_key: string; award_reference: string | null };
 
+export type TeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  role: Team['role'];
+};
+
+export type TeamDetails = Team & {
+  members: TeamMember[];
+};
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public retryable = false) { super(message); this.name = 'ApiError'; }
 }
@@ -61,6 +72,29 @@ export const api = {
   logout: () => post<void>('/auth/logout'),
   teams: () => request<{ items: Team[] }>('/teams'),
   createTeam: (name: string) => post<Team>('/teams', { name }),
+
+  teamDetails: (teamId: string) =>
+    request<TeamDetails>(`/teams/${teamId}`),
+
+  updateMemberRole: (
+    teamId: string,
+    memberId: string,
+    role: Team['role']
+  ) =>
+    request<TeamMember>(
+      `/teams/${teamId}/members/${memberId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ role }),
+      }
+    ),
+
+  removeMember: (teamId: string, memberId: string) =>
+    request<void>(
+      `/teams/${teamId}/members/${memberId}`,
+      { method: 'DELETE' }
+    ),
+
   invite: (team: string, email: string, role: 'editor' | 'viewer') => post(`/teams/${team}/invitations`, { email, role }),
   invitations: () => request<{ items: Invitation[] }>('/invitations'),
   accept: (id: string) => post<{ team_id: string }>(`/invitations/${id}/accept`),
