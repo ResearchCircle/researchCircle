@@ -14,6 +14,7 @@ import {
   Trash2,
   Download,
   Save,
+  Check,
   CheckCircle2,
   Clock,
   AlertCircle,
@@ -1122,16 +1123,6 @@ export default function App() {
             {proposal ? (
               <div className="editor-card">
                 <div className="editor-toolbar">
-                  <button
-                    type="button"
-                    className="icon-button editor-back-button"
-                    aria-label="Back to workspace"
-                    title="Back to workspace"
-                    onClick={() => { if (guardEdits()) clearEditor(); }}
-                  >
-                    <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-                    <span className="editor-back-label">Workspace</span>
-                  </button>
                   <label className="editor-title-input">
                     <span className="sr-only">Proposal title</span>
                     <input
@@ -1370,6 +1361,46 @@ export default function App() {
                   )}
                 </div>
 
+                <div className="editor-footer-bar">
+                  <div className="editor-footer-left">
+                    <span className={`save-status-pill ${dirty ? 'unsaved' : 'saved'}`} role="status">
+                      {dirty ? 'Unsaved changes' : `Saved · v${proposal.revision}`}
+                    </span>
+                  </div>
+                  <div className="editor-footer-actions">
+                    <button
+                      type="button"
+                      className="button ghost editor-footer-cancel"
+                      disabled={busy}
+                      onClick={() => {
+                        if (dirty && !window.confirm('Discard unsaved changes and return to the workspace?')) return;
+                        clearEditor();
+                      }}
+                    >
+                      <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+                      <span>Back to workspace</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="button primary editor-footer-complete"
+                      disabled={busy || !editable || !title.trim() || !!conflict}
+                      title={dirty ? 'Save and return to workspace' : 'Return to workspace'}
+                      onClick={() => {
+                        void run(async () => {
+                          if (dirty) {
+                            await save();
+                            if (conflict) return;
+                          }
+                          clearEditor();
+                          setNotice(dirty ? 'Proposal saved. Back to workspace.' : 'Returned to workspace.');
+                        });
+                      }}
+                    >
+                      <Check className="w-4 h-4" aria-hidden="true" />
+                      <span>{dirty ? 'Complete & Save' : 'Complete'}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="workspace-dashboard">

@@ -3151,11 +3151,15 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 350px; overflo
   background: #fffffff2;
   backdrop-filter: blur(8px);
 }
-.editor-back-button { width: auto; min-width: auto; padding: 6px 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; background: white; cursor: pointer; transition: all 0.15s ease; flex-shrink: 0; }
-.editor-back-button:hover { color: var(--ink); background: #f1f5f9; border-color: #cbd5e1; }
-.editor-back-label { white-space: nowrap; }
-@media (max-width: 720px) { .editor-back-label { display: none; } .editor-back-button { width: 36px; min-width: 36px; padding: 6px; justify-content: center; } }
 .editor-title-input { flex: 1; min-width: 0; }
+.editor-footer-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-top: 1px solid var(--line); background: #f8fafc; border-radius: 0 0 var(--app-radius) var(--app-radius); flex-wrap: wrap; }
+.editor-footer-left { display: flex; align-items: center; gap: 10px; }
+.editor-footer-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.editor-footer-cancel { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--line); background: white; color: var(--muted); border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.15s ease; }
+.editor-footer-cancel:hover:not(:disabled) { color: var(--ink); background: #f1f5f9; border-color: #cbd5e1; }
+.editor-footer-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
+.editor-footer-complete { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-weight: 650; font-size: 13px; }
+@media (max-width: 560px) { .editor-footer-bar { flex-direction: column; align-items: stretch; } .editor-footer-actions { width: 100%; } .editor-footer-actions > button { flex: 1; justify-content: center; } }
 .editor-title-input input { padding: 7px 9px; border-color: transparent; background: transparent; color: var(--ink); font-size: 17px; font-weight: 650; }
 .editor-title-input input:focus { border-color: var(--line); background: white; }
 .save-status-pill { flex: 0 0 auto; padding: 4px 8px; border-radius: 20px; background: #e7f3ef; color: #136b51; font-size: 11px; white-space: nowrap; }
