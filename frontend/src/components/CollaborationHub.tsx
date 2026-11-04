@@ -1,174 +1,486 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import axios from "axios";
-import { Rocket, Target, Users, Loader2 } from "lucide-react";
+import { useState } from 'react';
+import {
+  Rocket,
+  Target,
+  Users,
+  Loader2,
+  BookmarkPlus,
+  Paperclip,
+  ExternalLink,
+  Award,
+  Globe,
+  CheckCircle2,
+  Compass,
+  AlertCircle,
+} from 'lucide-react';
+import {
+  api,
+  type CollaboratorMatch,
+  type ImpactAnalysis,
+} from '@/lib/api';
 
-interface Collaborator {
-  id: string;
-  score: number;
-  metadata: Record<string, any>;
-  content: string;
-}
+type CollaborationHubProps = {
+  onAttachSource?: (sourceId: string) => Promise<void>;
+  onShortlist?: (sourceId: string, title: string, rationale: string) => Promise<void>;
+  attachedSourceIds?: string[];
+  proposalOpen?: boolean;
+};
 
-export default function CollaborationHub() {
+const SUGGESTIONS = [
+  {
+    title: 'Self-Supervised Vision Transformers for Crop Disease Detection',
+    college: 'Computing',
+    tags: 'computer vision, agriculture, transformers, deep learning',
+    description: 'Developing lightweight self-supervised visual representation models capable of on-drone leaf lesion classification under variable lighting and occlusion in rural agricultural fields.'
+  },
+  {
+    title: 'Adversarial Defense and Privacy-Preserving Federated Healthcare',
+    college: 'Computing',
+    tags: 'cybersecurity, healthcare, federated learning, privacy',
+    description: 'Investigating differential privacy bounds and Byzantine-resilient aggregation algorithms for decentralized clinical MRI diagnostics across multi-hospital research networks.'
+  },
+  {
+    title: 'Assistive Wearable Gaze-Tracking for Motor-Impaired Mobility',
+    college: 'Computing',
+    tags: 'human-computer interaction, accessibility, sensors, robotics',
+    description: 'Designing low-latency optical gaze-estimation interfaces integrated with powered wheelchair controllers for neurodivergent and spinal-injury rehabilitation patients.'
+  }
+];
+
+export default function CollaborationHub({
+  onAttachSource,
+  onShortlist,
+  attachedSourceIds = [],
+  proposalOpen = false,
+}: CollaborationHubProps) {
   const [formData, setFormData] = useState({
-    title: "",
-    college: "Computing",
-    tags: "",
-    description: ""
+    title: '',
+    college: 'Computing',
+    tags: '',
+    description: '',
   });
-  
+
   const [loading, setLoading] = useState(false);
-  const [impact, setImpact] = useState<any>(null);
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [error, setError] = useState('');
+  const [impact, setImpact] = useState<ImpactAnalysis | null>(null);
+  const [matches, setMatches] = useState<CollaboratorMatch[]>([]);
+  const [shortlistedIds, setShortlistedIds] = useState<Set<string>>(new Set());
+
+  const handleApplySuggestion = (s: typeof SUGGESTIONS[0]) => {
+    setFormData(s);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.description) return;
-    
+    if (!formData.title.trim() || !formData.description.trim()) return;
+
     setLoading(true);
+    setError('');
     try {
-      const res = await axios.post("http://localhost:8000/api/idea", formData);
-      setImpact(res.data.impact);
-      setCollaborators(res.data.collaborators);
+      const res = await api.synthesizeIdea({
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        college: formData.college,
+        tags: formData.tags.trim(),
+      });
+      setImpact(res.impact_analysis);
+      setMatches(res.matches);
     } catch (err) {
-      console.error(err);
-      alert("Failed to analyze idea. Is the backend running?");
+      setError(err instanceof Error ? err.message : 'Could not synthesize research idea.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleShortlistClick = async (m: CollaboratorMatch) => {
+    if (!onShortlist) return;
+    try {
+      await onShortlist(m.source_id, m.title, m.reason);
+      setShortlistedIds(prev => new Set(prev).add(m.source_id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to shortlist candidate.');
+    }
+  };
+
+  const handleAttachClick = async (sourceId: string) => {
+    if (!onAttachSource) return;
+    try {
+      await onAttachSource(sourceId);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to attach source.');
+    }
+  };
+
   return (
-    <div className="h-full bg-[#111] border border-white/10 rounded-xl overflow-hidden shadow-2xl backdrop-blur-xl flex flex-col md:flex-row">
-      <div className="w-full md:w-1/2 p-6 border-r border-white/10 overflow-y-auto">
-        <div className="flex items-center gap-3 mb-6">
-          <Rocket className="w-6 h-6 text-[#4ec5f1]" />
-          <h2 className="text-xl font-bold text-white tracking-wide">💡 Post an Idea</h2>
+    <div className="collaboration-hub-root" style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 420px) 1fr', gap: '20px', height: '100%', overflow: 'hidden' }}>
+      {/* LEFT COLUMN: IDEA INPUT & STARTERS */}
+      <div className="hub-input-panel" style={{ background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <Rocket className="w-5 h-5 text-blue-600" />
+            <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Research Idea Matrix</h2>
+          </div>
+          <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+            Submit your research concept. The platform evaluates academic novelty, federal funding alignment, and matches verified faculty leads.
+          </p>
         </div>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        {/* Suggestion Chips */}
+        <div>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>
+            Quick Exemplars
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {SUGGESTIONS.map((s, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleApplySuggestion(s)}
+                style={{
+                  textAlign: 'left',
+                  fontSize: '11px',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  color: '#334155',
+                  cursor: 'pointer',
+                  lineHeight: '1.4',
+                }}
+              >
+                💡 {s.title}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div>
-            <label className="text-xs text-white/60 uppercase tracking-widest mb-1 block">Title</label>
-            <input 
+            <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+              Project Title *
+            </label>
+            <input
               type="text"
               value={formData.title}
-              onChange={e => setFormData({...formData, title: e.target.value})}
-              placeholder="e.g. AI for Sustainable Farming"
-              className="w-full bg-black/50 border border-white/20 rounded-md p-3 text-sm text-white focus:outline-none focus:border-[#4ec5f1]"
+              onChange={e => setFormData({ ...formData, title: e.target.value })}
+              placeholder="e.g. Robust Edge Vision for Precision Agriculture"
+              style={{ width: '100%', fontSize: '12px', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
               required
             />
           </div>
-          
-          <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="text-xs text-white/60 uppercase tracking-widest mb-1 block">College</label>
-                <select 
-                  value={formData.college}
-                  onChange={e => setFormData({...formData, college: e.target.value})}
-                  className="w-full bg-black/50 border border-white/20 rounded-md p-3 text-sm text-white focus:outline-none focus:border-[#4ec5f1]"
-                >
-                    {["Computing", "Science", "Engineering", "Liberal Arts", "Business", "Technology"].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="flex-1">
-                <label className="text-xs text-white/60 uppercase tracking-widest mb-1 block">Tags</label>
-                <input 
-                  type="text"
-                  value={formData.tags}
-                  onChange={e => setFormData({...formData, tags: e.target.value})}
-                  placeholder="ai, sustainability"
-                  className="w-full bg-black/50 border border-white/20 rounded-md p-3 text-sm text-white focus:outline-none focus:border-[#4ec5f1]"
-                />
-              </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                Primary College
+              </label>
+              <select
+                value={formData.college}
+                onChange={e => setFormData({ ...formData, college: e.target.value })}
+                style={{ width: '100%', fontSize: '12px', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', background: '#fff' }}
+              >
+                <option value="Computing">Computing & Info</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Science">Science & Math</option>
+                <option value="Health Sciences">Health Sciences</option>
+                <option value="Business">Business</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                Keywords / Tags
+              </label>
+              <input
+                type="text"
+                value={formData.tags}
+                onChange={e => setFormData({ ...formData, tags: e.target.value })}
+                placeholder="ai, robotics, sensors"
+                style={{ width: '100%', fontSize: '12px', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none' }}
+              />
+            </div>
           </div>
-          
+
           <div>
-            <label className="text-xs text-white/60 uppercase tracking-widest mb-1 block">Description</label>
-            <textarea 
+            <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '4px' }}>
+              Idea Description & Technical Methodology *
+            </label>
+            <textarea
               value={formData.description}
-              onChange={e => setFormData({...formData, description: e.target.value})}
-              placeholder="Describe your research idea in detail..."
-              rows={4}
-              className="w-full bg-black/50 border border-white/20 rounded-md p-3 text-sm text-white focus:outline-none focus:border-[#4ec5f1] resize-none"
+              onChange={e => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Describe your research hypothesis, technical approach, and anticipated outcomes in detail..."
+              rows={5}
+              style={{ width: '100%', fontSize: '12px', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', resize: 'vertical' }}
               required
             />
           </div>
-          
-          <button 
-            type="submit" 
+
+          {error && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#b91c1c', background: '#fef2f2', padding: '8px', borderRadius: '6px' }}>
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
             disabled={loading}
-            className="w-full bg-[#4ec5f1]/10 border border-[#4ec5f1]/50 text-[#4ec5f1] hover:bg-[#4ec5f1] hover:text-black font-bold uppercase tracking-widest py-3 rounded-sm transition-all flex justify-center items-center gap-2"
+            style={{
+              padding: '10px 16px',
+              borderRadius: '6px',
+              border: 'none',
+              background: '#2563eb',
+              color: '#ffffff',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              transition: 'background 0.15s ease',
+            }}
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : < Rocket className="w-5 h-5" />}
-            {loading ? "Analyzing Matrix..." : "Find Collaborators"}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
+            {loading ? 'Synthesizing Idea Matrix…' : 'Analyze & Match Collaborators'}
           </button>
         </form>
       </div>
-      
-      <div className="w-full md:w-1/2 p-6 bg-black/30 overflow-y-auto">
-        <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2"><Target className="w-5 h-5 text-[#ffe81f]" /> Analysis Results</h3>
-        
+
+      {/* RIGHT COLUMN: SYNTHESIS RESULTS */}
+      <div className="hub-results-panel" style={{ background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '24px', overflowY: 'auto' }}>
         {!impact && !loading && (
-            <div className="h-48 flex flex-col items-center justify-center text-white/30 border border-dashed border-white/10 rounded-lg">
-                <Users className="w-8 h-8 mb-2" />
-                <p>Submit an idea to discover faculty matches.</p>
-            </div>
+          <div style={{ height: '100%', minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', textAlign: 'center' }}>
+            <Compass className="w-12 h-12 text-slate-300" style={{ marginBottom: '12px' }} />
+            <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#334155', margin: '0 0 6px 0' }}>Ready for Idea Synthesis</h3>
+            <p style={{ fontSize: '12px', color: '#64748b', maxWidth: '380px', margin: 0 }}>
+              Submit your project aims on the left or select a quick exemplar to discover funding agency fit, specific aim recommendations, and verified faculty collaborator matches.
+            </p>
+          </div>
         )}
-        
+
         {loading && (
-             <div className="h-48 flex flex-col items-center justify-center text-[#4ec5f1] border border-dashed border-[#4ec5f1]/30 rounded-lg">
-                <Loader2 className="w-8 h-8 mb-4 animate-spin" />
-                <p className="font-mono text-sm animate-pulse">Running semantic graph fusion...</p>
-            </div>
+          <div style={{ height: '100%', minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
+            <Loader2 className="w-8 h-8 animate-spin" style={{ marginBottom: '12px' }} />
+            <p style={{ fontSize: '13px', fontWeight: 600, margin: 0 }}>Evaluating Academic Novelty & Querying 3,000+ Sources…</p>
+            <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>Matching cross-disciplinary faculty leads and funding programs</span>
+          </div>
         )}
-        
+
         {impact && !loading && (
-            <div className="space-y-6">
-                <div className="bg-[#4ec5f1]/5 border border-[#4ec5f1]/30 rounded-lg p-5">
-                    <div className="flex justify-between items-center mb-3">
-                        <span className="text-[#4ec5f1] font-bold text-sm uppercase tracking-widest">Impact Score</span>
-                        <span className="text-2xl font-black text-white">{impact.score}/10</span>
-                    </div>
-                    <p className="text-sm text-white/80 italic">"{impact.summary}"</p>
-                    
-                    {impact.sdgs && impact.sdgs.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-[#4ec5f1]/20">
-                            <span className="text-xs text-[#4ec5f1]/80 uppercase block mb-2">Sustainable Development Goals</span>
-                            <div className="flex flex-wrap gap-2">
-                                {impact.sdgs.map((sdg: string) => (
-                                    <span key={sdg} className="bg-[#4ec5f1]/20 text-[#4ec5f1] text-[10px] px-2 py-1 rounded-full">{sdg}</span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-                
-                <div>
-                     <h4 className="text-sm font-bold text-white uppercase tracking-widest mb-4 flex items-center gap-2"><Users className="w-4 h-4 text-[#ffe81f]" /> Top Faculty Matches</h4>
-                     <div className="space-y-4">
-                         {collaborators.map((c, i) => {
-                             const relevance = Math.min(0.99, Math.max(0.50, c.score * 25 + 0.45));
-                             return (
-                                 <div key={i} className="bg-black/60 border border-white/10 rounded-lg p-4 hover:border-white/30 transition-colors">
-                                     <div className="flex justify-between items-start mb-2">
-                                         <span className="font-bold text-[#ffe81f]">{c.metadata?.name || 'Unknown'}</span>
-                                         <span className="text-xs font-mono text-white/50 bg-white/10 px-2 py-0.5 rounded">Relevance: {(relevance * 100).toFixed(0)}%</span>
-                                     </div>
-                                     {c.metadata?.college && (
-                                         <span className="text-[10px] text-white/40 uppercase tracking-widest block mb-3">College: {c.metadata.college}</span>
-                                     )}
-                                     <p className="text-xs text-white/70 leading-relaxed line-clamp-3">{c.content}</p>
-                                 </div>
-                             )
-                         })}
-                         {collaborators.length === 0 && (
-                             <p className="text-sm text-white/40 italic">No direct faculty matches found yet.</p>
-                         )}
-                     </div>
-                </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* NOVELTY & EXECUTIVE SUMMARY */}
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Award className="w-4 h-4 text-indigo-600" />
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Scientific Novelty & Executive Synthesis
+                </span>
+              </div>
+              <p style={{ fontSize: '13px', color: '#334155', lineHeight: '1.6', margin: 0 }}>
+                {impact.novelty_summary}
+              </p>
+
+              {/* Domains */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '12px' }}>
+                {impact.detected_domains.map((dom, i) => (
+                  <span key={i} style={{ fontSize: '11px', background: '#e0e7ff', color: '#3730a3', padding: '3px 8px', borderRadius: '4px', fontWeight: 500 }}>
+                    🏷️ {dom}
+                  </span>
+                ))}
+              </div>
             </div>
+
+            {/* FUNDING ALIGNMENT & SPECIFIC AIMS GRID */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              {/* Target Agencies */}
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px', background: '#fafafa' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '10px' }}>
+                  <Award className="w-3.5 h-3.5 text-amber-500" /> Target Federal Funding Fit
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {impact.target_agencies.map((agency, i) => (
+                    <div key={i} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px' }}>
+                      <strong style={{ fontSize: '12px', color: '#0f172a', display: 'block' }}>{agency.agency}</strong>
+                      <span style={{ fontSize: '11px', color: '#64748b' }}>
+                        Programs: {agency.suggested_programs.join(' · ')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* UN SDGs & Synergies */}
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px', background: '#fafafa' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '10px' }}>
+                  <Globe className="w-3.5 h-3.5 text-emerald-600" /> Interdisciplinary Synergies
+                </span>
+                <p style={{ fontSize: '12px', color: '#334155', lineHeight: '1.5', margin: '0 0 10px 0' }}>
+                  {impact.interdisciplinary_synergies}
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {impact.aligned_sdgs.map((sdg, i) => (
+                    <span key={i} style={{ fontSize: '10px', background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', padding: '2px 6px', borderRadius: '4px' }}>
+                      {sdg}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* RECOMMENDED SPECIFIC AIMS */}
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px', background: '#f8fafc' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
+                📋 Suggested Proposal Specific Aims Framework
+              </span>
+              <ul style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {impact.suggested_aims.map((aim, i) => (
+                  <li key={i} style={{ fontSize: '12px', color: '#334155', lineHeight: '1.5' }}>
+                    {aim}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* MATCHED FACULTY COLLABORATORS */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                    Verified Faculty Collaborator Leads ({matches.length})
+                  </h4>
+                </div>
+                <span style={{ fontSize: '11px', color: '#64748b' }}>
+                  Ranked by publication & profile evidence coverage
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {matches.map((m) => {
+                  const isShortlisted = shortlistedIds.has(m.source_id);
+                  const isAttached = attachedSourceIds.includes(m.source_id);
+
+                  return (
+                    <div
+                      key={m.source_id}
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        transition: 'border-color 0.15s ease',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <strong style={{ fontSize: '13px', color: '#0f172a' }}>{m.title}</strong>
+                          <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '8px' }}>
+                            ({m.candidate_status.replace('_', ' ')})
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, background: '#eff6ff', color: '#1d4ed8', padding: '2px 6px', borderRadius: '4px' }}>
+                            {Math.round(m.idea_coverage * 100)}% Match
+                          </span>
+                        </div>
+                      </div>
+
+                      <p style={{ fontSize: '11px', color: '#475569', margin: 0, lineHeight: '1.4' }}>
+                        {m.reason}
+                      </p>
+
+                      {/* Evidence Terms */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '4px 0' }}>
+                        {m.evidence_terms.slice(0, 5).map((term, i) => (
+                          <span key={i} style={{ fontSize: '10px', background: '#f1f5f9', color: '#475569', padding: '1px 5px', borderRadius: '3px' }}>
+                            ✓ {term}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Action Bar */}
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '4px', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+                        {onShortlist && (
+                          <button
+                            type="button"
+                            onClick={() => handleShortlistClick(m)}
+                            disabled={isShortlisted}
+                            style={{
+                              fontSize: '11px',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              border: isShortlisted ? '1px solid #86efac' : '1px solid #cbd5e1',
+                              background: isShortlisted ? '#f0fdf4' : '#ffffff',
+                              color: isShortlisted ? '#15803d' : '#334155',
+                              cursor: isShortlisted ? 'default' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            {isShortlisted ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <BookmarkPlus className="w-3.5 h-3.5 text-blue-600" />}
+                            {isShortlisted ? 'Shortlisted' : 'Shortlist Candidate'}
+                          </button>
+                        )}
+
+                        {proposalOpen && onAttachSource && (
+                          <button
+                            type="button"
+                            onClick={() => handleAttachClick(m.source_id)}
+                            disabled={isAttached}
+                            style={{
+                              fontSize: '11px',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              border: isAttached ? '1px solid #cbd5e1' : '1px solid #cbd5e1',
+                              background: isAttached ? '#f8fafc' : '#ffffff',
+                              color: isAttached ? '#94a3b8' : '#334155',
+                              cursor: isAttached ? 'default' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <Paperclip className="w-3.5 h-3.5 text-indigo-600" />
+                            {isAttached ? 'Attached to Proposal' : 'Attach to Proposal'}
+                          </button>
+                        )}
+
+                        {m.origin && (
+                          <a
+                            href={m.origin}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              fontSize: '11px',
+                              color: '#64748b',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              marginLeft: 'auto',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            Profile <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <p style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic', margin: '8px 0 0 0' }}>
+              * {impact.disclaimer}
+            </p>
+          </div>
         )}
       </div>
     </div>

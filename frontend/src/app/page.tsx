@@ -58,6 +58,8 @@ import TeamMembersPanel from '@/components/TeamMembersPanel';
 import GraphViewer from '@/components/GraphViewer';
 import ChatInterface from '@/components/ChatInterface';
 import CitationPanel from '@/components/CitationPanel';
+import CollaborationHub from '@/components/CollaborationHub';
+import PdfViewerModal from '@/components/PdfViewerModal';
 import {
   canChangeTeam,
   canAttachToProposal,
@@ -118,6 +120,8 @@ export default function App() {
   const [selected, setSelected] = useState<string[]>([]);
   const [sources, setSources] = useState<SourceSnapshot[]>([]);
   const [conflict, setConflict] = useState<Proposal | null>(null);
+  const [activePdf, setActivePdf] = useState<{ id: string; title: string } | null>(null);
+  const [collaboratorViewMode, setCollaboratorViewMode] = useState<'synthesizer' | 'lexical'>('synthesizer');
 
   // Right sidebar tab in Workspace
   const [workspaceRightTab, setWorkspaceRightTab] = useState<'evidence' | 'ai'>('evidence');
@@ -439,6 +443,35 @@ export default function App() {
       setSavedCollaboratorIds((prev) => [...prev, match.source_id]);
       setShortlistVersion((prev) => prev + 1);
       setNotice(`Saved ${match.title} to team shortlist.`);
+    });
+  };
+
+  const handleAttachSource = async (sourceId: string) => {
+    if (!proposal) return;
+    if (selected.includes(sourceId)) return;
+    const nextSelected = [...selected, sourceId];
+    setSelected(nextSelected);
+    try {
+      const saved = await api.save(proposal.id, {
+        expected_revision: proposal.revision,
+        title,
+        content,
+        selected_source_ids: nextSelected,
+      });
+      install(saved);
+      setNotice(`Attached source to proposal (revision ${saved.revision}).`);
+    } catch (err) {
+      setError(formatError(err));
+    }
+  };
+
+  const handleShortlistCandidate = async (sourceId: string, candTitle: string, rationale: string) => {
+    if (!selectedTeam || selectedTeam.role === 'viewer') return;
+    await run(async () => {
+      await api.addShortlist(selectedTeam.id, sourceId, rationale);
+      setSavedCollaboratorIds((prev) => [...prev, sourceId]);
+      setShortlistVersion((prev) => prev + 1);
+      setNotice(`Added ${candTitle} to team shortlist.`);
     });
   };
 
@@ -1354,7 +1387,18 @@ export default function App() {
                       <details className="source-preview-details">
                         <summary>View text excerpt</summary>
                         <pre>{s.text}</pre>
-                        <OriginLink value={s.origin} />
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
+                          <OriginLink value={s.origin} />
+                          <button
+                            type="button"
+                            className="button small"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
+                            onClick={() => setActivePdf({ id: s.id, title: s.title })}
+                          >
+                            <FileText className="w-3 h-3 text-rose-600" />
+                            <span>Read PDF</span>
+                          </button>
+                        </div>
                       </details>
                     </article>
                   ))}
@@ -1599,7 +1643,18 @@ export default function App() {
                                   <p>“{c.quote}”</p>
                                   <footer>
                                     <strong>{c.title}</strong>
-                                    <OriginLink value={c.origin} />
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
+                                      <OriginLink value={c.origin} />
+                                      <button
+                                        type="button"
+                                        className="button small"
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
+                                        onClick={() => setActivePdf({ id: c.source_id, title: c.title })}
+                                      >
+                                        <FileText className="w-3 h-3 text-rose-600" />
+                                        <span>Read PDF</span>
+                                      </button>
+                                    </div>
                                   </footer>
                                 </blockquote>
                               ))}
@@ -1622,138 +1677,181 @@ export default function App() {
       {currentView === 'collaborators' && (
         <main className="collaborators-view-shell" aria-labelledby="collab-heading">
           <div className="view-intro-hero">
-            <h1 id="collab-heading">Faculty Collaborator Discovery</h1>
+            <h1 id="collab-heading">Faculty Collaborator Discovery & Idea Synthesizer</h1>
             <p className="muted">
-              Enter your research hypothesis, grant proposal aims, or target keywords.
-              The system calculates transparent overlap against verified RIT faculty publications and profiles.
+              Explore strategic interdisciplinary faculty matches, federal funding alignment (NSF, NIH, DARPA, DOE),
+              and verified publication overlap across 3,000+ academic sources.
             </p>
           </div>
 
-          <div className="collaborator-query-card">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void handleCollaboratorMatch(collaboratorIdea);
-              }}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+            <button
+              type="button"
+              className={`nav-tab ${collaboratorViewMode === 'synthesizer' ? 'active' : ''}`}
+              onClick={() => setCollaboratorViewMode('synthesizer')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
             >
-              <textarea
-                value={collaboratorIdea}
-                onChange={(e) => setCollaboratorIdea(e.target.value)}
-                placeholder="Describe your research concept, for example: 'Wireless sensor networks and battery-powered logging for environmental monitoring'…"
-                rows={3}
-                required
-                maxLength={1000}
-              />
-              <div className="query-card-bottom">
-                <div className="quick-examples">
-                  <span className="muted small">Try an example:</span>
-                  <button
-                    type="button"
-                    className="chip-btn"
-                    onClick={() => {
-                      const text = 'sensor networks for agricultural monitoring and battery telemetry';
-                      setCollaboratorIdea(text);
-                      void handleCollaboratorMatch(text);
-                    }}
-                  >
-                    Environmental Sensors
-                  </button>
-                  <button
-                    type="button"
-                    className="chip-btn"
-                    onClick={() => {
-                      const text = 'deep learning, computer vision and medical image analysis';
-                      setCollaboratorIdea(text);
-                      void handleCollaboratorMatch(text);
-                    }}
-                  >
-                    Computer Vision / AI
-                  </button>
-                </div>
-                <button className="primary" disabled={matchingBusy || !collaboratorIdea.trim()}>
-                  <Search className="w-4 h-4" />
-                  <span>{matchingBusy ? 'Searching…' : 'Find Collaborators'}</span>
-                </button>
-              </div>
-            </form>
+              <Sparkles className="w-4 h-4 text-emerald-600" />
+              <span>AI Idea Synthesizer & Grant Fit</span>
+            </button>
+            <button
+              type="button"
+              className={`nav-tab ${collaboratorViewMode === 'lexical' ? 'active' : ''}`}
+              onClick={() => setCollaboratorViewMode('lexical')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
+            >
+              <Search className="w-4 h-4 text-slate-600" />
+              <span>Keyword & Term Directory Matcher</span>
+            </button>
           </div>
 
-          {/* Coverage Summary */}
-          {collaboratorCoverage && (
-            <div className="coverage-card">
-              <div className="coverage-stat">
-                <strong>{collaboratorMatches?.length ?? 0}</strong>
-                <span>Matching Candidates</span>
+          {collaboratorViewMode === 'synthesizer' ? (
+            <CollaborationHub
+              onAttachSource={proposal ? handleAttachSource : undefined}
+              onShortlist={handleShortlistCandidate}
+              attachedSourceIds={selected}
+              proposalOpen={Boolean(proposal)}
+            />
+          ) : (
+            <>
+              <div className="collaborator-query-card">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void handleCollaboratorMatch(collaboratorIdea);
+                  }}
+                >
+                  <textarea
+                    value={collaboratorIdea}
+                    onChange={(e) => setCollaboratorIdea(e.target.value)}
+                    placeholder="Describe your research concept, for example: 'Wireless sensor networks and battery-powered logging for environmental monitoring'…"
+                    rows={3}
+                    required
+                    maxLength={1000}
+                  />
+                  <div className="query-card-bottom">
+                    <div className="quick-examples">
+                      <span className="muted small">Try an example:</span>
+                      <button
+                        type="button"
+                        className="chip-btn"
+                        onClick={() => {
+                          const text = 'sensor networks for agricultural monitoring and battery telemetry';
+                          setCollaboratorIdea(text);
+                          void handleCollaboratorMatch(text);
+                        }}
+                      >
+                        Environmental Sensors
+                      </button>
+                      <button
+                        type="button"
+                        className="chip-btn"
+                        onClick={() => {
+                          const text = 'deep learning, computer vision and medical image analysis';
+                          setCollaboratorIdea(text);
+                          void handleCollaboratorMatch(text);
+                        }}
+                      >
+                        Computer Vision / AI
+                      </button>
+                    </div>
+                    <button className="primary" disabled={matchingBusy || !collaboratorIdea.trim()}>
+                      <Search className="w-4 h-4" />
+                      <span>{matchingBusy ? 'Searching…' : 'Find Collaborators'}</span>
+                    </button>
+                  </div>
+                </form>
               </div>
-              <div className="coverage-stat">
-                <strong>{collaboratorCoverage.eligible_profile_count}</strong>
-                <span>Eligible Faculty Profiles</span>
-              </div>
-              <div className="coverage-details">
-                <p className="muted">{collaboratorCoverage.note}</p>
-                {collaboratorCoverage.uncovered_terms.length > 0 && (
-                  <p className="muted small">
-                    Unmatched idea terms: <em>{collaboratorCoverage.uncovered_terms.join(', ')}</em>
-                  </p>
+
+              {/* Coverage Summary */}
+              {collaboratorCoverage && (
+                <div className="coverage-card">
+                  <div className="coverage-stat">
+                    <strong>{collaboratorMatches?.length ?? 0}</strong>
+                    <span>Matching Candidates</span>
+                  </div>
+                  <div className="coverage-stat">
+                    <strong>{collaboratorCoverage.eligible_profile_count}</strong>
+                    <span>Eligible Faculty Profiles</span>
+                  </div>
+                  <div className="coverage-details">
+                    <p className="muted">{collaboratorCoverage.note}</p>
+                    {collaboratorCoverage.uncovered_terms.length > 0 && (
+                      <p className="muted small">
+                        Unmatched idea terms: <em>{collaboratorCoverage.uncovered_terms.join(', ')}</em>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Matches List */}
+              <div className="collaborator-results-grid">
+                {collaboratorMatches?.map((match) => (
+                  <article key={match.source_id} className="collaborator-card">
+                    <div className="card-top">
+                      <span className={`tag ${match.candidate_status}`}>
+                        {match.candidate_status.replace('_', ' ').toUpperCase()}
+                      </span>
+                      <span className="coverage-badge">
+                        {Math.round(match.idea_coverage * 100)}% idea coverage
+                      </span>
+                    </div>
+
+                    <h3>{match.title}</h3>
+                    <p className="snippet">{match.snippet}</p>
+
+                    <div className="overlap-tags">
+                      <span className="tag-label">Matched terms:</span>
+                      {match.matched_terms.map((term) => (
+                        <span key={term} className="term-chip">{term}</span>
+                      ))}
+                    </div>
+
+                    <p className="reason-note">{match.reason}</p>
+
+                    <div className="card-actions">
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <OriginLink value={match.origin} />
+                        <button
+                          type="button"
+                          className="button small"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
+                          onClick={() => setActivePdf({ id: match.source_id, title: match.title })}
+                        >
+                          <FileText className="w-3 h-3 text-rose-600" />
+                          <span>Read PDF</span>
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className="button primary small"
+                        disabled={
+                          busy ||
+                          !selectedTeam ||
+                          selectedTeam.role === 'viewer' ||
+                          savedCollaboratorIds.includes(match.source_id)
+                        }
+                        onClick={() => void shortlistCollaborator(match)}
+                      >
+                        {savedCollaboratorIds.includes(match.source_id)
+                          ? '✓ Saved to Team Shortlist'
+                          : `Shortlist to ${selectedTeam?.name ?? 'Team'}`}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+
+                {collaboratorMatches && collaboratorMatches.length === 0 && (
+                  <div className="empty-results-box">
+                    <Users className="w-8 h-8 text-[#536779]" />
+                    <h3>No matching collaborators found</h3>
+                    <p className="muted">Try broader terminology or different keywords from the institutional directory.</p>
+                  </div>
                 )}
               </div>
-            </div>
+            </>
           )}
-
-          {/* Matches List */}
-          <div className="collaborator-results-grid">
-            {collaboratorMatches?.map((match) => (
-              <article key={match.source_id} className="collaborator-card">
-                <div className="card-top">
-                  <span className={`tag ${match.candidate_status}`}>
-                    {match.candidate_status.replace('_', ' ').toUpperCase()}
-                  </span>
-                  <span className="coverage-badge">
-                    {Math.round(match.idea_coverage * 100)}% idea coverage
-                  </span>
-                </div>
-
-                <h3>{match.title}</h3>
-                <p className="snippet">{match.snippet}</p>
-
-                <div className="overlap-tags">
-                  <span className="tag-label">Matched terms:</span>
-                  {match.matched_terms.map((term) => (
-                    <span key={term} className="term-chip">{term}</span>
-                  ))}
-                </div>
-
-                <p className="reason-note">{match.reason}</p>
-
-                <div className="card-actions">
-                  <OriginLink value={match.origin} />
-                  <button
-                    type="button"
-                    className="button primary small"
-                    disabled={
-                      busy ||
-                      !selectedTeam ||
-                      selectedTeam.role === 'viewer' ||
-                      savedCollaboratorIds.includes(match.source_id)
-                    }
-                    onClick={() => void shortlistCollaborator(match)}
-                  >
-                    {savedCollaboratorIds.includes(match.source_id)
-                      ? '✓ Saved to Team Shortlist'
-                      : `Shortlist to ${selectedTeam?.name ?? 'Team'}`}
-                  </button>
-                </div>
-              </article>
-            ))}
-
-            {collaboratorMatches && collaboratorMatches.length === 0 && (
-              <div className="empty-results-box">
-                <Users className="w-8 h-8 text-[#536779]" />
-                <h3>No matching collaborators found</h3>
-                <p className="muted">Try broader terminology or different keywords from the institutional directory.</p>
-              </div>
-            )}
-          </div>
         </main>
       )}
 
@@ -1835,7 +1933,18 @@ export default function App() {
                 <p className="reason-note">{item.reason}</p>
 
                 <div className="result-card-bottom">
-                  <OriginLink value={item.origin} />
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <OriginLink value={item.origin} />
+                    <button
+                      type="button"
+                      className="button small"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
+                      onClick={() => setActivePdf({ id: item.source_id, title: item.title })}
+                    >
+                      <FileText className="w-3 h-3 text-rose-600" />
+                      <span>Read PDF</span>
+                    </button>
+                  </div>
                   <div className="button-row">
                     <button
                       type="button"
@@ -1941,11 +2050,22 @@ export default function App() {
                     <X className="w-3.5 h-3.5 text-slate-500" />
                   </button>
                 </div>
-                <CitationPanel citations={chatCitations} />
+                <CitationPanel
+                  citations={chatCitations}
+                  onViewPdf={(id, title) => setActivePdf({ id, title })}
+                />
               </aside>
             )}
           </div>
         </main>
+      )}
+
+      {activePdf && (
+        <PdfViewerModal
+          sourceId={activePdf.id}
+          title={activePdf.title}
+          onClose={() => setActivePdf(null)}
+        />
       )}
     </div>
   );

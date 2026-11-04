@@ -1,4 +1,5 @@
-from datetime import timezone
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -18,6 +19,10 @@ router = APIRouter(prefix='/api/v2')
 
 class Input(BaseModel):
     model_config = ConfigDict(extra='forbid')
+
+
+class CatalogImportInput(Input):
+    team_id: UUID
 
 
 class OpportunityInput(Input):
@@ -63,6 +68,66 @@ class OutcomeInput(Input):
         if not value.strip():
             raise ValueError('Idempotency key is required')
         return value
+
+
+@router.get('/opportunities/catalog')
+def get_opportunity_catalog():
+    from src.platform import ingestion
+    from src.platform.ingestion.opportunities import load_opportunities
+    candidates = [
+        Path(ingestion.__file__).resolve().parent / 'federal_grants_catalog.json',
+        Path('data/taxonomies/federal_grants_catalog.json'),
+        Path('/app/data/taxonomies/federal_grants_catalog.json'),
+        Path('data/opportunities/federal_grants_catalog.json'),
+        Path('/app/data/opportunities/federal_grants_catalog.json'),
+    ]
+    catalog_path = next((p for p in candidates if p.exists()), None)
+    if not catalog_path:
+        return {'items': []}
+    return {'items': load_opportunities(catalog_path, limit=50)}
+
+
+@router.post('/opportunities/catalog/import', status_code=201)
+def import_opportunity_catalog(body: CatalogImportInput, session: Session = Depends(get_session), user: User = Depends(current_user)):
+    team_role(session, user, str(body.team_id), edit=True)
+    from src.platform import ingestion
+    from src.platform.ingestion.opportunities import load_opportunities
+    candidates = [
+        Path(ingestion.__file__).resolve().parent / 'federal_grants_catalog.json',
+        Path('data/taxonomies/federal_grants_catalog.json'),
+        Path('/app/data/taxonomies/federal_grants_catalog.json'),
+        Path('data/opportunities/federal_grants_catalog.json'),
+        Path('/app/data/opportunities/federal_grants_catalog.json'),
+    ]
+    catalog_path = next((p for p in candidates if p.exists()), None)
+    if not catalog_path:
+        return {'imported': 0, 'items': []}
+
+    records = load_opportunities(catalog_path, limit=50)
+    imported = []
+    for r in records:
+        existing = session.scalar(
+            select(Opportunity).where(
+                Opportunity.team_id == str(body.team_id),
+                Opportunity.title == r['title']
+            )
+        )
+        if existing:
+            continue
+        dl = datetime.fromisoformat(r['deadline']).astimezone(timezone.utc) if r['deadline'] else None
+        opp = Opportunity(
+            team_id=str(body.team_id),
+            title=r['title'],
+            source_url=r['source_url'],
+            deadline=dl,
+            deadline_timezone=r['deadline_timezone'],
+            notes=r['notes'],
+            eligibility=r['eligibility']
+        )
+        session.add(opp)
+        imported.append(opp)
+    session.commit()
+    return {'imported': len(imported), 'items': [opportunity_view(o) for o in imported]}
 
 
 @router.get('/opportunities')

@@ -26,6 +26,24 @@ export type CollaboratorMatchPage = {
   coverage: CollaboratorCoverage;
   next_cursor: null;
 };
+export type TargetAgency = {
+  agency: string;
+  suggested_programs: string[];
+};
+export type ImpactAnalysis = {
+  novelty_summary: string;
+  target_agencies: TargetAgency[];
+  aligned_sdgs: string[];
+  detected_domains: string[];
+  interdisciplinary_synergies: string;
+  suggested_aims: string[];
+  disclaimer: string;
+};
+export type IdeaSynthesisResult = {
+  impact_analysis: ImpactAnalysis;
+  matches: CollaboratorMatch[];
+  coverage: CollaboratorCoverage;
+};
 export type Citation = { source_id: string; version: string; content_hash: string; title: string; origin: string; quote: string };
 export type DraftResult = { text: string; citations: Citation[]; base_revision: number; source_refs: SourceRef[]; model_id: string | null; insufficient_evidence: boolean; finish_reason: string };
 export type DraftJob = { id: string; proposal_id: string; base_revision: number; source_refs: SourceRef[]; state: 'queued' | 'running' | 'succeeded' | 'failed'; output: DraftResult | null; error: { code: string; message: string; retryable?: boolean } | null; created_at: string; started_at: string | null; finished_at: string | null };
@@ -38,6 +56,7 @@ export type PursuitState = 'draft' | 'shortlisted' | 'collaborating' | 'submitte
 export type OutcomeState = 'won' | 'lost' | 'withdrawn';
 export type OpportunityInput = { team_id: string; title: string; source_url: string | null; deadline: string | null; deadline_timezone: string | null; notes: string; eligibility: Eligibility };
 export type Opportunity = OpportunityInput & { id: string; created_at: string };
+export type OpportunityCatalogItem = OpportunityInput;
 export type Pursuit = { id: string; proposal_id: string; opportunity_id: string | null; state: PursuitState | OutcomeState; updated_at: string; history: { id: string; from_state: string | null; to_state: string; user_id: string; recorded_at: string }[] };
 export type Outcome = { id: string; pursuit_id: string; outcome: OutcomeState; award_reference: string | null; recorded_at: string };
 export type OutcomeInput = { outcome: OutcomeState; idempotency_key: string; award_reference: string | null };
@@ -198,6 +217,7 @@ export const api = {
   attach: (id: string, source_id: string) => post<SourceSnapshot>(`/proposals/${id}/sources/attach`, { source_id }),
   search: (q: string) => request<SearchPage>(`/search?q=${encodeURIComponent(q)}`),
   matchCollaborators: (idea: string) => post<CollaboratorMatchPage>('/collaborators/matches', { idea }),
+  synthesizeIdea: (body: { title: string; description: string; college?: string; tags?: string }) => post<IdeaSynthesisResult>('/collaborators/synthesize', body),
   jobs: (id: string) => request<{ items: DraftJob[] }>(`/proposals/${id}/jobs`),
   draft: (id: string, body: { expected_revision: number; section: string; instruction: string; source_ids: string[] }) => post<DraftJob>(`/proposals/${id}/jobs`, body),
   job: (id: string) => request<DraftJob>(`/jobs/${id}`),
@@ -210,4 +230,7 @@ export const api = {
     return request<GraphData>(`/graph?${params.toString()}`);
   },
   chat: (body: ChatInput) => post<ChatResult>('/chat', body),
+  opportunityCatalog: () => request<{ items: OpportunityCatalogItem[] }>('/opportunities/catalog'),
+  importOpportunityCatalog: (team_id: string) => post<{ imported: number; items: Opportunity[] }>('/opportunities/catalog/import', { team_id }),
+  sourcePdfUrl: (sourceId: string) => `/api/v2/sources/${sourceId}/pdf`,
 };

@@ -2,6 +2,7 @@
 
 import math
 import re
+import zlib
 from collections import Counter
 from collections.abc import Iterable, Sequence
 
@@ -53,9 +54,9 @@ class SemanticVectorizer:
         vector = np.zeros(self.dim, dtype=np.float32)
 
         for feature, count in counts.items():
-            # Stable feature hashing into vector dimensions
-            h = hash(feature)
-            idx = abs(h) % self.dim
+            # Truly stable feature hashing into vector dimensions (independent of PYTHONHASHSEED)
+            h = zlib.crc32(feature.encode('utf-8'))
+            idx = h % self.dim
             sign = 1.0 if (h // self.dim) % 2 == 0 else -1.0
             # Sublinear term frequency weighting
             tf = 1.0 + math.log(count)

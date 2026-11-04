@@ -1,6 +1,6 @@
 'use client';
 
-import { BookOpen, ExternalLink, Quote, Sparkles } from 'lucide-react';
+import { BookOpen, ExternalLink, FileText, Quote, Sparkles } from 'lucide-react';
 import type { ChatCitation } from '@/lib/api';
 import { safeOrigin } from '@/lib/editor';
 
@@ -20,10 +20,12 @@ export default function CitationPanel({
   citations,
   selectedSourceId,
   onSelectSource,
+  onViewPdf,
 }: {
   citations: ChatCitation[];
   selectedSourceId?: string | null;
   onSelectSource?: (id: string) => void;
+  onViewPdf?: (sourceId: string, title: string) => void;
 }) {
   if (!citations || citations.length === 0) {
     return (
@@ -72,8 +74,33 @@ export default function CitationPanel({
                 </div>
               )}
 
-              <div className="citation-card-footer">
+              <div className="citation-card-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
                 <OriginLink value={c.origin} />
+                {onViewPdf && (
+                  <button
+                    type="button"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                      color: '#0284c7',
+                      background: '#f0f9ff',
+                      border: '1px solid #bae6fd',
+                      borderRadius: '4px',
+                      padding: '2px 6px',
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewPdf(c.source_id, c.title);
+                    }}
+                    title="Read full PDF paper"
+                  >
+                    <FileText className="w-3 h-3 text-sky-600" />
+                    <span>Read PDF</span>
+                  </button>
+                )}
               </div>
             </article>
           );

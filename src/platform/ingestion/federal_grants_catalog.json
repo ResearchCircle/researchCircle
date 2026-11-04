@@ -1,0 +1,84 @@
+{
+  "opportunities": [
+  {
+    "title": "NSF 23-605: Faculty Early Career Development Program (CAREER)",
+    "source_url": "https://www.nsf.gov/funding/pgm_summ.jsp?pims_id=503214",
+    "deadline": "2026-11-24T17:00:00-05:00",
+    "deadline_timezone": "America/New_York",
+    "notes": "The Faculty Early Career Development (CAREER) Program is a Foundation-wide activity that offers the National Science Foundation's most prestigious awards in support of early-career faculty who have the potential to serve as academic role models in research and education.",
+    "eligibility": "eligible"
+  },
+  {
+    "title": "NSF 24-500: CISE Core Programs (IIS, CCF, CNS)",
+    "source_url": "https://new.nsf.gov/funding/opportunities/computer-information-science-engineering-core",
+    "deadline": "2026-12-18T17:00:00-05:00",
+    "deadline_timezone": "America/New_York",
+    "notes": "Supports research on Information and Intelligent Systems (IIS), Computing and Communication Foundations (CCF), and Computer and Network Systems (CNS). Open submission window with Small, Medium, and Large project categories.",
+    "eligibility": "eligible"
+  },
+  {
+    "title": "NSF 24-504: Secure and Trustworthy Cyberspace (SaTC)",
+    "source_url": "https://new.nsf.gov/funding/opportunities/secure-trustworthy-cyberspace-satc",
+    "deadline": "2026-12-04T17:00:00-05:00",
+    "deadline_timezone": "America/New_York",
+    "notes": "Addresses cybersecurity and privacy challenges through fundamental research in computing, social, behavioral, and economic sciences.",
+    "eligibility": "eligible"
+  },
+  {
+    "title": "NSF 23-610: Smart Health and Biomedical Research in the Era of AI (SCH)",
+    "source_url": "https://new.nsf.gov/funding/opportunities/smart-health-biomedical-research-era-artificial",
+    "deadline": "2027-01-15T17:00:00-05:00",
+    "deadline_timezone": "America/New_York",
+    "notes": "Interagency program with NIH supporting high-risk, high-reward research in AI-driven biomedical analytics, pervasive sensing, and personalized health delivery systems.",
+    "eligibility": "eligible"
+  },
+  {
+    "title": "NIH PA-20-185: Research Project Grant (Parent R01)",
+    "source_url": "https://grants.nih.gov/grants/guide/pa-files/PA-20-185.html",
+    "deadline": "2027-02-05T17:00:00-05:00",
+    "deadline_timezone": "America/New_York",
+    "notes": "The NIH Research Project Grant supports a discrete, specified, circumscribed project to be performed by the named investigator(s) in an area representing the investigator's specific interest and competencies.",
+    "eligibility": "eligible"
+  },
+  {
+    "title": "NIH PA-20-195: Exploratory/Developmental Research Grant (Parent R21)",
+    "source_url": "https://grants.nih.gov/grants/guide/pa-files/PA-20-195.html",
+    "deadline": "2027-02-16T17:00:00-05:00",
+    "deadline_timezone": "America/New_York",
+    "notes": "Encourages exploratory and developmental research projects in medical informatics, computational biology, and early-stage investigative methodologies.",
+    "eligibility": "eligible"
+  },
+  {
+    "title": "DARPA-RA-24-01: Young Faculty Award (YFA)",
+    "source_url": "https://www.darpa.mil/work-with-us/for-universities/young-faculty-award",
+    "deadline": "2026-12-08T17:00:00-05:00",
+    "deadline_timezone": "America/New_York",
+    "notes": "Identifies and engages rising research stars in junior faculty positions across mathematical sciences, computing, and microsystems to address national security challenges.",
+    "eligibility": "eligible"
+  },
+  {
+    "title": "DOE DE-FOA-0003180: Early Career Research Program",
+    "source_url": "https://science.osti.gov/early-career",
+    "deadline": "2027-01-28T17:00:00-05:00",
+    "deadline_timezone": "America/New_York",
+    "notes": "Supports individual research programs of outstanding scientists early in their careers in Advanced Scientific Computing Research (ASCR), Basic Energy Sciences (BES), and High Energy Physics.",
+    "eligibility": "eligible"
+  },
+  {
+    "title": "NSF 24-511: Cyberinfrastructure for Emerging Science (CESER)",
+    "source_url": "https://new.nsf.gov/funding/opportunities/cyberinfrastructure-emerging-science-engineering",
+    "deadline": "2027-03-05T17:00:00-05:00",
+    "deadline_timezone": "America/New_York",
+    "notes": "Fosters early-stage development of innovative cyberinfrastructure technologies, scientific data pipelines, and high-performance computing clusters.",
+    "eligibility": "eligible"
+  },
+  {
+    "title": "NSF 23-568: Expanding AI Innovation through Partnerships (ExpandAI)",
+    "source_url": "https://new.nsf.gov/funding/opportunities/expanding-ai-innovation-through-capacity-building",
+    "deadline": "2027-01-08T17:00:00-05:00",
+    "deadline_timezone": "America/New_York",
+    "notes": "Promotes capacity building and research collaborations between emerging research institutions and National Artificial Intelligence Research Institutes.",
+    "eligibility": "eligible"
+  }
+  ]
+}

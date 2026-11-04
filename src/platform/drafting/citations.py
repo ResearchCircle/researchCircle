@@ -9,11 +9,40 @@ from .types import Citation, DraftError, SourceSnapshot
 INSUFFICIENT_EVIDENCE = 'Insufficient evidence in the selected sources to draft this section.'
 
 
-def parse_citations(raw: str, sources: tuple[SourceSnapshot, ...]) -> tuple[str, tuple[Citation, ...], bool]:
+def _extract_json_payload(raw: str) -> dict:
+    """Extract JSON object from raw LLM output, handling markdown fences or preamble."""
+    cleaned = raw.strip()
+    if cleaned.startswith('```'):
+        cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
+        cleaned = re.sub(r'\s*```$', '', cleaned).strip()
+
+    # Try direct parse
     try:
-        value = json.loads(raw)
+        val = json.loads(cleaned)
+        if isinstance(val, dict):
+            return val
+    except (ValueError, TypeError, RecursionError):
+        pass
+
+    # Find bounding curly braces if surrounded by thought or text
+    start = cleaned.find('{')
+    end = cleaned.rfind('}')
+    if start != -1 and end != -1 and end > start:
+        try:
+            val = json.loads(cleaned[start:end+1])
+            if isinstance(val, dict):
+                return val
+        except (ValueError, TypeError, RecursionError):
+            pass
+
+    try:
+        return json.loads(raw)
     except (ValueError, TypeError, RecursionError):
         raise DraftError('invalid_citations', 'Draft response was not valid citation JSON.') from None
+
+
+def parse_citations(raw: str, sources: tuple[SourceSnapshot, ...]) -> tuple[str, tuple[Citation, ...], bool]:
+    value = _extract_json_payload(raw)
     if not isinstance(value, dict):
         raise DraftError('invalid_citations', 'Draft citation response had missing or invalid fields.')
     text, references, insufficient = value.get('text'), value.get('citations'), value.get('insufficient_evidence')

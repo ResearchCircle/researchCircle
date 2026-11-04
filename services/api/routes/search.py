@@ -10,6 +10,7 @@ from src.platform.database.public_records import PublicRecord
 from src.platform.discovery.matching import match_collaborators
 from src.platform.discovery.public_search import search_public
 from src.platform.discovery.search import list_samples
+from src.platform.discovery.synthesizer import synthesize_idea
 from src.platform.workflow.errors import WorkflowError
 
 router = APIRouter(prefix='/api/v2')
@@ -26,6 +27,14 @@ class CollaboratorMatchInput(BaseModel):
         if not value.strip():
             raise ValueError('Research idea is required.')
         return value.strip()
+
+
+class IdeaSynthesisInput(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+    title: str = Field(min_length=1, max_length=300)
+    description: str = Field(min_length=1, max_length=5000)
+    college: str | None = Field(default=None, max_length=100)
+    tags: str | None = Field(default=None, max_length=300)
 
 
 def seed_samples(session: Session) -> int:
@@ -57,3 +66,8 @@ def search_catalog(session: SessionDependency, q: str = Query(default='', max_le
 @router.post('/collaborators/matches')
 def collaborator_matches(body: CollaboratorMatchInput, session: SessionDependency):
     return match_collaborators(session, body.idea)
+
+
+@router.post('/collaborators/synthesize')
+def synthesize_collaborators(body: IdeaSynthesisInput, session: SessionDependency):
+    return synthesize_idea(session, body.title, body.description, body.college, body.tags)

@@ -34,6 +34,7 @@ services:
       TBR_DB_PASSWORD: ${TBR_DB_PASSWORD:?Set a local uncommitted database password}
     volumes:
       - "${TBR_RUNTIME_WORK_MOUNT:-runtime-work}:/var/lib/tbr-work"
+      - "${TBR_PDFS_MOUNT:-../data/pdfs}:/app/data/pdfs:ro"
     depends_on:
       db:
         condition: service_healthy
@@ -46,6 +47,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - "${TBR_RUNTIME_WORK_MOUNT:-runtime-work}:/var/lib/tbr-work"
+      - "${TBR_PDFS_MOUNT:-../data/pdfs}:/app/data/pdfs:ro"
     depends_on:
       db:
         condition: service_healthy

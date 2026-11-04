@@ -1,10 +1,12 @@
 import hashlib
 import os
 import unicodedata
+from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
@@ -14,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from services.api.dependencies import SESSION_COOKIE, current_user, get_session, require_proposal, team_role
 from src.platform.database.models import Invitation, LoginSession, Membership, Proposal, ProposalSource, Source, Team, User, utcnow
+from src.platform.database.public_records import PublicRecord
 from src.platform.workflow.accounts import authenticate, create_session, password_hasher
 from src.platform.workflow.errors import WorkflowError
 from src.platform.workflow.memberships import change_member, lock_team
@@ -323,3 +326,53 @@ def export(proposal_id: UUID, session: Session = Depends(get_session), user: Use
     proposal = require_proposal(session, user, str(proposal_id))
     return Response(markdown_export(session, proposal), media_type='text/markdown; charset=utf-8',
                     headers={'Content-Disposition': f'attachment; filename="proposal-{proposal.id}.md"'})
+
+
+@router.get('/sources/{source_id}/pdf')
+def get_source_pdf(source_id: UUID, session: Session = Depends(get_session)):
+    source = session.get(Source, str(source_id))
+    if source is None or not source.is_public:
+        raise WorkflowError(404, 'source_not_found', 'Public source was not found')
+
+    rec = session.get(PublicRecord, str(source_id))
+    pdf_filename = None
+    if rec and isinstance(rec.metadata_json, dict):
+        pdf_filename = rec.metadata_json.get('pdf_file')
+
+    if not pdf_filename:
+        if source.origin and source.origin.lower().endswith('.pdf'):
+            from urllib.parse import unquote, urlsplit
+            pdf_filename = unquote(urlsplit(source.origin).path.split('/')[-1])
+
+    if not pdf_filename:
+        raise WorkflowError(404, 'pdf_not_found', 'No PDF file associated with this research record')
+
+    safe_name = Path(pdf_filename).name
+    if not safe_name.lower().endswith('.pdf') or '..' in pdf_filename:
+        raise WorkflowError(400, 'invalid_pdf_filename', 'Invalid PDF file name')
+
+    base_dirs = [
+        Path('/app/data/pdfs'),
+        Path('data/pdfs'),
+        Path('/var/lib/tbr-work/pdfs'),
+    ]
+
+    target_path = None
+    for b in base_dirs:
+        try:
+            cand = (b / safe_name).resolve()
+            if cand.is_file():
+                target_path = cand
+                break
+        except (ValueError, OSError):
+            continue
+
+    if not target_path or not target_path.exists():
+        raise WorkflowError(404, 'pdf_file_missing', f'PDF file {safe_name} is not present in storage archive')
+
+    return FileResponse(
+        target_path,
+        media_type='application/pdf',
+        filename=safe_name,
+        headers={'Content-Disposition': f'inline; filename="{safe_name}"'}
+    )

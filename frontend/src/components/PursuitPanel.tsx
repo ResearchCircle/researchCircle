@@ -93,6 +93,35 @@ function ProposalPursuit({ proposal }: Props) {
         <button className="tracking-save" disabled={locked}>Save proposal progress</button>
       </form>
       {opportunity && <div className="opportunity-summary"><h3>{opportunity.title}</h3><p>Eligibility: {opportunity.eligibility === 'unknown' ? 'Unknown; verify with the opportunity provider' : opportunity.eligibility}</p><p>{opportunity.deadline ? `Deadline: ${timestamp(opportunity.deadline)} (your local time)${opportunity.deadline_timezone ? `; recorded timezone ${opportunity.deadline_timezone}` : ''}` : 'Deadline: unknown'}</p>{opportunity.source_url && safeOrigin(opportunity.source_url) && <a href={safeOrigin(opportunity.source_url)} target="_blank" rel="noopener noreferrer">View opportunity source</a>}{opportunity.notes && <p className="tracking-notes">{opportunity.notes}</p>}</div>}
+      {!terminal && editable && (
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', margin: '12px 0' }}>
+          <button
+            type="button"
+            disabled={busy || loading}
+            onClick={() => void run(async (current) => {
+              const res = await api.importOpportunityCatalog(proposal.team_id);
+              if (!current()) return;
+              setNotice(`Imported ${res.imported} verified federal solicitations (NSF, NIH, DARPA, DOE).`);
+              await refresh();
+            })}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              fontSize: '12px',
+              fontWeight: 500,
+              borderRadius: '6px',
+              border: '1px solid #cbd5e1',
+              background: '#f8fafc',
+              cursor: 'pointer',
+            }}
+            title="Populate team with standard federal funding solicitations (NSF CAREER, CISE Core, SaTC, NIH R01, DARPA YFA)"
+          >
+            <span>Import Federal Solicitations (NSF, NIH, DARPA)</span>
+          </button>
+        </div>
+      )}
       {!terminal && editable && <details className="tracking-create"><summary>Add a manual opportunity</summary><form onSubmit={event => submit(event, async current => {
         const saved = await api.createOpportunity({ team_id: proposal.team_id, title: title.trim(), source_url: sourceUrl.trim() || null, ...localDeadline(deadline), notes, eligibility });
         if (!current()) return;
