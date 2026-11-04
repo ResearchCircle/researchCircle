@@ -492,6 +492,59 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 350px; overflo
   color: var(--ink);
 }
 
+.drawer-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 6px 0 2px 0;
+}
+
+.drawer-stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #f1f5f9;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 550;
+  color: #475569;
+}
+
+.drawer-stat-badge.citations {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.drawer-stat-badge.year {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.drawer-abstract {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #334155;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.drawer-abstract h4 {
+  margin: 0 0 6px 0;
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.5px;
+}
+
 .graph-canvas-wrapper {
   flex: 1;
   position: relative;

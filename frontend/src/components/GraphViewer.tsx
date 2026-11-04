@@ -15,6 +15,10 @@ import {
   Focus,
   Layers,
   RotateCcw,
+  BookOpen,
+  Star,
+  Calendar,
+  User,
 } from 'lucide-react';
 import { api, type GraphData, type GraphNode } from '@/lib/api';
 import { safeOrigin } from '@/lib/editor';
@@ -46,6 +50,7 @@ export default function GraphViewer({
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [centerNodeId, setCenterNodeId] = useState<string | null>(null);
   const [hops, setHops] = useState<number>(2);
+  const [nodeLimit, setNodeLimit] = useState<number>(300);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
@@ -57,7 +62,7 @@ export default function GraphViewer({
       topic?: string,
       centerId?: string | null,
       hopsCount = 2,
-      limit = 200
+      limit = 300
     ) => {
       setLoading(true);
       setError('');
@@ -70,7 +75,7 @@ export default function GraphViewer({
         );
         setData(graphData);
         setTimeout(() => {
-          graphRef.current?.zoomToFit(400, 24);
+          graphRef.current?.zoomToFit(400, 28);
         }, 350);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Could not load knowledge graph.');
@@ -82,8 +87,8 @@ export default function GraphViewer({
   );
 
   useEffect(() => {
-    void loadGraph();
-  }, [loadGraph]);
+    void loadGraph(undefined, undefined, hops, nodeLimit);
+  }, [loadGraph, nodeLimit]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -101,31 +106,35 @@ export default function GraphViewer({
 
   const handleFilterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    void loadGraph(topicQuery, centerNodeId, hops);
+    void loadGraph(topicQuery, centerNodeId, hops, nodeLimit);
   };
 
   const handleResetFilter = () => {
     setTopicQuery('');
     setSelectedCluster(null);
-    void loadGraph('', centerNodeId, hops);
+    void loadGraph('', centerNodeId, hops, nodeLimit);
   };
 
   const handleFocusEgo = (nodeId: string) => {
     setCenterNodeId(nodeId);
     setSelectedCluster(null);
-    void loadGraph(topicQuery, nodeId, hops);
+    void loadGraph(topicQuery, nodeId, hops, nodeLimit);
   };
 
   const handleExitEgo = () => {
     setCenterNodeId(null);
-    void loadGraph(topicQuery, null, hops);
+    void loadGraph(topicQuery, null, hops, nodeLimit);
   };
 
   const handleHopsChange = (newHops: number) => {
     setHops(newHops);
     if (centerNodeId) {
-      void loadGraph(topicQuery, centerNodeId, newHops);
+      void loadGraph(topicQuery, centerNodeId, newHops, nodeLimit);
     }
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setNodeLimit(newLimit);
   };
 
   const handleNodeClick = (node: any) => {
@@ -162,7 +171,7 @@ export default function GraphViewer({
   const paperCount = data.nodes.filter((n) => n.type === 'paper').length;
   const topicCount = data.nodes.filter((n) => n.type === 'topic').length;
 
-  // Semantic Zoom & High-Performance Canvas Renderer
+  // Modern High-Performance Canvas Renderer
   const drawNode = useCallback(
     (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const isCenter = Boolean(node.is_center);
@@ -170,28 +179,40 @@ export default function GraphViewer({
 
       // Base radius by hierarchy and node type
       let r = 5;
-      if (isCenter) r = 9;
-      else if (node.type === 'faculty') r = 6.5;
-      else if (node.type === 'paper') r = 5;
+      if (isCenter) r = 9.5;
+      else if (node.type === 'faculty') r = 7;
+      else if (node.type === 'paper') r = 5.5;
       else if (node.type === 'topic') r = 4.5;
-      if (isSelected) r += 2;
+      if (isSelected) r += 2.5;
 
-      const nodeColor =
-        node.cluster_color ||
-        (node.type === 'faculty'
-          ? '#225bb2'
+      const baseColor =
+        node.type === 'faculty'
+          ? '#2563eb'
           : node.type === 'paper'
-          ? '#14766d'
+          ? '#0f766e'
           : node.type === 'topic'
           ? '#d97706'
-          : '#536779');
+          : '#64748b';
+
+      const nodeColor = node.cluster_color || baseColor;
 
       ctx.save();
 
-      // Center Node Pulsing Radar Halo
+      // Outer Glow / Soft Aura
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, r + (isCenter ? 5 : 3), 0, 2 * Math.PI, false);
+      ctx.fillStyle =
+        node.type === 'faculty'
+          ? 'rgba(37, 99, 235, 0.15)'
+          : node.type === 'paper'
+          ? 'rgba(15, 118, 110, 0.15)'
+          : 'rgba(217, 119, 6, 0.15)';
+      ctx.fill();
+
+      // Center Node Radar Halo
       if (isCenter) {
         ctx.beginPath();
-        ctx.arc(node.x, node.y, r + 5, 0, 2 * Math.PI, false);
+        ctx.arc(node.x, node.y, r + 7, 0, 2 * Math.PI, false);
         ctx.strokeStyle = '#dc2626';
         ctx.lineWidth = Math.max(1.5, 2.5 / globalScale);
         ctx.setLineDash([4 / globalScale, 3 / globalScale]);
@@ -202,51 +223,63 @@ export default function GraphViewer({
       // Selected Node Halo
       if (isSelected) {
         ctx.beginPath();
-        ctx.arc(node.x, node.y, r + 3, 0, 2 * Math.PI, false);
-        ctx.strokeStyle = '#2563eb';
+        ctx.arc(node.x, node.y, r + 3.5, 0, 2 * Math.PI, false);
+        ctx.strokeStyle = '#1d4ed8';
         ctx.lineWidth = Math.max(1.5, 2.5 / globalScale);
         ctx.stroke();
       }
 
-      // Main Node Circle
+      // Main Node Shape
       ctx.beginPath();
       ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
       ctx.fillStyle = nodeColor;
       ctx.fill();
-      ctx.lineWidth = Math.max(1, 1.5 / globalScale);
+      ctx.lineWidth = Math.max(1, 1.6 / globalScale);
       ctx.strokeStyle = '#ffffff';
       ctx.stroke();
 
       // Semantic Zoom Level-Of-Detail (LOD):
-      // Only draw heavy canvas text labels when zoomed in (globalScale >= 1.15) OR if center or selected.
-      // This maintains 60 FPS smoothly on graphs with 20k+ nodes!
-      const shouldDrawLabel = globalScale >= 1.15 || isCenter || isSelected;
+      // Only draw heavy canvas text labels when zoomed in (globalScale >= 1.05) OR if center or selected.
+      const shouldDrawLabel = globalScale >= 1.05 || isCenter || isSelected;
       if (shouldDrawLabel && node.name) {
         const rawName = String(node.name);
-        const label = rawName.length > 30 ? rawName.slice(0, 28) + '…' : rawName;
+        const label = rawName.length > 32 ? rawName.slice(0, 30) + '…' : rawName;
         const fontSize = Math.max(8, (isCenter ? 12 : 10) / globalScale);
         ctx.font = `${isCenter ? '650' : '500'} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
 
         const textWidth = ctx.measureText(label).width;
         const textHeight = fontSize;
-        const padX = 4 / globalScale;
-        const padY = 2 / globalScale;
+        const padX = 5 / globalScale;
+        const padY = 2.5 / globalScale;
         const rectX = node.x - textWidth / 2 - padX;
-        const rectY = node.y + r + 3 / globalScale;
+        const rectY = node.y + r + 3.5 / globalScale;
         const rectW = textWidth + padX * 2;
         const rectH = textHeight + padY * 2;
 
         // Label pill background
-        ctx.fillStyle = isCenter ? 'rgba(254, 242, 242, 0.96)' : 'rgba(255, 255, 255, 0.92)';
+        ctx.fillStyle = isCenter
+          ? 'rgba(254, 242, 242, 0.96)'
+          : node.type === 'paper'
+          ? 'rgba(240, 253, 250, 0.94)'
+          : 'rgba(255, 255, 255, 0.94)';
         ctx.fillRect(rectX, rectY, rectW, rectH);
-        ctx.strokeStyle = isCenter ? 'rgba(220, 38, 38, 0.3)' : 'rgba(0, 0, 0, 0.12)';
-        ctx.lineWidth = 0.5 / globalScale;
+
+        ctx.strokeStyle = isCenter
+          ? 'rgba(220, 38, 38, 0.35)'
+          : node.type === 'paper'
+          ? 'rgba(15, 118, 110, 0.3)'
+          : 'rgba(0, 0, 0, 0.12)';
+        ctx.lineWidth = 0.6 / globalScale;
         ctx.strokeRect(rectX, rectY, rectW, rectH);
 
         // Text label
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = isCenter ? '#991b1b' : '#0f172a';
+        ctx.fillStyle = isCenter
+          ? '#991b1b'
+          : node.type === 'paper'
+          ? '#0f766e'
+          : '#0f172a';
         ctx.fillText(label, node.x, rectY + rectH / 2);
       }
 
@@ -256,7 +289,7 @@ export default function GraphViewer({
   );
 
   const paintPointerArea = useCallback((node: any, color: string, ctx: CanvasRenderingContext2D) => {
-    const r = (node.is_center ? 12 : 8);
+    const r = node.is_center ? 14 : 9;
     ctx.beginPath();
     ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
     ctx.fillStyle = color;
@@ -280,7 +313,7 @@ export default function GraphViewer({
             <Search className="w-3.5 h-3.5 text-[#536779]" />
             <input
               type="text"
-              placeholder="Filter topic (e.g. sensor, AI)…"
+              placeholder="Search topic or faculty…"
               value={topicQuery}
               onChange={(e) => setTopicQuery(e.target.value)}
             />
@@ -324,6 +357,22 @@ export default function GraphViewer({
           </button>
         </div>
 
+        {/* Payload Density Limit Selector */}
+        <div className="graph-type-filters" style={{ borderLeft: '1px solid #e2e8f0', paddingLeft: 8 }}>
+          <span className="muted" style={{ fontSize: 11 }}>Density:</span>
+          {[150, 300, 500].map((l) => (
+            <button
+              key={l}
+              type="button"
+              className={`filter-chip ${nodeLimit === l ? 'active' : ''}`}
+              style={{ minHeight: 24, padding: '1px 7px', fontSize: 10 }}
+              onClick={() => handleLimitChange(l)}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+
         <div className="graph-controls">
           <button
             type="button"
@@ -345,7 +394,7 @@ export default function GraphViewer({
             type="button"
             className="icon-button"
             title="Fit to Screen"
-            onClick={() => graphRef.current?.zoomToFit(400, 24)}
+            onClick={() => graphRef.current?.zoomToFit(400, 28)}
           >
             <Maximize2 className="w-4 h-4" />
           </button>
@@ -353,7 +402,7 @@ export default function GraphViewer({
             type="button"
             className="icon-button"
             title="Refresh"
-            onClick={() => void loadGraph(topicQuery, centerNodeId, hops)}
+            onClick={() => void loadGraph(topicQuery, centerNodeId, hops, nodeLimit)}
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -372,7 +421,7 @@ export default function GraphViewer({
               </strong>
             </span>
             <span className="count-badge">
-              {filteredNodes.length} nodes within {hops} hops
+              {filteredNodes.length} connected nodes within {hops} hops
             </span>
             <div className="graph-ego-hops">
               <span className="muted" style={{ fontSize: 11 }}>Depth:</span>
@@ -426,12 +475,12 @@ export default function GraphViewer({
         </div>
       )}
 
-      {/* Main Canvas Area */}
+      {/* Main Canvas Area with Animated Dynamic Links */}
       <div className="graph-canvas-wrapper">
         {loading && (
           <div className="graph-overlay">
             <div className="spinner" />
-            <p>Loading knowledge graph…</p>
+            <p>Rendering interactive knowledge graph…</p>
           </div>
         )}
 
@@ -441,7 +490,7 @@ export default function GraphViewer({
             <button
               type="button"
               className="primary"
-              onClick={() => void loadGraph(topicQuery, centerNodeId, hops)}
+              onClick={() => void loadGraph(topicQuery, centerNodeId, hops, nodeLimit)}
             >
               Retry
             </button>
@@ -481,8 +530,22 @@ export default function GraphViewer({
                 node.cluster ? ` · ${node.cluster}` : ''
               }`
             }
-            linkColor={() => 'rgba(83, 103, 121, 0.22)'}
-            linkWidth={1.2}
+            linkCurvature={0.08}
+            linkColor={(link: any) => {
+              const rel = link.relationship;
+              if (rel === 'authored') return 'rgba(15, 118, 110, 0.45)';
+              if (rel === 'co_authorship') return 'rgba(79, 70, 229, 0.35)';
+              if (rel === 'researches') return 'rgba(37, 99, 235, 0.35)';
+              if (rel === 'addresses') return 'rgba(217, 119, 6, 0.35)';
+              return 'rgba(100, 116, 139, 0.22)';
+            }}
+            linkWidth={(link: any) => (link.relationship === 'authored' ? 1.6 : 1.1)}
+            linkDirectionalParticles={(link: any) => (link.relationship === 'authored' ? 2 : 1)}
+            linkDirectionalParticleWidth={1.5}
+            linkDirectionalParticleSpeed={0.0035}
+            linkDirectionalParticleColor={(link: any) =>
+              link.relationship === 'authored' ? '#0d9488' : '#6366f1'
+            }
             backgroundColor="#ffffff"
             warmupTicks={0}
             cooldownTicks={40}
@@ -495,11 +558,14 @@ export default function GraphViewer({
         )}
       </div>
 
-      {/* Node Inspection Drawer */}
+      {/* Modern Detailed Node Inspection Drawer */}
       {selectedNode && (
         <aside className="graph-node-drawer" aria-label="Node details">
           <div className="drawer-header">
             <span className={`tag ${selectedNode.type}`}>
+              {selectedNode.type === 'faculty' && '🎓 '}
+              {selectedNode.type === 'paper' && '📄 '}
+              {selectedNode.type === 'topic' && '🏷️ '}
               {selectedNode.type.toUpperCase()}
             </span>
             {selectedNode.evidence_kind && (
@@ -525,6 +591,28 @@ export default function GraphViewer({
 
           <h3 className="drawer-title">{selectedNode.name}</h3>
 
+          {/* Quick stats badges row */}
+          <div className="drawer-stats-row">
+            {selectedNode.metadata?.year && (
+              <span className="drawer-stat-badge year">
+                <Calendar className="w-3 h-3" />
+                <span>{selectedNode.metadata.year}</span>
+              </span>
+            )}
+            {selectedNode.metadata?.citations !== undefined && (
+              <span className="drawer-stat-badge citations">
+                <Star className="w-3 h-3" />
+                <span>{selectedNode.metadata.citations} citations</span>
+              </span>
+            )}
+            {selectedNode.metadata?.faculty_author && (
+              <span className="drawer-stat-badge">
+                <User className="w-3 h-3" />
+                <span>{selectedNode.metadata.faculty_author}</span>
+              </span>
+            )}
+          </div>
+
           {selectedNode.cluster && (
             <div className="drawer-cluster">
               <span
@@ -546,7 +634,9 @@ export default function GraphViewer({
                   rel="noopener noreferrer"
                   className="external-link"
                 >
-                  <span>View public origin</span>
+                  <span>
+                    {selectedNode.type === 'paper' ? 'View Google Scholar / DOI' : 'View faculty profile'}
+                  </span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               ) : (
@@ -555,17 +645,24 @@ export default function GraphViewer({
             </div>
           )}
 
+          {/* Abstract card for papers */}
+          {selectedNode.metadata?.abstract && (
+            <div className="drawer-abstract">
+              <h4>
+                <BookOpen className="w-3 h-3 inline mr-1" />
+                Abstract
+              </h4>
+              <p>{selectedNode.metadata.abstract}</p>
+            </div>
+          )}
+
+          {/* Structured metadata */}
           {selectedNode.metadata && Object.keys(selectedNode.metadata).length > 0 && (
             <div className="drawer-metadata">
-              <h4>Structured facts</h4>
+              <h4>Metadata & Provenance</h4>
               {selectedNode.metadata.doi && (
                 <p>
                   <strong>DOI:</strong> {selectedNode.metadata.doi}
-                </p>
-              )}
-              {selectedNode.metadata.year && (
-                <p>
-                  <strong>Year:</strong> {selectedNode.metadata.year}
                 </p>
               )}
               {selectedNode.metadata.authors && (
@@ -596,7 +693,7 @@ export default function GraphViewer({
             {/* Ego-Network neighborhood exploration button */}
             <button
               type="button"
-              className="button wide"
+              className="button primary wide"
               onClick={() => handleFocusEgo(selectedNode.id)}
               disabled={centerNodeId === selectedNode.id}
             >
@@ -604,14 +701,16 @@ export default function GraphViewer({
               <span>
                 {centerNodeId === selectedNode.id
                   ? 'Currently Center Node'
-                  : 'Focus Ego-Network (2 Hops)'}
+                  : selectedNode.type === 'faculty'
+                  ? 'Explore Faculty Publications (2 Hops)'
+                  : 'Explore Paper Ego-Network (2 Hops)'}
               </span>
             </button>
 
             {selectedNode.type === 'topic' && onSearchTopic && (
               <button
                 type="button"
-                className="primary wide"
+                className="button wide"
                 onClick={() => onSearchTopic(selectedNode.name)}
               >
                 Search topic in Discovery
