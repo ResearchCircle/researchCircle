@@ -19,6 +19,9 @@ import {
   Star,
   Calendar,
   User,
+  Moon,
+  Sun,
+  ChevronRight,
 } from 'lucide-react';
 import { api, type GraphData, type GraphNode } from '@/lib/api';
 import { safeOrigin } from '@/lib/editor';
@@ -47,10 +50,12 @@ export default function GraphViewer({
   const [typeFilter, setTypeFilter] = useState<'all' | 'faculty' | 'paper' | 'topic'>('all');
   const [selectedCluster, setSelectedCluster] = useState<string | null>(null);
   const [topicQuery, setTopicQuery] = useState('');
+  const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [centerNodeId, setCenterNodeId] = useState<string | null>(null);
   const [hops, setHops] = useState<number>(2);
   const [nodeLimit, setNodeLimit] = useState<number>(300);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
@@ -75,7 +80,7 @@ export default function GraphViewer({
         );
         setData(graphData);
         setTimeout(() => {
-          graphRef.current?.zoomToFit(400, 28);
+          graphRef.current?.zoomToFit(400, 32);
         }, 350);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Could not load knowledge graph.');
@@ -106,18 +111,21 @@ export default function GraphViewer({
 
   const handleFilterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setSearchDropdownOpen(false);
     void loadGraph(topicQuery, centerNodeId, hops, nodeLimit);
   };
 
   const handleResetFilter = () => {
     setTopicQuery('');
     setSelectedCluster(null);
+    setSearchDropdownOpen(false);
     void loadGraph('', centerNodeId, hops, nodeLimit);
   };
 
   const handleFocusEgo = (nodeId: string) => {
     setCenterNodeId(nodeId);
     setSelectedCluster(null);
+    setSearchDropdownOpen(false);
     void loadGraph(topicQuery, nodeId, hops, nodeLimit);
   };
 
@@ -137,6 +145,39 @@ export default function GraphViewer({
     setNodeLimit(newLimit);
   };
 
+  // Fixed Cluster Selection with Smooth Camera Fly-To Bounding Box
+  const handleClusterSelect = (clusterName: string | null) => {
+    const nextCluster = selectedCluster === clusterName ? null : clusterName;
+    setSelectedCluster(nextCluster);
+
+    if (nextCluster) {
+      const clusterNodes = data.nodes.filter(
+        (n) => n.cluster?.toLowerCase() === nextCluster.toLowerCase()
+      );
+      if (clusterNodes.length > 0) {
+        const xs = clusterNodes.map((n) => n.x ?? 0);
+        const ys = clusterNodes.map((n) => n.y ?? 0);
+        const minX = Math.min(...xs), maxX = Math.max(...xs);
+        const minY = Math.min(...ys), maxY = Math.max(...ys);
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        graphRef.current?.centerAt(cx, cy, 500);
+        graphRef.current?.zoom(1.8, 500);
+      }
+    } else {
+      graphRef.current?.zoomToFit(500, 32);
+    }
+  };
+
+  const handleFlyToNode = (node: GraphNode) => {
+    setSelectedNode(node);
+    setSearchDropdownOpen(false);
+    if (node.x !== undefined && node.y !== undefined) {
+      graphRef.current?.centerAt(node.x, node.y, 600);
+      graphRef.current?.zoom(2.4, 600);
+    }
+  };
+
   const handleNodeClick = (node: any) => {
     const now = Date.now();
     if (lastClickRef.current.id === node.id && now - lastClickRef.current.time < 350) {
@@ -148,10 +189,17 @@ export default function GraphViewer({
     setSelectedNode(node as GraphNode);
   };
 
-  // Filter nodes according to type and cluster selectors
+  // Search autocomplete candidates
+  const searchMatches = topicQuery.trim()
+    ? data.nodes
+        .filter((n) => n.name.toLowerCase().includes(topicQuery.trim().toLowerCase()))
+        .slice(0, 6)
+    : [];
+
+  // Filter nodes according to type and cluster selectors (matched by cluster name)
   const filteredNodes = data.nodes.filter((node) => {
     if (typeFilter !== 'all' && node.type !== typeFilter) return false;
-    if (selectedCluster && node.cluster !== selectedCluster) return false;
+    if (selectedCluster && node.cluster?.toLowerCase() !== selectedCluster.toLowerCase()) return false;
     return true;
   });
 
@@ -171,25 +219,24 @@ export default function GraphViewer({
   const paperCount = data.nodes.filter((n) => n.type === 'paper').length;
   const topicCount = data.nodes.filter((n) => n.type === 'topic').length;
 
-  // Modern High-Performance Canvas Renderer
+  // Modern High-Performance Canvas Renderer with Avatars & Auras
   const drawNode = useCallback(
     (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const isCenter = Boolean(node.is_center);
       const isSelected = selectedNode?.id === node.id;
 
-      // Base radius by hierarchy and node type
       let r = 5;
-      if (isCenter) r = 9.5;
-      else if (node.type === 'faculty') r = 7;
+      if (isCenter) r = 10;
+      else if (node.type === 'faculty') r = 7.5;
       else if (node.type === 'paper') r = 5.5;
       else if (node.type === 'topic') r = 4.5;
-      if (isSelected) r += 2.5;
+      if (isSelected) r += 3;
 
       const baseColor =
         node.type === 'faculty'
-          ? '#2563eb'
+          ? (isDarkMode ? '#3b82f6' : '#2563eb')
           : node.type === 'paper'
-          ? '#0f766e'
+          ? (isDarkMode ? '#10b981' : '#0f766e')
           : node.type === 'topic'
           ? '#d97706'
           : '#64748b';
@@ -198,14 +245,14 @@ export default function GraphViewer({
 
       ctx.save();
 
-      // Outer Glow / Soft Aura
+      // Soft Atmospheric Aura
       ctx.beginPath();
-      ctx.arc(node.x, node.y, r + (isCenter ? 5 : 3), 0, 2 * Math.PI, false);
+      ctx.arc(node.x, node.y, r + (isCenter ? 6 : 3.5), 0, 2 * Math.PI, false);
       ctx.fillStyle =
         node.type === 'faculty'
-          ? 'rgba(37, 99, 235, 0.15)'
+          ? (isDarkMode ? 'rgba(59, 130, 246, 0.25)' : 'rgba(37, 99, 235, 0.15)')
           : node.type === 'paper'
-          ? 'rgba(15, 118, 110, 0.15)'
+          ? (isDarkMode ? 'rgba(16, 185, 129, 0.25)' : 'rgba(15, 118, 110, 0.15)')
           : 'rgba(217, 119, 6, 0.15)';
       ctx.fill();
 
@@ -213,7 +260,7 @@ export default function GraphViewer({
       if (isCenter) {
         ctx.beginPath();
         ctx.arc(node.x, node.y, r + 7, 0, 2 * Math.PI, false);
-        ctx.strokeStyle = '#dc2626';
+        ctx.strokeStyle = '#ef4444';
         ctx.lineWidth = Math.max(1.5, 2.5 / globalScale);
         ctx.setLineDash([4 / globalScale, 3 / globalScale]);
         ctx.stroke();
@@ -223,8 +270,8 @@ export default function GraphViewer({
       // Selected Node Halo
       if (isSelected) {
         ctx.beginPath();
-        ctx.arc(node.x, node.y, r + 3.5, 0, 2 * Math.PI, false);
-        ctx.strokeStyle = '#1d4ed8';
+        ctx.arc(node.x, node.y, r + 4, 0, 2 * Math.PI, false);
+        ctx.strokeStyle = isDarkMode ? '#60a5fa' : '#1d4ed8';
         ctx.lineWidth = Math.max(1.5, 2.5 / globalScale);
         ctx.stroke();
       }
@@ -235,15 +282,31 @@ export default function GraphViewer({
       ctx.fillStyle = nodeColor;
       ctx.fill();
       ctx.lineWidth = Math.max(1, 1.6 / globalScale);
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = isDarkMode ? '#1e293b' : '#ffffff';
       ctx.stroke();
 
-      // Semantic Zoom Level-Of-Detail (LOD):
-      // Only draw heavy canvas text labels when zoomed in (globalScale >= 1.05) OR if center or selected.
+      // Avatar Initials on Faculty Nodes
+      if (node.type === 'faculty' && node.name && globalScale >= 0.8) {
+        const initials = String(node.name)
+          .split(' ')
+          .map((p) => p[0])
+          .filter(Boolean)
+          .slice(0, 2)
+          .join('')
+          .toUpperCase();
+        const initSize = Math.max(6, 7 / globalScale);
+        ctx.font = `700 ${initSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(initials, node.x, node.y);
+      }
+
+      // Semantic Zoom Level-Of-Detail (LOD) Labels
       const shouldDrawLabel = globalScale >= 1.05 || isCenter || isSelected;
       if (shouldDrawLabel && node.name) {
         const rawName = String(node.name);
-        const label = rawName.length > 32 ? rawName.slice(0, 30) + '…' : rawName;
+        const label = rawName.length > 34 ? rawName.slice(0, 32) + '…' : rawName;
         const fontSize = Math.max(8, (isCenter ? 12 : 10) / globalScale);
         ctx.font = `${isCenter ? '650' : '500'} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
 
@@ -257,14 +320,22 @@ export default function GraphViewer({
         const rectH = textHeight + padY * 2;
 
         // Label pill background
-        ctx.fillStyle = isCenter
+        ctx.fillStyle = isDarkMode
+          ? isCenter
+            ? 'rgba(69, 10, 10, 0.95)'
+            : 'rgba(15, 23, 42, 0.92)'
+          : isCenter
           ? 'rgba(254, 242, 242, 0.96)'
           : node.type === 'paper'
-          ? 'rgba(240, 253, 250, 0.94)'
-          : 'rgba(255, 255, 255, 0.94)';
+          ? 'rgba(240, 253, 250, 0.95)'
+          : 'rgba(255, 255, 255, 0.95)';
         ctx.fillRect(rectX, rectY, rectW, rectH);
 
-        ctx.strokeStyle = isCenter
+        ctx.strokeStyle = isDarkMode
+          ? isCenter
+            ? 'rgba(239, 68, 68, 0.5)'
+            : 'rgba(51, 65, 85, 0.8)'
+          : isCenter
           ? 'rgba(220, 38, 38, 0.35)'
           : node.type === 'paper'
           ? 'rgba(15, 118, 110, 0.3)'
@@ -275,7 +346,11 @@ export default function GraphViewer({
         // Text label
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = isCenter
+        ctx.fillStyle = isDarkMode
+          ? isCenter
+            ? '#fca5a5'
+            : '#f1f5f9'
+          : isCenter
           ? '#991b1b'
           : node.type === 'paper'
           ? '#0f766e'
@@ -285,7 +360,7 @@ export default function GraphViewer({
 
       ctx.restore();
     },
-    [selectedNode]
+    [selectedNode, isDarkMode]
   );
 
   const paintPointerArea = useCallback((node: any, color: string, ctx: CanvasRenderingContext2D) => {
@@ -297,35 +372,66 @@ export default function GraphViewer({
   }, []);
 
   return (
-    <div className="graph-container" ref={containerRef}>
+    <div className={`graph-container ${isDarkMode ? 'dark' : ''}`} ref={containerRef}>
       {/* Top Header & Toolbar */}
       <div className="graph-toolbar">
         <div className="graph-title-badge">
-          <Network className="w-4 h-4 text-[#225bb2]" />
+          <Network className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-[#225bb2]'}`} />
           <span>Knowledge Graph</span>
           <span className="count-badge">
             {filteredNodes.length} nodes · {filteredLinks.length} edges
           </span>
         </div>
 
-        <form onSubmit={handleFilterSubmit} className="graph-search-form">
-          <div className="input-with-icon">
-            <Search className="w-3.5 h-3.5 text-[#536779]" />
-            <input
-              type="text"
-              placeholder="Search topic or faculty…"
-              value={topicQuery}
-              onChange={(e) => setTopicQuery(e.target.value)}
-            />
-          </div>
-          <button type="submit" className="button small">Filter</button>
-          {topicQuery && (
-            <button type="button" className="button small" onClick={handleResetFilter}>
-              Clear
-            </button>
-          )}
-        </form>
+        {/* Live Search Autocomplete Form */}
+        <div className="graph-search-container">
+          <form onSubmit={handleFilterSubmit} className="graph-search-form">
+            <div className="input-with-icon">
+              <Search className="w-3.5 h-3.5 text-[#536779]" />
+              <input
+                type="text"
+                placeholder="Search faculty or paper…"
+                value={topicQuery}
+                onChange={(e) => {
+                  setTopicQuery(e.target.value);
+                  setSearchDropdownOpen(true);
+                }}
+                onFocus={() => setSearchDropdownOpen(true)}
+              />
+            </div>
+            <button type="submit" className="button small">Filter</button>
+            {topicQuery && (
+              <button type="button" className="button small" onClick={handleResetFilter}>
+                Clear
+              </button>
+            )}
+          </form>
 
+          {/* Autocomplete Dropdown with Direct Fly-To */}
+          {searchDropdownOpen && searchMatches.length > 0 && (
+            <div className="graph-search-dropdown">
+              {searchMatches.map((match) => (
+                <div
+                  key={match.id}
+                  className="graph-search-item"
+                  onClick={() => handleFlyToNode(match)}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontWeight: 600 }}>{match.name}</span>
+                    {match.metadata?.faculty_author && (
+                      <span className="muted" style={{ fontSize: 11 }}>
+                        By {match.metadata.faculty_author}
+                      </span>
+                    )}
+                  </div>
+                  <span className={`item-type ${match.type}`}>{match.type}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Type Filters */}
         <div className="graph-type-filters">
           <button
             type="button"
@@ -358,7 +464,7 @@ export default function GraphViewer({
         </div>
 
         {/* Payload Density Limit Selector */}
-        <div className="graph-type-filters" style={{ borderLeft: '1px solid #e2e8f0', paddingLeft: 8 }}>
+        <div className="graph-type-filters" style={{ borderLeft: '1px solid #cbd5e1', paddingLeft: 8 }}>
           <span className="muted" style={{ fontSize: 11 }}>Density:</span>
           {[150, 300, 500].map((l) => (
             <button
@@ -374,6 +480,16 @@ export default function GraphViewer({
         </div>
 
         <div className="graph-controls">
+          {/* Theme Switcher Toggle */}
+          <button
+            type="button"
+            className="icon-button"
+            title={isDarkMode ? 'Light Canvas' : 'Dark Obsidian Canvas'}
+            onClick={() => setIsDarkMode(!isDarkMode)}
+          >
+            {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+          </button>
+
           <button
             type="button"
             className="icon-button"
@@ -394,7 +510,7 @@ export default function GraphViewer({
             type="button"
             className="icon-button"
             title="Fit to Screen"
-            onClick={() => graphRef.current?.zoomToFit(400, 28)}
+            onClick={() => graphRef.current?.zoomToFit(400, 32)}
           >
             <Maximize2 className="w-4 h-4" />
           </button>
@@ -444,7 +560,7 @@ export default function GraphViewer({
         </div>
       )}
 
-      {/* Hierarchical Community Clusters Chips */}
+      {/* Hierarchical Community Clusters Chips with Bounding-Box Zoom */}
       {data.clusters && data.clusters.length > 0 && (
         <div className="graph-cluster-chips">
           <span className="cluster-label">
@@ -454,7 +570,7 @@ export default function GraphViewer({
           <button
             type="button"
             className={`cluster-chip ${selectedCluster === null ? 'active' : ''}`}
-            onClick={() => setSelectedCluster(null)}
+            onClick={() => handleClusterSelect(null)}
           >
             All Clusters ({data.nodes.length})
           </button>
@@ -462,10 +578,8 @@ export default function GraphViewer({
             <button
               key={c.id}
               type="button"
-              className={`cluster-chip ${selectedCluster === c.id ? 'active' : ''}`}
-              onClick={() =>
-                setSelectedCluster(selectedCluster === c.id ? null : c.id)
-              }
+              className={`cluster-chip ${selectedCluster === c.name ? 'active' : ''}`}
+              onClick={() => handleClusterSelect(c.name)}
             >
               <span className="cluster-dot" style={{ backgroundColor: c.color }} />
               <span>{c.name}</span>
@@ -475,7 +589,7 @@ export default function GraphViewer({
         </div>
       )}
 
-      {/* Main Canvas Area with Animated Dynamic Links */}
+      {/* Main Canvas Area with Dynamic Curved Links & Particles */}
       <div className="graph-canvas-wrapper">
         {loading && (
           <div className="graph-overlay">
@@ -533,10 +647,15 @@ export default function GraphViewer({
             linkCurvature={0.08}
             linkColor={(link: any) => {
               const rel = link.relationship;
+              if (isDarkMode) {
+                if (rel === 'authored') return 'rgba(45, 212, 191, 0.45)';
+                if (rel === 'co_authorship') return 'rgba(129, 140, 248, 0.4)';
+                if (rel === 'researches') return 'rgba(96, 165, 250, 0.35)';
+                return 'rgba(148, 163, 184, 0.2)';
+              }
               if (rel === 'authored') return 'rgba(15, 118, 110, 0.45)';
               if (rel === 'co_authorship') return 'rgba(79, 70, 229, 0.35)';
               if (rel === 'researches') return 'rgba(37, 99, 235, 0.35)';
-              if (rel === 'addresses') return 'rgba(217, 119, 6, 0.35)';
               return 'rgba(100, 116, 139, 0.22)';
             }}
             linkWidth={(link: any) => (link.relationship === 'authored' ? 1.6 : 1.1)}
@@ -544,9 +663,11 @@ export default function GraphViewer({
             linkDirectionalParticleWidth={1.5}
             linkDirectionalParticleSpeed={0.0035}
             linkDirectionalParticleColor={(link: any) =>
-              link.relationship === 'authored' ? '#0d9488' : '#6366f1'
+              link.relationship === 'authored'
+                ? isDarkMode ? '#2dd4bf' : '#0d9488'
+                : isDarkMode ? '#818cf8' : '#6366f1'
             }
-            backgroundColor="#ffffff"
+            backgroundColor={isDarkMode ? '#090d16' : '#ffffff'}
             warmupTicks={0}
             cooldownTicks={40}
             cooldownTime={1200}
@@ -645,7 +766,7 @@ export default function GraphViewer({
             </div>
           )}
 
-          {/* Abstract card for papers */}
+          {/* Abstract reader card for papers */}
           {selectedNode.metadata?.abstract && (
             <div className="drawer-abstract">
               <h4>
@@ -656,7 +777,7 @@ export default function GraphViewer({
             </div>
           )}
 
-          {/* Structured metadata */}
+          {/* Structured metadata facts */}
           {selectedNode.metadata && Object.keys(selectedNode.metadata).length > 0 && (
             <div className="drawer-metadata">
               <h4>Metadata & Provenance</h4>
