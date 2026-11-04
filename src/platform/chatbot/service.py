@@ -94,13 +94,12 @@ class ResearchChatService:
             result = self.provider.generate(prompt, 512, timeout_s)
 
         raw = result.text.strip()
-        # Clean any markdown code fences if model enclosed in ```json ... ```
-        if raw.startswith('```'):
-            raw = re.sub(r'^```(?:json)?\s*', '', raw)
-            raw = re.sub(r'\s*```$', '', raw)
+        from ..drafting.citations import _extract_json_payload
 
         try:
-            parsed = json.loads(raw)
+            parsed = _extract_json_payload(raw)
+            if not isinstance(parsed, dict):
+                raise ValueError('Parsed output must be a dictionary')
         except Exception:
             # Fallback for plain text completions
             parsed = {
@@ -117,7 +116,7 @@ class ResearchChatService:
         citations: list[Citation] = []
         seen = set()
 
-        if not insufficient and isinstance(raw_citations, list):
+        if isinstance(raw_citations, list):
             for ref in raw_citations:
                 if not isinstance(ref, dict):
                     continue
@@ -152,6 +151,28 @@ class ResearchChatService:
                                 quote=sentence.strip()
                             ))
                             break
+
+        # Also scan response text for any bracketed source IDs that the model cited inline
+        for match in re.finditer(r'\[([0-9a-fA-F-]{36})\]', text):
+            sid = match.group(1)
+            if sid in sources_map and sid not in seen:
+                seen.add(sid)
+                src = sources_map[sid]
+                quote_cand = next((s.strip() for s in re.split(r'(?<=[.!?])\s+', src.text) if len(s.strip()) > 20), src.text[:120])
+                citations.append(Citation(
+                    source_id=src.id,
+                    version=src.version,
+                    content_hash=src.content_hash,
+                    title=src.title,
+                    origin=src.origin,
+                    quote=quote_cand
+                ))
+
+        # Convert raw source IDs in response text into clean scientific citation badges [1], [2] matching CitationPanel
+        for idx, cit in enumerate(citations):
+            badge = f"[{idx + 1}]"
+            text = text.replace(f"[{cit.source_id}]", badge)
+            text = text.replace(cit.source_id, badge)
 
         consulted = tuple({
             'id': s.id,

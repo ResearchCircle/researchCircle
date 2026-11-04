@@ -69,7 +69,7 @@ function createDefaultSession(proposalId?: string | null, proposalTitle?: string
         role: 'assistant',
         content: proposalId
           ? `Hello! I am your research assistant grounded on "${proposalTitle}". Ask any question about your attached publications or aims.`
-          : "Hello! I am your research assistant grounded across 960+ verified publications and RIT faculty records. Ask any question about researchers, papers, or methodologies.",
+          : "Hello! I am your research assistant grounded across 3,000+ verified publications and RIT faculty records. Ask any question about researchers, papers, or methodologies.",
       },
     ],
     citations: [],
@@ -385,7 +385,7 @@ export default function ChatInterface({
               </div>
               <h2>Research Literature Assistant</h2>
               <p>
-                Grounded strictly on 960+ verified publications and RIT faculty facts. Ask any research question, compare methodologies, or synthesize literature.
+                Grounded strictly on 3,000+ verified publications and RIT faculty facts. Ask any research question, compare methodologies, or synthesize literature.
               </p>
 
               <div className="prompt-starter-grid">

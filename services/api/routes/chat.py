@@ -60,6 +60,21 @@ def research_chat(
                 proposal_id=s.proposal_id,
                 is_public=s.is_public
             ))
+
+        # If proposal currently has no attached evidence, supplement with public literature so questions get answered
+        if not snapshots:
+            search_res = search_public(session, body.message, limit=5, semantic=True)
+            for item in search_res.get('items', []):
+                snapshots.append(SourceSnapshot(
+                    id=item['id'],
+                    version=item['version'],
+                    content_hash=item['content_hash'],
+                    title=item['title'],
+                    origin=item['origin'],
+                    text=item['text'],
+                    proposal_id=None,
+                    is_public=True
+                ))
     else:
         # Use approved public records via hybrid semantic search
         search_res = search_public(session, body.message, limit=5, semantic=True)

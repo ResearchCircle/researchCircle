@@ -47,7 +47,7 @@ class SynthesizerAndFeaturesTests(unittest.TestCase):
         self.assertTrue(len(impact['target_agencies']) > 0)
         self.assertIn('suggested_aims', impact)
         self.assertEqual(len(impact['suggested_aims']), 3)
-        self.assertTrue(impact['suggested_aims'][0].startswith('Specific Aim 1:'))
+        self.assertTrue(impact['suggested_aims'][0].startswith('Specific Aim 1'))
         self.assertIn('matches', result)
         self.assertIn('coverage', result)
 

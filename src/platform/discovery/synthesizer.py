@@ -97,31 +97,55 @@ def synthesize_idea(
     if college:
         colleges_involved.add(college)
     for m in matches:
-        title_str = m.get('title', '')
-        if 'Computing' in title_str:
-            colleges_involved.add('Computing & Information Sciences')
-        elif 'Engineering' in title_str:
-            colleges_involved.add('Engineering')
-        elif 'Science' in title_str:
-            colleges_involved.add('Science & Mathematics')
+        text_blob = f"{m.get('origin', '')} {m.get('snippet', '')}".lower()
+        if 'computing' in text_blob or 'gccis' in text_blob or 'computer' in text_blob:
+            colleges_involved.add('Golisano College of Computing & Information Sciences')
+        if 'engineering' in text_blob or 'kgcoe' in text_blob or 'electrical' in text_blob or 'mechanical' in text_blob:
+            colleges_involved.add('Kate Gleason College of Engineering')
+        if 'science' in text_blob or 'physics' in text_blob or 'chemistry' in text_blob or 'mathematics' in text_blob:
+            colleges_involved.add('College of Science')
+        if 'health' in text_blob or 'medical' in text_blob or 'biomedical' in text_blob or 'clinical' in text_blob:
+            colleges_involved.add('College of Health Sciences & Technology')
+        if 'business' in text_blob or 'saunders' in text_blob or 'management' in text_blob:
+            colleges_involved.add('Saunders College of Business')
+        if 'liberal' in text_blob or 'ethics' in text_blob or 'policy' in text_blob or 'psychology' in text_blob:
+            colleges_involved.add('College of Liberal Arts')
 
     if len(colleges_involved) >= 2:
-        synergy = f"High interdisciplinary potential connecting {', '.join(sorted(colleges_involved))}. This collaborative structure strengthens broader impacts for major center and collaborative grant solicitations."
+        synergy = (
+            f"High cross-college synergy identified across {', '.join(sorted(colleges_involved))}. "
+            f"Teaming computational and algorithmic faculty with engineering or domain scientists significantly strengthens "
+            f"the Broader Impacts and Interdisciplinary Collaboration scoring criteria required by federal review panels."
+        )
+    elif len(colleges_involved) == 1:
+        synergy = (
+            f"Core research expertise is currently anchored in {list(colleges_involved)[0]}. "
+            f"For large-scale team solicitations (such as NSF Medium/Large or NIH Multi-PI), consider inviting a co-PI "
+            f"from an application or human-factors department to expand translational impact."
+        )
     else:
-        synergy = "Focused single-domain proposal. Consider partnering with external application domains or human factors researchers to enhance broader impacts criteria."
+        synergy = (
+            "Broad exploratory concept across multiple computing subfields. "
+            "Pairing foundational algorithmic investigators with empirical or field testbed researchers will provide a competitive edge."
+        )
 
-    # 6. Specific Aims Suggestions
+    # 6. Specific Aims Suggestions (standard federal peer-review format)
+    d1 = detected_domains[0]
+    d2 = detected_domains[1] if len(detected_domains) > 1 else "Empirical Systems"
+    primary_agency = matched_agencies[0]['agency']
+
     suggested_aims = [
-        f"Specific Aim 1: Formalize theoretical and algorithmic foundations for {title.lower()}.",
-        f"Specific Aim 2: Develop robust experimental prototypes and evaluate against verified baseline benchmarks in {detected_domains[0]}.",
-        f"Specific Aim 3: Validate deployment scalability, ethical considerations, and real-world applicability with domain stakeholders."
+        f"Specific Aim 1 (Foundations & Modeling): Formalize the theoretical and algorithmic architecture for {title.lower()}, establishing mathematical bounds and reproducible data representations in {d1}.",
+        f"Specific Aim 2 (Prototyping & Benchmark Evaluation): Implement robust experimental pipelines and benchmark performance against standardized state-of-the-art baselines across {d2}.",
+        f"Specific Aim 3 (Translation & Testbed Deployment): Validate scalability, robustness under real-world constraints, and usability with domain stakeholders to satisfy {primary_agency} translational milestones."
     ]
 
     # Executive novelty summary
     top_domains_str = ', '.join(detected_domains[:3])
     novelty = (
-        f"The proposed initiative addresses key research challenges bridging {top_domains_str}. "
-        f"By combining foundational methodology with empirical validation, the project offers competitive alignment with {matched_agencies[0]['agency']} priorities."
+        f"The proposed initiative addresses high-priority scientific challenges at the intersection of {top_domains_str}. "
+        f"By unifying methodological rigor with empirical validation, the project offers strong alignment with {primary_agency} solicitations. "
+        f"The proposed investigation bridges theoretical foundations with actionable translational outcomes."
     )
 
     return {
