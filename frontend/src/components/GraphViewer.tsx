@@ -2,7 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Network, Search, ZoomIn, ZoomOut, Maximize2, RefreshCw, X, ExternalLink } from 'lucide-react';
+import {
+  Network,
+  Search,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  RefreshCw,
+  X,
+  ExternalLink,
+  Target,
+  Focus,
+  Layers,
+  RotateCcw,
+} from 'lucide-react';
 import { api, type GraphData, type GraphNode } from '@/lib/api';
 import { safeOrigin } from '@/lib/editor';
 
@@ -24,32 +37,49 @@ export default function GraphViewer({
   attachedSourceIds = [],
   proposalOpen = false,
 }: GraphViewerProps) {
-  const [data, setData] = useState<GraphData>({ nodes: [], links: [] });
+  const [data, setData] = useState<GraphData>({ nodes: [], links: [], clusters: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'faculty' | 'paper' | 'topic'>('all');
+  const [selectedCluster, setSelectedCluster] = useState<string | null>(null);
   const [topicQuery, setTopicQuery] = useState('');
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [centerNodeId, setCenterNodeId] = useState<string | null>(null);
+  const [hops, setHops] = useState<number>(2);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const lastClickRef = useRef<{ id: string; time: number }>({ id: '', time: 0 });
 
-  const loadGraph = useCallback(async (topic?: string) => {
-    setLoading(true);
-    setError('');
-    try {
-      const graphData = await api.graph(200, topic?.trim() || undefined);
-      setData(graphData);
-      setTimeout(() => {
-        graphRef.current?.zoomToFit(400, 24);
-      }, 300);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Could not load knowledge graph.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const loadGraph = useCallback(
+    async (
+      topic?: string,
+      centerId?: string | null,
+      hopsCount = 2,
+      limit = 200
+    ) => {
+      setLoading(true);
+      setError('');
+      try {
+        const graphData = await api.graph(
+          limit,
+          topic?.trim() || undefined,
+          centerId || undefined,
+          hopsCount
+        );
+        setData(graphData);
+        setTimeout(() => {
+          graphRef.current?.zoomToFit(400, 24);
+        }, 350);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Could not load knowledge graph.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     void loadGraph();
@@ -71,27 +101,57 @@ export default function GraphViewer({
 
   const handleFilterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    void loadGraph(topicQuery);
+    void loadGraph(topicQuery, centerNodeId, hops);
   };
 
   const handleResetFilter = () => {
     setTopicQuery('');
-    void loadGraph();
+    setSelectedCluster(null);
+    void loadGraph('', centerNodeId, hops);
   };
 
-  // Filter nodes according to type selector
-  const filteredNodes = data.nodes.filter((node) => {
-    if (typeFilter === 'all') return true;
-    return node.type === typeFilter;
-  });
-  const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
-  const filteredLinks = data.links.filter(
-    (l) => {
-      const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
-      const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
-      return filteredNodeIds.has(sId) && filteredNodeIds.has(tId);
+  const handleFocusEgo = (nodeId: string) => {
+    setCenterNodeId(nodeId);
+    setSelectedCluster(null);
+    void loadGraph(topicQuery, nodeId, hops);
+  };
+
+  const handleExitEgo = () => {
+    setCenterNodeId(null);
+    void loadGraph(topicQuery, null, hops);
+  };
+
+  const handleHopsChange = (newHops: number) => {
+    setHops(newHops);
+    if (centerNodeId) {
+      void loadGraph(topicQuery, centerNodeId, newHops);
     }
-  );
+  };
+
+  const handleNodeClick = (node: any) => {
+    const now = Date.now();
+    if (lastClickRef.current.id === node.id && now - lastClickRef.current.time < 350) {
+      handleFocusEgo(node.id);
+      lastClickRef.current = { id: '', time: 0 };
+      return;
+    }
+    lastClickRef.current = { id: node.id, time: now };
+    setSelectedNode(node as GraphNode);
+  };
+
+  // Filter nodes according to type and cluster selectors
+  const filteredNodes = data.nodes.filter((node) => {
+    if (typeFilter !== 'all' && node.type !== typeFilter) return false;
+    if (selectedCluster && node.cluster !== selectedCluster) return false;
+    return true;
+  });
+
+  const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
+  const filteredLinks = data.links.filter((l) => {
+    const sId = typeof l.source === 'object' ? (l.source as any).id : l.source;
+    const tId = typeof l.target === 'object' ? (l.target as any).id : l.target;
+    return filteredNodeIds.has(sId) && filteredNodeIds.has(tId);
+  });
 
   const filteredGraphData = {
     nodes: filteredNodes,
@@ -102,14 +162,117 @@ export default function GraphViewer({
   const paperCount = data.nodes.filter((n) => n.type === 'paper').length;
   const topicCount = data.nodes.filter((n) => n.type === 'topic').length;
 
+  // Semantic Zoom & High-Performance Canvas Renderer
+  const drawNode = useCallback(
+    (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      const isCenter = Boolean(node.is_center);
+      const isSelected = selectedNode?.id === node.id;
+
+      // Base radius by hierarchy and node type
+      let r = 5;
+      if (isCenter) r = 9;
+      else if (node.type === 'faculty') r = 6.5;
+      else if (node.type === 'paper') r = 5;
+      else if (node.type === 'topic') r = 4.5;
+      if (isSelected) r += 2;
+
+      const nodeColor =
+        node.cluster_color ||
+        (node.type === 'faculty'
+          ? '#225bb2'
+          : node.type === 'paper'
+          ? '#14766d'
+          : node.type === 'topic'
+          ? '#d97706'
+          : '#536779');
+
+      ctx.save();
+
+      // Center Node Pulsing Radar Halo
+      if (isCenter) {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r + 5, 0, 2 * Math.PI, false);
+        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = Math.max(1.5, 2.5 / globalScale);
+        ctx.setLineDash([4 / globalScale, 3 / globalScale]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Selected Node Halo
+      if (isSelected) {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r + 3, 0, 2 * Math.PI, false);
+        ctx.strokeStyle = '#2563eb';
+        ctx.lineWidth = Math.max(1.5, 2.5 / globalScale);
+        ctx.stroke();
+      }
+
+      // Main Node Circle
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
+      ctx.fillStyle = nodeColor;
+      ctx.fill();
+      ctx.lineWidth = Math.max(1, 1.5 / globalScale);
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      // Semantic Zoom Level-Of-Detail (LOD):
+      // Only draw heavy canvas text labels when zoomed in (globalScale >= 1.15) OR if center or selected.
+      // This maintains 60 FPS smoothly on graphs with 20k+ nodes!
+      const shouldDrawLabel = globalScale >= 1.15 || isCenter || isSelected;
+      if (shouldDrawLabel && node.name) {
+        const rawName = String(node.name);
+        const label = rawName.length > 30 ? rawName.slice(0, 28) + '…' : rawName;
+        const fontSize = Math.max(8, (isCenter ? 12 : 10) / globalScale);
+        ctx.font = `${isCenter ? '650' : '500'} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+
+        const textWidth = ctx.measureText(label).width;
+        const textHeight = fontSize;
+        const padX = 4 / globalScale;
+        const padY = 2 / globalScale;
+        const rectX = node.x - textWidth / 2 - padX;
+        const rectY = node.y + r + 3 / globalScale;
+        const rectW = textWidth + padX * 2;
+        const rectH = textHeight + padY * 2;
+
+        // Label pill background
+        ctx.fillStyle = isCenter ? 'rgba(254, 242, 242, 0.96)' : 'rgba(255, 255, 255, 0.92)';
+        ctx.fillRect(rectX, rectY, rectW, rectH);
+        ctx.strokeStyle = isCenter ? 'rgba(220, 38, 38, 0.3)' : 'rgba(0, 0, 0, 0.12)';
+        ctx.lineWidth = 0.5 / globalScale;
+        ctx.strokeRect(rectX, rectY, rectW, rectH);
+
+        // Text label
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = isCenter ? '#991b1b' : '#0f172a';
+        ctx.fillText(label, node.x, rectY + rectH / 2);
+      }
+
+      ctx.restore();
+    },
+    [selectedNode]
+  );
+
+  const paintPointerArea = useCallback((node: any, color: string, ctx: CanvasRenderingContext2D) => {
+    const r = (node.is_center ? 12 : 8);
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }, []);
+
   return (
     <div className="graph-container" ref={containerRef}>
       {/* Top Header & Toolbar */}
       <div className="graph-toolbar">
         <div className="graph-title-badge">
           <Network className="w-4 h-4 text-[#225bb2]" />
-          <span>Public Knowledge Graph</span>
-          <span className="count-badge">{filteredNodes.length} nodes · {filteredLinks.length} edges</span>
+          <span>Knowledge Graph</span>
+          <span className="count-badge">
+            {filteredNodes.length} nodes · {filteredLinks.length} edges
+          </span>
         </div>
 
         <form onSubmit={handleFilterSubmit} className="graph-search-form">
@@ -190,26 +353,96 @@ export default function GraphViewer({
             type="button"
             className="icon-button"
             title="Refresh"
-            onClick={() => void loadGraph(topicQuery)}
+            onClick={() => void loadGraph(topicQuery, centerNodeId, hops)}
           >
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
       </div>
 
+      {/* Ego-Network Focus Banner */}
+      {(centerNodeId || data.center_node) && (
+        <div className="graph-ego-banner">
+          <div className="graph-ego-info">
+            <Target className="w-4 h-4 text-blue-600 flex-shrink-0" />
+            <span>
+              Ego-network centered on{' '}
+              <strong>
+                {data.center_node?.name || selectedNode?.name || centerNodeId}
+              </strong>
+            </span>
+            <span className="count-badge">
+              {filteredNodes.length} nodes within {hops} hops
+            </span>
+            <div className="graph-ego-hops">
+              <span className="muted" style={{ fontSize: 11 }}>Depth:</span>
+              {[1, 2, 3].map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  className={hops === h ? 'active' : ''}
+                  onClick={() => handleHopsChange(h)}
+                >
+                  {h} {h === 1 ? 'hop' : 'hops'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button type="button" className="button small" onClick={handleExitEgo}>
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset to Global Graph</span>
+          </button>
+        </div>
+      )}
+
+      {/* Hierarchical Community Clusters Chips */}
+      {data.clusters && data.clusters.length > 0 && (
+        <div className="graph-cluster-chips">
+          <span className="cluster-label">
+            <Layers className="w-3.5 h-3.5 text-slate-500" />
+            <span>Clusters:</span>
+          </span>
+          <button
+            type="button"
+            className={`cluster-chip ${selectedCluster === null ? 'active' : ''}`}
+            onClick={() => setSelectedCluster(null)}
+          >
+            All Clusters ({data.nodes.length})
+          </button>
+          {data.clusters.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`cluster-chip ${selectedCluster === c.id ? 'active' : ''}`}
+              onClick={() =>
+                setSelectedCluster(selectedCluster === c.id ? null : c.id)
+              }
+            >
+              <span className="cluster-dot" style={{ backgroundColor: c.color }} />
+              <span>{c.name}</span>
+              <span className="cluster-count">({c.count})</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Main Canvas Area */}
       <div className="graph-canvas-wrapper">
         {loading && (
           <div className="graph-overlay">
             <div className="spinner" />
-            <p>Loading public knowledge graph…</p>
+            <p>Loading knowledge graph…</p>
           </div>
         )}
 
         {error && !loading && (
           <div className="graph-overlay">
             <p className="alert error">{error}</p>
-            <button type="button" className="primary" onClick={() => void loadGraph(topicQuery)}>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => void loadGraph(topicQuery, centerNodeId, hops)}
+            >
               Retry
             </button>
           </div>
@@ -222,11 +455,13 @@ export default function GraphViewer({
             <p className="muted">
               {topicQuery
                 ? `No nodes match topic "${topicQuery}". Try clearing the filter.`
+                : selectedCluster
+                ? `No nodes found in cluster "${selectedCluster}".`
                 : 'No public records found. Import public records or sample data to populate the graph.'}
             </p>
-            {topicQuery && (
+            {(topicQuery || selectedCluster) && (
               <button type="button" className="button" onClick={handleResetFilter}>
-                Clear Topic Filter
+                Clear Filters
               </button>
             )}
           </div>
@@ -238,19 +473,21 @@ export default function GraphViewer({
             width={dimensions.width}
             height={dimensions.height}
             graphData={filteredGraphData}
-            nodeLabel={(node: any) => `${node.name || node.id} (${node.type})`}
-            nodeColor={(node: any) => {
-              const t = node.type?.toLowerCase() || '';
-              if (t === 'faculty') return '#225bb2';
-              if (t === 'paper') return '#14766d';
-              if (t === 'topic') return '#d97706';
-              return '#536779';
-            }}
-            nodeRelSize={6}
-            linkColor={() => 'rgba(83, 103, 121, 0.25)'}
-            linkWidth={1.5}
+            nodeCanvasObject={drawNode}
+            nodeCanvasObjectMode={() => 'replace'}
+            nodePointerAreaPaint={paintPointerArea}
+            nodeLabel={(node: any) =>
+              `${node.name || node.id} (${node.type})${
+                node.cluster ? ` · ${node.cluster}` : ''
+              }`
+            }
+            linkColor={() => 'rgba(83, 103, 121, 0.22)'}
+            linkWidth={1.2}
             backgroundColor="#ffffff"
-            onNodeClick={(node: any) => setSelectedNode(node as GraphNode)}
+            warmupTicks={0}
+            cooldownTicks={40}
+            cooldownTime={1200}
+            onNodeClick={handleNodeClick}
             enableNodeDrag={true}
             enablePanInteraction={true}
             enableZoomInteraction={true}
@@ -266,8 +503,14 @@ export default function GraphViewer({
               {selectedNode.type.toUpperCase()}
             </span>
             {selectedNode.evidence_kind && (
-              <span className={`evidence ${selectedNode.evidence_kind === 'synthetic' ? 'synthetic' : ''}`}>
-                {selectedNode.evidence_kind === 'synthetic' ? 'Synthetic sample' : 'Public evidence'}
+              <span
+                className={`evidence ${
+                  selectedNode.evidence_kind === 'synthetic' ? 'synthetic' : ''
+                }`}
+              >
+                {selectedNode.evidence_kind === 'synthetic'
+                  ? 'Synthetic sample'
+                  : 'Public evidence'}
               </span>
             )}
             <button
@@ -281,6 +524,18 @@ export default function GraphViewer({
           </div>
 
           <h3 className="drawer-title">{selectedNode.name}</h3>
+
+          {selectedNode.cluster && (
+            <div className="drawer-cluster">
+              <span
+                className="cluster-dot"
+                style={{
+                  backgroundColor: selectedNode.cluster_color || '#2563eb',
+                }}
+              />
+              <span>{selectedNode.cluster}</span>
+            </div>
+          )}
 
           {selectedNode.origin && (
             <div className="drawer-origin">
@@ -304,10 +559,14 @@ export default function GraphViewer({
             <div className="drawer-metadata">
               <h4>Structured facts</h4>
               {selectedNode.metadata.doi && (
-                <p><strong>DOI:</strong> {selectedNode.metadata.doi}</p>
+                <p>
+                  <strong>DOI:</strong> {selectedNode.metadata.doi}
+                </p>
               )}
               {selectedNode.metadata.year && (
-                <p><strong>Year:</strong> {selectedNode.metadata.year}</p>
+                <p>
+                  <strong>Year:</strong> {selectedNode.metadata.year}
+                </p>
               )}
               {selectedNode.metadata.authors && (
                 <p>
@@ -318,7 +577,9 @@ export default function GraphViewer({
                 </p>
               )}
               {selectedNode.metadata.department && (
-                <p><strong>Department:</strong> {selectedNode.metadata.department}</p>
+                <p>
+                  <strong>Department:</strong> {selectedNode.metadata.department}
+                </p>
               )}
               {selectedNode.metadata.interests && (
                 <p>
@@ -332,6 +593,21 @@ export default function GraphViewer({
           )}
 
           <div className="drawer-actions">
+            {/* Ego-Network neighborhood exploration button */}
+            <button
+              type="button"
+              className="button wide"
+              onClick={() => handleFocusEgo(selectedNode.id)}
+              disabled={centerNodeId === selectedNode.id}
+            >
+              <Focus className="w-3.5 h-3.5 mr-1" />
+              <span>
+                {centerNodeId === selectedNode.id
+                  ? 'Currently Center Node'
+                  : 'Focus Ego-Network (2 Hops)'}
+              </span>
+            </button>
+
             {selectedNode.type === 'topic' && onSearchTopic && (
               <button
                 type="button"
@@ -349,7 +625,9 @@ export default function GraphViewer({
                 disabled={attachedSourceIds.includes(selectedNode.id)}
                 onClick={() => onAttachSource(selectedNode.id)}
               >
-                {attachedSourceIds.includes(selectedNode.id) ? 'Attached to proposal' : 'Attach to open proposal'}
+                {attachedSourceIds.includes(selectedNode.id)
+                  ? 'Attached to proposal'
+                  : 'Attach to open proposal'}
               </button>
             )}
           </div>

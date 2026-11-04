@@ -53,6 +53,13 @@ export type TeamDetails = Team & {
   members: TeamMember[];
 };
 
+export type GraphCluster = {
+  id: string;
+  name: string;
+  count: number;
+  color: string;
+};
+
 export type GraphNode = {
   id: string;
   name: string;
@@ -60,6 +67,12 @@ export type GraphNode = {
   origin?: string | null;
   evidence_kind?: 'public' | 'synthetic';
   metadata?: Record<string, any>;
+  x?: number;
+  y?: number;
+  cluster?: string;
+  cluster_color?: string;
+  is_center?: boolean;
+  hop?: number;
 };
 
 export type GraphLink = {
@@ -72,6 +85,8 @@ export type GraphLink = {
 export type GraphData = {
   nodes: GraphNode[];
   links: GraphLink[];
+  clusters?: GraphCluster[];
+  center_node?: GraphNode | null;
 };
 
 export type ChatMessage = {
@@ -187,9 +202,11 @@ export const api = {
   draft: (id: string, body: { expected_revision: number; section: string; instruction: string; source_ids: string[] }) => post<DraftJob>(`/proposals/${id}/jobs`, body),
   job: (id: string) => request<DraftJob>(`/jobs/${id}`),
   cancel: (id: string) => post<DraftJob>(`/jobs/${id}/cancel`),
-  graph: (limit = 150, topic?: string) => {
+  graph: (limit = 150, topic?: string, centerId?: string, hops?: number) => {
     const params = new URLSearchParams({ limit: String(limit) });
     if (topic) params.set('topic', topic);
+    if (centerId) params.set('center_id', centerId);
+    if (hops !== undefined) params.set('hops', String(hops));
     return request<GraphData>(`/graph?${params.toString()}`);
   },
   chat: (body: ChatInput) => post<ChatResult>('/chat', body),

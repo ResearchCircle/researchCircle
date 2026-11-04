@@ -85,6 +85,56 @@ test('encodes topic filter in graph query parameters', async () => {
   }
 });
 
+test('encodes center_id and hops for ego-network subgraph queries', async () => {
+  const originalFetch = globalThis.fetch;
+
+  try {
+    globalThis.fetch = async (url, options) => {
+      assert.equal(url, '/api/v2/graph?limit=150&center_id=src-1&hops=2');
+      assert.equal(options.credentials, 'same-origin');
+
+      return Response.json({
+        nodes: [
+          {
+            id: 'src-1',
+            name: 'Dr. Jane Doe',
+            type: 'faculty',
+            is_center: true,
+            hop: 0,
+            x: 0,
+            y: 0,
+            cluster: 'Computing & Information Sciences',
+            cluster_color: '#2563eb',
+          },
+        ],
+        links: [],
+        clusters: [
+          {
+            id: 'Computing & Information Sciences',
+            name: 'Computing & Information Sciences',
+            count: 1,
+            color: '#2563eb',
+          },
+        ],
+        center_node: {
+          id: 'src-1',
+          name: 'Dr. Jane Doe',
+          type: 'faculty',
+        },
+      });
+    };
+
+    const graph = await api.graph(150, undefined, 'src-1', 2);
+    assert.equal(graph.nodes.length, 1);
+    assert.equal(graph.nodes[0].is_center, true);
+    assert.equal(graph.nodes[0].x, 0);
+    assert.equal(graph.clusters.length, 1);
+    assert.equal(graph.center_node.id, 'src-1');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('propagates API errors when graph retrieval fails', async () => {
   const originalFetch = globalThis.fetch;
 

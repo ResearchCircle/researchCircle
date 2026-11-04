@@ -2,18 +2,35 @@
 
 Builds researcher, paper, and topic nodes and their relationships (authorship,
 co-authorship, and research topics) from verified public sources.
+Supports ego-network / subgraph extraction, precomputed layout coordinates,
+and hierarchical community clustering.
 Enforces that private proposal-scoped sources are strictly excluded.
 """
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
+from collections import deque
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.platform.database.models import Source
 from src.platform.database.public_records import PublicRecord
+
+CLUSTER_PALETTE = [
+    '#225bb2',  # Navy / Blue
+    '#14766d',  # Teal
+    '#d97706',  # Amber
+    '#4f46e5',  # Indigo
+    '#059669',  # Emerald
+    '#0284c7',  # Sky
+    '#7c3aed',  # Purple
+    '#be123c',  # Rose
+    '#0891b2',  # Cyan
+    '#b45309',  # Bronze
+]
 
 
 def clean_name(title: str, kind: str, metadata: dict[str, Any]) -> str:
@@ -54,15 +71,101 @@ def extract_topics(title: str, text: str, metadata: dict[str, Any]) -> list[str]
     return list(dict.fromkeys(topics))
 
 
+def _assign_cluster(node: dict[str, Any]) -> str:
+    """Determine community or departmental cluster for a node."""
+    meta = node.get('metadata') or {}
+    if node['type'] == 'faculty':
+        dept = meta.get('department') or meta.get('college')
+        if dept and isinstance(dept, str) and dept.strip():
+            return dept.strip()
+        interests = meta.get('interests') or []
+        if interests and isinstance(interests, list) and interests[0]:
+            return f"Field: {interests[0]}"
+        return 'Computing Faculty'
+    elif node['type'] == 'paper':
+        if meta.get('venue'):
+            return str(meta['venue'])
+        topics = meta.get('interests') or []
+        if topics and isinstance(topics, list) and topics[0]:
+            return f"Topic: {topics[0]}"
+        return 'Publications'
+    else:
+        return 'Research Topics'
+
+
+def _compute_layout_coordinates(
+    nodes: list[dict[str, Any]],
+    center_id: str | None,
+    clusters: list[str]
+) -> None:
+    """Assign deterministic 2D coordinates (x, y) server-side for instant rendering."""
+    if center_id:
+        # Radial concentric ego-network layout
+        # Center node placed at (0, 0)
+        center_node = next((n for n in nodes if n['id'] == center_id), None)
+        other_nodes = [n for n in nodes if n['id'] != center_id]
+
+        if center_node:
+            center_node['x'] = 0.0
+            center_node['y'] = 0.0
+
+        hop1 = [n for n in other_nodes if n.get('hop') == 1]
+        hop2 = [n for n in other_nodes if n.get('hop') != 1]
+
+        # Orbit 1 (radius 160)
+        n1 = max(1, len(hop1))
+        for i, node in enumerate(hop1):
+            theta = 2.0 * math.pi * i / n1
+            node['x'] = round(160.0 * math.cos(theta), 1)
+            node['y'] = round(160.0 * math.sin(theta), 1)
+
+        # Orbit 2 (radius 320)
+        n2 = max(1, len(hop2))
+        for j, node in enumerate(hop2):
+            theta = 2.0 * math.pi * j / n2 + (math.pi / n2 if n1 > 0 else 0)
+            node['x'] = round(320.0 * math.cos(theta), 1)
+            node['y'] = round(320.0 * math.sin(theta), 1)
+
+    else:
+        # Multi-centroid community clustered layout
+        cluster_map: dict[str, list[dict[str, Any]]] = {}
+        for node in nodes:
+            cluster_map.setdefault(node.get('cluster', 'General'), []).append(node)
+
+        num_clusters = max(1, len(cluster_map))
+        radius_cluster = 280.0
+
+        for k, (cluster_name, cluster_nodes) in enumerate(cluster_map.items()):
+            theta_c = 2.0 * math.pi * k / num_clusters
+            cx = radius_cluster * math.cos(theta_c)
+            cy = radius_cluster * math.sin(theta_c)
+
+            # Golden spiral distribution within cluster
+            golden_angle = 2.399963
+            for m, node in enumerate(cluster_nodes):
+                r = 25.0 + 18.0 * math.sqrt(m)
+                phi = m * golden_angle
+                node['x'] = round(cx + r * math.cos(phi), 1)
+                node['y'] = round(cy + r * math.sin(phi), 1)
+
+
 def get_public_graph(
     session: Session,
     limit: int = 150,
-    topic_filter: str | None = None
-) -> dict[str, list[dict[str, Any]]]:
+    topic_filter: str | None = None,
+    center_id: str | None = None,
+    hops: int = 2,
+    cluster_by: str | None = None
+) -> dict[str, Any]:
     """Return public graph nodes and edges for visualization and discovery.
 
-    Only sources with is_public=True and proposal_id=None are eligible.
-    Private proposal data is never queried or returned.
+    Supports:
+    - Ego-network / subgraph extraction around a center node.
+    - Precalculated layout coordinates (x, y) for instantaneous browser rendering.
+    - Hierarchical community / departmental clustering.
+    - Topic filtering.
+
+    Guarantees private proposal sources are strictly excluded.
     """
     stmt = (
         select(Source, PublicRecord)
@@ -73,7 +176,7 @@ def get_public_graph(
             PublicRecord.is_current == True  # noqa: E712
         )
         .order_by(Source.title)
-        .limit(limit)
+        .limit(max(limit * 2, 300))
     )
 
     rows = session.execute(stmt).all()
@@ -105,7 +208,6 @@ def get_public_graph(
         display_name = clean_name(source.title, record.kind, meta)
 
         external_to_source_id[record.external_id] = source.id
-        # Also map DOI if present
         if meta.get('doi'):
             external_to_source_id['doi:' + meta['doi'].lower()] = source.id
 
@@ -119,12 +221,10 @@ def get_public_graph(
         }
         nodes_by_id[source.id] = node_data
 
-        # Track listed authors for papers
         if record.kind == 'paper':
             if meta.get('authors') and isinstance(meta['authors'], list):
                 paper_authors_map[source.id] = [str(a) for a in meta['authors']]
 
-        # Extract topics and link to topic nodes
         topics = extract_topics(source.title, source.text, meta)
         for topic in topics:
             topic_id = 'topic:' + re.sub(r'[^a-zA-Z0-9]+', '-', topic.lower()).strip('-')
@@ -143,7 +243,6 @@ def get_public_graph(
     # Pass 2: Connect authorship links
     for source, record in rows:
         meta = record.metadata_json if isinstance(record.metadata_json, dict) else {}
-        # Author linked to paper via paper_external_id in metadata
         paper_ext_id = meta.get('paper_external_id')
         if paper_ext_id and paper_ext_id in external_to_source_id:
             paper_source_id = external_to_source_id[paper_ext_id]
@@ -186,4 +285,88 @@ def get_public_graph(
         node_id_set = {n['id'] for n in all_nodes}
         links = [l for l in links if l['source'] in node_id_set and l['target'] in node_id_set]
 
-    return {'nodes': all_nodes, 'links': links}
+    # Pass 5: Ego-Network / Subgraph Extraction (if center_id provided)
+    center_node_data = None
+    if center_id and center_id.strip():
+        target_center_id = center_id.strip()
+        nodes_lookup = {n['id']: n for n in all_nodes}
+        if target_center_id not in nodes_lookup:
+            # Fallback check if center_id matches DOI or name
+            matched_id = next((nid for nid, n in nodes_lookup.items() if target_center_id.lower() in n['name'].lower()), None)
+            if matched_id:
+                target_center_id = matched_id
+
+        if target_center_id in nodes_lookup:
+            center_node_data = nodes_lookup[target_center_id]
+            center_node_data['is_center'] = True
+
+            # Build adjacency
+            adj: dict[str, set[str]] = {}
+            for l in links:
+                adj.setdefault(l['source'], set()).add(l['target'])
+                adj.setdefault(l['target'], set()).add(l['source'])
+
+            # BFS traversal up to `hops`
+            visited_hops: dict[str, int] = {target_center_id: 0}
+            queue = deque([(target_center_id, 0)])
+
+            while queue:
+                curr_id, curr_hop = queue.popleft()
+                if curr_hop < hops:
+                    for neighbor in adj.get(curr_id, ()):
+                        if neighbor not in visited_hops:
+                            visited_hops[neighbor] = curr_hop + 1
+                            if len(visited_hops) < limit:
+                                queue.append((neighbor, curr_hop + 1))
+
+            ego_nodes = []
+            for nid, hop_dist in visited_hops.items():
+                if nid in nodes_lookup:
+                    n = nodes_lookup[nid]
+                    n['hop'] = hop_dist
+                    ego_nodes.append(n)
+
+            all_nodes = ego_nodes
+            ego_node_ids = set(visited_hops.keys())
+            links = [l for l in links if l['source'] in ego_node_ids and l['target'] in ego_node_ids]
+        else:
+            return {'nodes': [], 'links': []}
+
+    # Pass 6: Assign Community Clusters
+    cluster_counts: dict[str, int] = {}
+    for node in all_nodes:
+        cluster = _assign_cluster(node)
+        node['cluster'] = cluster
+        cluster_counts[cluster] = cluster_counts.get(cluster, 0) + 1
+
+    sorted_clusters = sorted(cluster_counts.items(), key=lambda x: -x[1])
+    clusters_info = []
+    for idx, (c_name, count) in enumerate(sorted_clusters):
+        clusters_info.append({
+            'id': re.sub(r'[^a-zA-Z0-9]+', '-', c_name.lower()).strip('-'),
+            'name': c_name,
+            'count': count,
+            'color': CLUSTER_PALETTE[idx % len(CLUSTER_PALETTE)]
+        })
+
+    cluster_color_map = {c['name']: c['color'] for c in clusters_info}
+    for node in all_nodes:
+        node['cluster_color'] = cluster_color_map.get(node['cluster'], '#536779')
+
+    # Pass 7: Assign Precomputed Layout Coordinates
+    _compute_layout_coordinates(all_nodes, center_id if center_node_data else None, [c['name'] for c in clusters_info])
+
+    # Limit nodes to requested budget
+    all_nodes = all_nodes[:limit]
+    final_node_ids = {n['id'] for n in all_nodes}
+    links = [l for l in links if l['source'] in final_node_ids and l['target'] in final_node_ids]
+
+    response = {
+        'nodes': all_nodes,
+        'links': links,
+        'clusters': clusters_info,
+    }
+    if center_node_data:
+        response['center_node'] = center_node_data
+
+    return response

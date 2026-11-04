@@ -138,6 +138,63 @@ class GraphServiceTests(unittest.TestCase):
         self.assertIn('paper-1', filtered_ids)
         self.assertNotIn('paper-2', filtered_ids)
 
+    def test_ego_network_and_precomputed_coordinates(self):
+        paper = Source(
+            id='paper-1', version='v1', content_hash='h1',
+            title='Autonomous Robotics Paper', origin='https://doi.org/10.1000/robotics',
+            text='Robotics control system details.', is_public=True, proposal_id=None
+        )
+        paper_rec = PublicRecord(
+            source_id='paper-1', external_id='doi:10.1000/robotics',
+            kind='paper', evidence_kind='public', is_current=True,
+            metadata_json={'doi': '10.1000/robotics', 'department': 'Computer Science'}
+        )
+        auth1 = Source(
+            id='auth-1', version='v1', content_hash='h2',
+            title='Dr. River', origin='https://doi.org/10.1000/robotics',
+            text='Faculty profile in robotics.', is_public=True, proposal_id=None
+        )
+        auth1_rec = PublicRecord(
+            source_id='auth-1', external_id='doi:10.1000/robotics#author:0',
+            kind='researcher', evidence_kind='public', is_current=True,
+            metadata_json={'author_name': 'Dr. River', 'paper_external_id': 'doi:10.1000/robotics', 'department': 'Computer Science'}
+        )
+        unrelated = Source(
+            id='unrelated-1', version='v1', content_hash='h3',
+            title='Unrelated Botany Paper', origin='https://doi.org/10.1000/botany',
+            text='Botany and plants study.', is_public=True, proposal_id=None
+        )
+        unrelated_rec = PublicRecord(
+            source_id='unrelated-1', external_id='doi:10.1000/botany',
+            kind='paper', evidence_kind='public', is_current=True,
+            metadata_json={'department': 'Biology'}
+        )
+        self.session.add_all([paper, paper_rec, auth1, auth1_rec, unrelated, unrelated_rec])
+        self.session.commit()
+
+        # Test global graph coordinates & clusters
+        global_graph = get_public_graph(self.session)
+        self.assertIn('clusters', global_graph)
+        self.assertGreater(len(global_graph['clusters']), 0)
+        for node in global_graph['nodes']:
+            self.assertIn('x', node)
+            self.assertIn('y', node)
+            self.assertIsInstance(node['x'], float)
+            self.assertIsInstance(node['y'], float)
+            self.assertIn('cluster', node)
+            self.assertIn('cluster_color', node)
+
+        # Test ego-network centered on auth-1
+        ego = get_public_graph(self.session, center_id='auth-1', hops=1)
+        ego_ids = {n['id'] for n in ego['nodes']}
+        self.assertIn('auth-1', ego_ids)
+        self.assertIn('paper-1', ego_ids)
+        self.assertNotIn('unrelated-1', ego_ids)
+        center_node = next(n for n in ego['nodes'] if n['id'] == 'auth-1')
+        self.assertTrue(center_node.get('is_center'))
+        self.assertEqual(center_node['x'], 0.0)
+        self.assertEqual(center_node['y'], 0.0)
+
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
