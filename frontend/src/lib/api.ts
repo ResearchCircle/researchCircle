@@ -210,7 +210,7 @@ export const api = {
   invitations: () => request<{ items: Invitation[] }>('/invitations'),
   accept: (id: string) => post<{ team_id: string }>(`/invitations/${id}/accept`),
   proposals: () => request<{ items: Proposal[] }>('/proposals'),
-  createProposal: (team_id: string, title: string) => post<Proposal>('/proposals', { team_id, title, content: '' }),
+  createProposal: (team_id: string, title: string, content: string = '') => post<Proposal>('/proposals', { team_id, title, content }),
   proposal: (id: string) => request<Proposal>(`/proposals/${id}`),
   save: (id: string, body: SaveInput) => request<Proposal>(`/proposals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   exportMarkdown: async (id: string) => (await responseFor(`/proposals/${id}/export`)).blob(),

@@ -34,6 +34,8 @@ import {
   Edit3,
   Columns,
   X,
+  ArrowRight,
+  Network,
 } from 'lucide-react';
 import {
   api,
@@ -151,6 +153,7 @@ export default function App() {
   // Proposal states
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [newTitle, setNewTitle] = useState('');
+  const [dashboardProposalTitle, setDashboardProposalTitle] = useState('');
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -232,6 +235,7 @@ export default function App() {
   const dirty = !!proposal && hasEdits(proposal, title, content, selected);
   const shortlistDirty = Object.values(shortlistDrafts).some((notes) => Object.keys(notes).length > 0);
   const editable = proposal?.role !== 'viewer';
+  const canEditTeam = selectedTeam?.role !== 'viewer';
   const job = jobs.find((item) => item.id === jobId) ?? jobs[0];
 
   const clearEditor = useCallback(() => {
@@ -408,12 +412,24 @@ export default function App() {
     }
   };
 
-  const createProposal = async (proposalTitle: string) => {
+  const createProposal = async (proposalTitle: string, initialContent: string = '') => {
     if (!teamId || !guardEdits()) return;
     await run(async () => {
-      const created = await api.createProposal(teamId, proposalTitle);
+      const created = await api.createProposal(teamId, proposalTitle, initialContent);
       await openProposal(created.id);
     });
+  };
+
+  const createProposalWithTemplate = async (proposalTitle: string, templateType: 'nsf' | 'nih' | 'darpa') => {
+    let templateText = '';
+    if (templateType === 'nsf') {
+      templateText = `# Project Description\n\n## 1. Overview and Objectives\n[State the overarching goals, hypotheses, and primary research questions of the proposed project.]\n\n## 2. Intellectual Merit\n[Detail the scientific significance, novelty, and technological innovation.]\n\n## 3. Proposed Research Methodology & Work Plan\n[Provide the detailed experimental design, algorithms, baseline metrics, and validation.]\n\n## 4. Broader Impacts\n[Describe the societal benefits, education/outreach, student training, and dissemination.]\n\n## 5. Timeline and Key Milestones\n- Year 1: Baseline development and dataset curation.\n- Year 2: Algorithmic prototyping and empirical validation.\n- Year 3: System deployment, user studies, and final evaluation.`;
+    } else if (templateType === 'nih') {
+      templateText = `# Specific Aims\n\n## Significance & Background\n[Briefly summarize the critical biomedical or algorithmic challenge.]\n\n## Specific Aim 1\n[Formulate Aim 1, testable hypothesis, and anticipated research milestone.]\n\n## Specific Aim 2\n[Formulate Aim 2, experimental protocol, and expected outcomes.]\n\n## Innovation & Potential Pitfalls\n[Highlight conceptual innovations, potential pitfalls, and alternative strategies.]`;
+    } else if (templateType === 'darpa') {
+      templateText = `# Technical Proposal & Approach\n\n## 1. Executive Summary & Problem Statement\n[Define the critical operational challenge and state-of-the-art limitations.]\n\n## 2. Proposed Technical Breakthrough\n[Describe the transformative technology, architecture, and expected performance gains.]\n\n## 3. Measurable Technical Milestones\n- Month 6: Proof-of-concept prototype demonstrating 2x efficiency.\n- Month 12: Laboratory validation and stress testing under adversarial conditions.\n- Month 18: Full system demonstration and transition plan.\n\n## 4. Risk Mitigation Matrix\n[Identify high-risk technical barriers and corresponding mitigation protocols.]`;
+    }
+    await createProposal(proposalTitle, templateText);
   };
 
   const activateTeam = (nextTeamId: string) => {
@@ -1310,11 +1326,219 @@ export default function App() {
 
               </div>
             ) : (
-              <div className="no-proposal-empty-state">
-                <strong>Choose a proposal from the sidebar, or create a new one.</strong>
-                <button type="button" className="text-button" onClick={() => { setWorkspaceRightTab('ai'); setContextOpen(true); }}>
-                  Draft with AI
-                </button>
+              <div className="workspace-dashboard">
+                {/* Hero Welcome Banner */}
+                <div className="dashboard-hero">
+                  <div className="dashboard-hero-content">
+                    <div className="dashboard-badge">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>{selectedTeam ? `${selectedTeam.name} Workspace` : 'Research Workspace'}</span>
+                    </div>
+                    <h2>Welcome to your Research Workspace</h2>
+                    <p className="dashboard-subtitle">
+                      Create and refine cited grant proposals, explore connected RIT faculty and publications, or synthesize evidence with grounded AI assistance.
+                    </p>
+                  </div>
+                  <div className="dashboard-hero-stats">
+                    <div className="hero-stat-card">
+                      <span className="stat-number">{proposals.length}</span>
+                      <span className="stat-label">Active Proposals</span>
+                    </div>
+                    <div className="hero-stat-card">
+                      <span className="stat-number">2,100+</span>
+                      <span className="stat-label">Indexed Papers</span>
+                    </div>
+                    <div className="hero-stat-card">
+                      <span className="stat-number">850+</span>
+                      <span className="stat-label">RIT Faculty</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Proposal Creator Card */}
+                <div className="dashboard-quickstart-card">
+                  <div className="quickstart-header">
+                    <div className="quickstart-title-row">
+                      <Plus className="w-5 h-5 text-blue-600" />
+                      <h3>Create a Research Proposal</h3>
+                    </div>
+                    <p className="muted">Enter a proposal title or start from a pre-configured grant template.</p>
+                  </div>
+
+                  <form
+                    className="quickstart-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (dashboardProposalTitle.trim()) {
+                        void createProposal(dashboardProposalTitle.trim());
+                        setDashboardProposalTitle('');
+                      }
+                    }}
+                  >
+                    <input
+                      type="text"
+                      className="quickstart-input"
+                      placeholder="e.g. Multimodal Deep Learning for Assistive Drone Navigation…"
+                      value={dashboardProposalTitle}
+                      onChange={(e) => setDashboardProposalTitle(e.target.value)}
+                      disabled={busy || !teamId || !canEditTeam}
+                    />
+                    <button
+                      type="submit"
+                      className="button primary quickstart-button"
+                      disabled={busy || !teamId || !canEditTeam || !dashboardProposalTitle.trim()}
+                    >
+                      <span>Create Draft</span>
+                    </button>
+                  </form>
+
+                  <div className="template-quickstarts">
+                    <span className="template-label">Or start with a grant template:</span>
+                    <div className="template-chips">
+                      <button
+                        type="button"
+                        className="template-chip"
+                        onClick={() => void createProposalWithTemplate('NSF Project Description', 'nsf')}
+                        disabled={busy || !teamId || !canEditTeam}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>NSF Project Description</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="template-chip"
+                        onClick={() => void createProposalWithTemplate('NIH Specific Aims', 'nih')}
+                        disabled={busy || !teamId || !canEditTeam}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>NIH Specific Aims</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="template-chip"
+                        onClick={() => void createProposalWithTemplate('DoD / DARPA Technical Approach', 'darpa')}
+                        disabled={busy || !teamId || !canEditTeam}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>DoD / DARPA Technical</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Team Proposals Grid (if any exist) */}
+                {proposals.length > 0 && (
+                  <div className="dashboard-section">
+                    <div className="section-header-row">
+                      <h3>Active Proposals ({proposals.length})</h3>
+                      <span className="section-subtext">Click any card to continue drafting</span>
+                    </div>
+                    <div className="proposals-cards-grid">
+                      {proposals.map((item) => (
+                        <div
+                          key={item.id}
+                          className="proposal-launch-card"
+                          onClick={() => void openProposal(item.id)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => e.key === 'Enter' && void openProposal(item.id)}
+                        >
+                          <div className="card-top-meta">
+                            <span className="role-tag">{item.role}</span>
+                            <span className="revision-tag">v{item.revision}</span>
+                          </div>
+                          <h4 className="proposal-card-title">{item.title}</h4>
+                          <p className="proposal-card-snippet">
+                            {item.content
+                              ? item.content.slice(0, 140) + '…'
+                              : 'Blank proposal draft. Ready for research aims, methodologies, and literature citations.'}
+                          </p>
+                          <div className="card-footer-meta">
+                            <span className="card-date">
+                              {new Date(item.updated_at).toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </span>
+                            <span className="open-link">
+                              Open Editor <ArrowRight className="w-3.5 h-3.5" />
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Platform Capabilities & Quick Nav */}
+                <div className="dashboard-section">
+                  <div className="section-header-row">
+                    <h3>Explore Research Capabilities</h3>
+                    <span className="section-subtext">Integrated tools grounded on verified RIT scholarship</span>
+                  </div>
+                  <div className="tools-cards-grid">
+                    <div
+                      className="tool-card"
+                      onClick={() => navigateView('chat')}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && navigateView('chat')}
+                    >
+                      <div className="tool-icon-circle chat">
+                        <MessageSquare className="w-5 h-5 text-indigo-600" />
+                      </div>
+                      <h4>Research Chat</h4>
+                      <p>Ask questions across verified publications and faculty profiles with full multi-session memory and citations.</p>
+                      <span className="tool-card-action">Launch Chat &rarr;</span>
+                    </div>
+
+                    <div
+                      className="tool-card"
+                      onClick={() => navigateView('graph')}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && navigateView('graph')}
+                    >
+                      <div className="tool-icon-circle graph">
+                        <Network className="w-5 h-5 text-teal-600" />
+                      </div>
+                      <h4>Knowledge Graph</h4>
+                      <p>Interactive force-directed graph with 2,500+ nodes, dark obsidian theme, and ego-network clustering.</p>
+                      <span className="tool-card-action">Explore Graph &rarr;</span>
+                    </div>
+
+                    <div
+                      className="tool-card"
+                      onClick={() => navigateView('collaborators')}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && navigateView('collaborators')}
+                    >
+                      <div className="tool-icon-circle collaborators">
+                        <Users className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <h4>Collaborator Discovery</h4>
+                      <p>Match your research concept with faculty research affinities, publication records, and departmental focus.</p>
+                      <span className="tool-card-action">Find Collaborators &rarr;</span>
+                    </div>
+
+                    <div
+                      className="tool-card"
+                      onClick={() => navigateView('search')}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && navigateView('search')}
+                    >
+                      <div className="tool-icon-circle search">
+                        <Search className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <h4>Literature Discovery</h4>
+                      <p>Hybrid semantic and BM25 search across thousands of indexed papers with instant evidence attachment.</p>
+                      <span className="tool-card-action">Search Literature &rarr;</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </main>
