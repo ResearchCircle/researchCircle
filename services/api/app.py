@@ -28,10 +28,11 @@ def create_app(database_url: str | None = None) -> FastAPI:
     application.state.jobs = PersistedJobStore(application.state.db)
 
     provider_name = os.environ.get('TBR_MODEL_PROVIDER', 'fixture')
-    if provider_name == 'meta' and os.environ.get('META_API_KEY'):
+    meta_key = os.environ.get('META_API_KEY') or os.environ.get('MODEL_API_KEY')
+    if provider_name == 'meta' and meta_key:
         provider = MetaModelProvider(
-            os.environ['META_API_KEY'],
-            os.environ.get('TBR_MODEL_ID', 'meta/llama-3.3-70b-instruct'),
+            meta_key,
+            os.environ.get('TBR_MODEL_ID', 'muse-spark-1.3'),
             os.environ.get('TBR_MODEL_BASE_URL', 'https://api.meta.ai/v1')
         )
     elif provider_name == 'ollama':

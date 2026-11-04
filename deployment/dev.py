@@ -34,12 +34,13 @@ def configure_development(path: Path, provider: str, base_url: str | None, model
             raise ValueError('Ollama inference requires --model-id for a model you have pulled.')
         values.update(TBR_MODEL_BASE_URL=base_url or 'http://host.docker.internal:11434/v1', TBR_MODEL_ID=model_id)
     elif provider == 'meta':
-        key = api_key or os.environ.get('META_API_KEY') or values.get('META_API_KEY')
+        key = api_key or os.environ.get('META_API_KEY') or os.environ.get('MODEL_API_KEY') or values.get('META_API_KEY') or values.get('MODEL_API_KEY')
         if not key:
-            raise ValueError('Meta inference requires --api-key or META_API_KEY environment variable.')
+            raise ValueError('Meta inference requires --api-key, META_API_KEY or MODEL_API_KEY environment variable.')
         values.update(META_API_KEY=key,
+                      MODEL_API_KEY=key,
                       TBR_MODEL_BASE_URL=base_url or 'https://api.meta.ai/v1',
-                      TBR_MODEL_ID=model_id or 'meta/llama-3.3-70b-instruct')
+                      TBR_MODEL_ID=model_id or 'muse-spark-1.3')
     else:
         values.pop('TBR_MODEL_BASE_URL', None)
         values.pop('TBR_MODEL_ID', None)

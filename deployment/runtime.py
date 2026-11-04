@@ -40,7 +40,7 @@ class RuntimeConfig:
         elif provider == 'meta':
             if not meta_key:
                 raise ValueError('Meta provider requires META_API_KEY or MODEL_API_KEY in environment.')
-            MetaModelProvider(meta_key, model or 'meta/llama-3.3-70b-instruct', url or 'https://api.meta.ai/v1')
+            MetaModelProvider(meta_key, model or 'muse-spark-1.3', url or 'https://api.meta.ai/v1')
         source = Path(env.get('TBR_DATA_SOURCE', str(ROOT / 'data'))).expanduser().resolve()
         work = Path(env.get('TBR_DATA_WORK', '/tmp/tbr-v2-work')).expanduser().resolve()
         if source == work or source in work.parents or work in source.parents:

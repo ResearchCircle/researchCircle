@@ -23,7 +23,8 @@ services:
       TBR_MODEL_PROVIDER: ${TBR_MODEL_PROVIDER:-fixture}
       TBR_MODEL_BASE_URL: ${TBR_MODEL_BASE_URL:-}
       TBR_MODEL_ID: ${TBR_MODEL_ID:-}
-      META_API_KEY: ${META_API_KEY:-}
+      META_API_KEY: ${META_API_KEY:-${MODEL_API_KEY:-}}
+      MODEL_API_KEY: ${MODEL_API_KEY:-${META_API_KEY:-}}
       TBR_DEV_IDENTITY: "false"
       TBR_DATA_WORK: /var/lib/tbr-work
       TBR_DB_HOST: db
