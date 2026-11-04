@@ -129,8 +129,11 @@ export default function TeamMembersPanel({
   }
 
   return (
-    <details>
-      <summary>Team members ({members.length})</summary>
+    <details className="sidebar-foldout team-access-foldout" open>
+      <summary>
+        <span>Team members</span>
+        <span className="foldout-count">({members.length})</span>
+      </summary>
 
       <section aria-label="Team member management">
         {loading && (

@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { api, type Proposal, type ShortlistEntry, type Team } from '@/lib/api';
 import { safeOrigin } from '@/lib/editor';
 import { RequestScope } from '@/lib/pursuits';
@@ -63,31 +62,118 @@ function TeamShortlist({ team, proposal, attachedSourceIds, refreshVersion, work
     finally { if (requests.current(generation)) setBusy(false); }
   };
 
-  return <section className="discovery shortlist-panel" aria-labelledby="shortlist-heading">
-    <p><Link href="/collaborators">Find collaborators from a research idea</Link></p>
-    <div className="section-heading"><div><h2 id="shortlist-heading">Team shortlist</h2><p className="muted">Saved evidence for {team.name}. Save papers, author evidence, and sample candidates before starting a proposal.</p></div><button disabled={disabled} onClick={() => void refresh()}>Refresh shortlist</button></div>
-    {loading && <p className="empty" role="status">Loading team shortlist…</p>}
-    {busy && <p className="muted" role="status">Updating shortlist…</p>}
-    {error && <p className="alert error" role="alert">{error}</p>}
-    {notice && <p className="success" role="status">{notice}</p>}
-    {!loading && !error && !items.length && <p className="empty">No saved items yet. Search below and choose Shortlist to save evidence for this team.</p>}
-    {!loading && items.map(item => <article className="shortlist-item" key={item.id}>
-      <div className="result-meta"><span className="tag">{sourceKindLabel(item.kind, item.evidence_kind, item.identity_status)}</span><span className={`evidence ${item.evidence_kind === 'synthetic' ? 'synthetic' : ''}`}>{item.evidence_kind === 'synthetic' ? 'Synthetic sample' : 'Public evidence'}</span><small>Version {item.version}</small></div>
-      <h3>{item.title}</h3><p className="shortlist-snippet">{item.snippet}</p>
-      <p className="muted shortlist-origin">{item.origin}</p>{safeOrigin(item.origin) && <a href={safeOrigin(item.origin)} target="_blank" rel="noopener noreferrer">View shortlist source</a>}
-      <label className="shortlist-note">Team note or saved match explanation for {item.title}<small>Collaborator-match notes contain only the overlapping source terms, not the original research idea.</small><textarea rows={2} value={noteDrafts[item.id] ?? item.note} maxLength={2000} disabled={!editable || disabled} onChange={event => onNoteChange(item.id, event.target.value, item.note)} /></label>
-      <div className="button-row">{editable && <><button disabled={disabled || (noteDrafts[item.id] ?? item.note) === item.note} onClick={() => void run(async current => {
-        const saved = await api.updateShortlist(team.id, item.id, noteDrafts[item.id] ?? item.note);
-        onNoteSaved(saved.id, saved.note);
-        if (current()) { setItems(previous => previous.map(entry => entry.id === saved.id ? saved : entry)); setNotice('Shortlist note saved.'); }
-      })}>Save note</button><button disabled={disabled} onClick={() => void run(async current => {
-        await api.removeShortlist(team.id, item.id);
-        onRemove(item.id);
-        if (current()) { setItems(previous => previous.filter(entry => entry.id !== item.id)); setNotice('Item removed from this team shortlist.'); }
-      })}>Remove from shortlist</button></>}
-      <button disabled={disabled || !attachable || attachedSourceIds.includes(item.source_id)} onClick={() => void run(async () => { await onAttach(item.source_id); })}>{attachedSourceIds.includes(item.source_id) && attachable ? 'Attached to open proposal' : 'Attach saved source'}</button></div>
-    </article>)}
-    {!attachable && <p className="muted">Open an editable proposal in this team to attach a saved source.</p>}
-    {!editable && <p className="muted">Viewer access. An owner or editor can curate this shortlist.</p>}
-  </section>;
+  return (
+    <details className="sidebar-foldout shortlist-foldout">
+      <summary>
+        <div className="folder-summary-text">
+          <span>Saved Sources</span>
+        </div>
+        <span className="foldout-count">{items.length}</span>
+      </summary>
+
+      <section className="shortlist-panel" aria-labelledby="shortlist-heading">
+        <div className="shortlist-panel-header">
+          <div className="shortlist-panel-title">
+            <h2 id="shortlist-heading">Saved Sources</h2>
+            <small className="muted">{team.name}</small>
+          </div>
+          <button
+            type="button"
+            className="icon-button compact"
+            aria-label="Refresh shortlist"
+            disabled={disabled}
+            onClick={() => void refresh()}
+          >
+            Refresh
+          </button>
+        </div>
+
+        {loading && <p className="empty" role="status">Loading saved sources…</p>}
+        {busy && <p className="muted" role="status">Updating shortlist…</p>}
+        {error && <p className="alert error" role="alert">{error}</p>}
+        {notice && <p className="success" role="status">{notice}</p>}
+
+        {!loading && !error && !items.length && (
+          <div className="shortlist-empty-state">
+            <p>No saved sources yet.</p>
+            <p>Save papers from Literature Search to use in your proposals.</p>
+          </div>
+        )}
+
+        {!loading && items.map(item => (
+          <article className="shortlist-item" key={item.id}>
+            <div className="shortlist-item-meta">
+              <span className="tag">{sourceKindLabel(item.kind, item.evidence_kind, item.identity_status)}</span>
+              <span className={`evidence ${item.evidence_kind === 'synthetic' ? 'synthetic' : ''}`}>
+                {item.evidence_kind === 'synthetic' ? 'Synthetic sample' : 'Public evidence'}
+              </span>
+              <small>Version {item.version}</small>
+            </div>
+
+            <h3 className="shortlist-item-title">{item.title}</h3>
+            <p className="shortlist-snippet">{item.snippet}</p>
+            <p className="muted shortlist-origin">{item.origin}</p>
+            {safeOrigin(item.origin) && (
+              <a href={safeOrigin(item.origin)} target="_blank" rel="noopener noreferrer">View source</a>
+            )}
+
+            <label className="shortlist-note">
+              <span>Note</span>
+              <textarea
+                rows={2}
+                value={noteDrafts[item.id] ?? item.note}
+                maxLength={2000}
+                disabled={!editable || disabled}
+                onChange={event => onNoteChange(item.id, event.target.value, item.note)}
+              />
+            </label>
+
+            <div className="shortlist-actions">
+              {editable && (
+                <>
+                  <button
+                    type="button"
+                    disabled={disabled || (noteDrafts[item.id] ?? item.note) === item.note}
+                    onClick={() => void run(async current => {
+                      const saved = await api.updateShortlist(team.id, item.id, noteDrafts[item.id] ?? item.note);
+                      onNoteSaved(saved.id, saved.note);
+                      if (current()) {
+                        setItems(previous => previous.map(entry => entry.id === saved.id ? saved : entry));
+                        setNotice('Shortlist note saved.');
+                      }
+                    })}
+                  >
+                    Save note
+                  </button>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => void run(async current => {
+                      await api.removeShortlist(team.id, item.id);
+                      onRemove(item.id);
+                      if (current()) {
+                        setItems(previous => previous.filter(entry => entry.id !== item.id));
+                        setNotice('Item removed from this team shortlist.');
+                      }
+                    })}
+                  >
+                    Remove
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                disabled={disabled || !attachable || attachedSourceIds.includes(item.source_id)}
+                onClick={() => void run(async () => { await onAttach(item.source_id); })}
+              >
+                {attachedSourceIds.includes(item.source_id) && attachable ? 'Attached' : 'Attach source'}
+              </button>
+            </div>
+          </article>
+        ))}
+
+      </section>
+    </details>
+  );
 }

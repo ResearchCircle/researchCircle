@@ -252,6 +252,14 @@ export default function App() {
     setCurrentView('workspace');
   };
 
+  const createNewProposal = async (preferredTitle?: string) => {
+    if (!teamId) return;
+    const requestedTitle = (preferredTitle ?? newTitle).trim() || 'Untitled proposal';
+    const next = await api.createProposal(teamId, requestedTitle);
+    setNewTitle('');
+    await openProposal(next.id);
+  };
+
   const confirmDiscard = () =>
     window.confirm('Discard unsaved changes and continue? Copy your text first if you want to keep it.');
 
@@ -618,7 +626,6 @@ export default function App() {
           >
             <FileText className="w-4 h-4" />
             <span>Workspace & Editor</span>
-            {proposal && <span className="tab-badge active-proposal">{proposal.title.slice(0, 18)}…</span>}
           </button>
           <button
             type="button"
@@ -728,116 +735,126 @@ export default function App() {
         <div className="workspace-tri-grid">
           {/* Left Column: Teams, Members, & Proposals */}
           <aside className="workspace-sidebar" aria-label="Teams and proposals">
-            <div className="sidebar-section">
-              <div className="sidebar-header">
-                <h3>Teams & Access</h3>
-                <button type="button" className="text-button" onClick={() => void run(refreshLists)}>
-                  Refresh
-                </button>
-              </div>
+            <details className="sidebar-foldout teams-access-foldout">
+              <summary>
+                <div className="folder-summary-text">
+                  <span>Teams & Access</span>
+                  {selectedTeam && <small>{selectedTeam.name}</small>}
+                </div>
+                <span className="foldout-count">{selectedTeam ? `${selectedTeam.role[0].toUpperCase()}${selectedTeam.role.slice(1)}` : 'Team'}</span>
+              </summary>
 
-              {selectedTeam && user && (
-                <TeamMembersPanel
-                  key={selectedTeam.id}
-                  team={selectedTeam}
-                  currentUserId={user.id}
-                  onChanged={refreshLists}
-                  beforeSelfChange={() => (!dirty && !shortlistDirty) || confirmDiscard()}
-                />
-              )}
+              <div className="foldout-body">
+                <div className="sidebar-header compact-header">
+                  <h3>Team management</h3>
+                  <button type="button" className="text-button" onClick={() => void run(refreshLists)}>
+                    Refresh
+                  </button>
+                </div>
 
-              {selectedTeam?.role === 'owner' && (
+                {selectedTeam && user && (
+                  <TeamMembersPanel
+                    key={selectedTeam.id}
+                    team={selectedTeam}
+                    currentUserId={user.id}
+                    onChanged={refreshLists}
+                    beforeSelfChange={() => (!dirty && !shortlistDirty) || confirmDiscard()}
+                  />
+                )}
+
+                {selectedTeam?.role === 'owner' && (
+                  <details className="accordion-card">
+                    <summary>Invite a teammate</summary>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void run(async () => {
+                          await api.invite(teamId, inviteEmail, inviteRole);
+                          setInviteEmail('');
+                          setNotice('Invitation sent.');
+                        });
+                      }}
+                    >
+                      <label>
+                        Email address
+                        <input
+                          type="email"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                          placeholder="colleague@rit.edu"
+                          required
+                        />
+                      </label>
+                      <label>
+                        Role access
+                        <select
+                          value={inviteRole}
+                          onChange={(e) => setInviteRole(e.target.value as 'editor' | 'viewer')}
+                        >
+                          <option value="editor">Editor (Can edit & draft)</option>
+                          <option value="viewer">Viewer (Read-only)</option>
+                        </select>
+                      </label>
+                      <button disabled={busy} className="button small">Send Invite</button>
+                    </form>
+                  </details>
+                )}
+
                 <details className="accordion-card">
-                  <summary>Invite a teammate</summary>
+                  <summary>Create another team</summary>
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      void run(async () => {
-                        await api.invite(teamId, inviteEmail, inviteRole);
-                        setInviteEmail('');
-                        setNotice('Invitation sent.');
-                      });
+                      if (guardEdits()) {
+                        void run(async () => {
+                          const t = await api.createTeam(teamName);
+                          setTeamName('');
+                          await refreshLists();
+                          activateTeam(t.id);
+                          setNotice('Team created.');
+                        });
+                      }
                     }}
                   >
-                    <label>
-                      Email address
-                      <input
-                        type="email"
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        placeholder="colleague@rit.edu"
-                        required
-                      />
-                    </label>
-                    <label>
-                      Role access
-                      <select
-                        value={inviteRole}
-                        onChange={(e) => setInviteRole(e.target.value as 'editor' | 'viewer')}
-                      >
-                        <option value="editor">Editor (Can edit & draft)</option>
-                        <option value="viewer">Viewer (Read-only)</option>
-                      </select>
-                    </label>
-                    <button disabled={busy} className="button small">Send Invite</button>
+                    <input
+                      value={teamName}
+                      onChange={(e) => setTeamName(e.target.value)}
+                      placeholder="Team name"
+                      required
+                      maxLength={160}
+                    />
+                    <button disabled={busy} className="button small">Create</button>
                   </form>
                 </details>
-              )}
 
-              <details className="accordion-card">
-                <summary>Create another team</summary>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (guardEdits()) {
-                      void run(async () => {
-                        const t = await api.createTeam(teamName);
-                        setTeamName('');
-                        await refreshLists();
-                        activateTeam(t.id);
-                        setNotice('Team created.');
-                      });
-                    }
-                  }}
-                >
-                  <input
-                    value={teamName}
-                    onChange={(e) => setTeamName(e.target.value)}
-                    placeholder="Team name"
-                    required
-                    maxLength={160}
-                  />
-                  <button disabled={busy} className="button small">Create</button>
-                </form>
-              </details>
-
-              {invitations.length > 0 && (
-                <div className="invitations-box">
-                  <h4>Pending Invitations ({invitations.length})</h4>
-                  {invitations.map((invite) => (
-                    <div key={invite.id} className="invite-row">
-                      <span>{invite.team_name} ({invite.role})</span>
-                      <button
-                        type="button"
-                        className="button small"
-                        onClick={() => {
-                          if (canChangeTeam(teamId, invite.team_id, dirty, confirmDiscard)) {
-                            void run(async () => {
-                              const accepted = await api.accept(invite.id);
-                              await refreshLists();
-                              activateTeam(accepted.team_id);
-                              setNotice('Invitation accepted.');
-                            });
-                          }
-                        }}
-                      >
-                        Accept
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                {invitations.length > 0 && (
+                  <div className="invitations-box">
+                    <h4>Pending Invitations ({invitations.length})</h4>
+                    {invitations.map((invite) => (
+                      <div key={invite.id} className="invite-row">
+                        <span>{invite.team_name} ({invite.role})</span>
+                        <button
+                          type="button"
+                          className="button small"
+                          onClick={() => {
+                            if (canChangeTeam(teamId, invite.team_id, dirty, confirmDiscard)) {
+                              void run(async () => {
+                                const accepted = await api.accept(invite.id);
+                                await refreshLists();
+                                activateTeam(accepted.team_id);
+                                setNotice('Invitation accepted.');
+                              });
+                            }
+                          }}
+                        >
+                          Accept
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </details>
 
             <div className="sidebar-divider" />
 
@@ -882,9 +899,7 @@ export default function App() {
                   e.preventDefault();
                   if (guardEdits()) {
                     void run(async () => {
-                      const next = await api.createProposal(teamId, newTitle);
-                      await openProposal(next.id);
-                      setNewTitle('');
+                      await createNewProposal();
                     });
                   }
                 }}
@@ -948,14 +963,30 @@ export default function App() {
           <main id="main" className="workspace-editor-canvas">
             {proposal ? (
               <div className="editor-card">
-                <div className="editor-top-controls">
-                  <div>
-                    <span className="badge team-badge">
-                      {selectedTeam?.name ?? 'Team proposal'} · {proposal.role} access
-                    </span>
-                    <span className={`save-status-pill ${dirty ? 'unsaved' : 'saved'}`}>
-                      {dirty ? '● Unsaved changes' : `✓ Saved · Revision ${proposal.revision}`}
-                    </span>
+                <div className="editor-document-header">
+                  <div className="editor-header-main">
+                    <div className="editor-header-meta">
+                      <span className="badge team-badge">
+                        {selectedTeam?.name ?? 'Team proposal'} · {proposal.role} access
+                      </span>
+                      <span className={`save-status-pill ${dirty ? 'unsaved' : 'saved'}`}>
+                        {dirty ? '● Unsaved changes' : `✓ Saved · Revision ${proposal.revision}`}
+                      </span>
+                    </div>
+                    <div className="editor-title-row">
+                      <label className="title-field compact-title-field">
+                        <span className="sr-only">Proposal title</span>
+                        <input
+                          className="title-input-large"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          maxLength={240}
+                          required
+                          disabled={busy || !editable}
+                          placeholder="Title of research proposal…"
+                        />
+                      </label>
+                    </div>
                   </div>
 
                   <div className="editor-btn-group">
@@ -1032,19 +1063,6 @@ export default function App() {
 
                 {/* Title & Body Inputs */}
                 <div className="editor-inputs">
-                  <label className="title-field">
-                    <span>Proposal title</span>
-                    <input
-                      className="title-input-large"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      maxLength={240}
-                      required
-                      disabled={busy || !editable}
-                      placeholder="Title of research proposal…"
-                    />
-                  </label>
-
                   <label className="content-field">
                     <div className="content-field-header">
                       <span>Proposal body</span>
@@ -1056,7 +1074,7 @@ export default function App() {
                       onChange={(e) => setContent(e.target.value)}
                       disabled={busy || !editable}
                       placeholder="Draft your proposal introduction, methodology, and aims here. You can request cited suggestions from the Evidence sidebar on the right…"
-                      rows={22}
+                      rows={12}
                     />
                   </label>
                 </div>
@@ -1071,20 +1089,59 @@ export default function App() {
                 <div className="empty-icon-circle">
                   <FileText className="w-8 h-8 text-[#225bb2]" />
                 </div>
-                <h2>Select or Create a Research Proposal</h2>
+                <span className="empty-state-kicker">Research workspace</span>
+                <h2>Build your next evidence-backed proposal.</h2>
                 <p className="muted">
-                  Choose a proposal from the left sidebar to start editing, or create a new proposal.
-                  You can also explore collaborator recommendations or search the literature.
+                  Start with a draft, attach verified sources, and turn research questions into a grounded proposal with your team.
                 </p>
                 <div className="empty-quick-actions">
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => {
+                      if (guardEdits()) {
+                        void run(async () => {
+                          await createNewProposal('Untitled proposal');
+                        });
+                      }
+                    }}
+                    disabled={!teamId || selectedTeam?.role === 'viewer'}
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create Proposal</span>
+                  </button>
+                  <button type="button" className="button" onClick={() => setCurrentView('search')}>
+                    <Search className="w-4 h-4" />
+                    <span>Literature Search</span>
+                  </button>
                   <button type="button" className="button" onClick={() => setCurrentView('collaborators')}>
                     <Users className="w-4 h-4" />
                     <span>Find Collaborators</span>
                   </button>
-                  <button type="button" className="button" onClick={() => setCurrentView('graph')}>
-                    <Network className="w-4 h-4" />
-                    <span>Explore Knowledge Graph</span>
-                  </button>
+                </div>
+
+                <div className="workflow-steps" aria-label="Suggested workflow">
+                  <div className="workflow-step">
+                    <span className="step-number">1</span>
+                    <div>
+                      <strong>Frame the idea</strong>
+                      <small>Define the goal and team context.</small>
+                    </div>
+                  </div>
+                  <div className="workflow-step">
+                    <span className="step-number">2</span>
+                    <div>
+                      <strong>Gather evidence</strong>
+                      <small>Attach source excerpts and verify claims.</small>
+                    </div>
+                  </div>
+                  <div className="workflow-step">
+                    <span className="step-number">3</span>
+                    <div>
+                      <strong>Draft and iterate</strong>
+                      <small>Generate grounded copy and save revisions.</small>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1119,9 +1176,77 @@ export default function App() {
                   </p>
                 </div>
 
-                {!proposal && <p className="empty">Open a proposal to view attached sources.</p>}
+                {!proposal && (
+                  <div className="sidebar-empty-state compact">
+                    <div className="mini-empty-icon">
+                      <BookOpen className="w-4 h-4" />
+                    </div>
+                    <h4>No proposal selected</h4>
+                    <p>Open or create a proposal to attach evidence and keep AI suggestions grounded.</p>
+                    <button type="button" className="button small" onClick={() => setCurrentView('search')}>
+                      Search literature
+                    </button>
+                  </div>
+                )}
                 {proposal && sources.length === 0 && (
-                  <p className="empty">No evidence attached yet. Search literature or add custom text below.</p>
+                  <div className="sidebar-empty-state compact evidence-empty-state">
+                    <div className="mini-empty-icon">
+                      <BookOpen className="w-4 h-4" />
+                    </div>
+                    <h4>No sources attached</h4>
+                    <p>Search literature or add a custom source to anchor your proposal.</p>
+                    <div className="sidebar-empty-actions">
+                      <button type="button" className="button small" onClick={() => setCurrentView('search')}>
+                        Literature Search
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {proposal && editable && (
+                  <div className="sidebar-custom-source">
+                    <details className="accordion-card compact-inline custom-source-accordion">
+                      <summary>Add Custom Source</summary>
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void run(async () => {
+                            const added = await api.addSource(proposal.id, {
+                              title: sourceTitle,
+                              text: sourceText,
+                              origin: sourceOrigin,
+                            });
+                            setSources((prev) => [...prev.filter((i) => i.id !== added.id), added]);
+                            setSourceTitle('');
+                            setSourceText('');
+                            setSourceOrigin('');
+                            setNotice('Source attached.');
+                          });
+                        }}
+                      >
+                        <input
+                          value={sourceTitle}
+                          onChange={(e) => setSourceTitle(e.target.value)}
+                          placeholder="Source title or label"
+                          required
+                        />
+                        <input
+                          value={sourceOrigin}
+                          onChange={(e) => setSourceOrigin(e.target.value)}
+                          placeholder="DOI or document URL"
+                          required
+                        />
+                        <textarea
+                          value={sourceText}
+                          onChange={(e) => setSourceText(e.target.value)}
+                          placeholder="Paste document text or excerpt…"
+                          rows={5}
+                          required
+                        />
+                        <button className="button small">Attach source</button>
+                      </form>
+                    </details>
+                  </div>
                 )}
 
                 <div className="sources-checklist">
@@ -1154,218 +1279,188 @@ export default function App() {
                   ))}
                 </div>
 
-                {proposal && editable && (
-                  <details className="accordion-card mt-4">
-                    <summary>Add custom source text</summary>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void run(async () => {
-                          const added = await api.addSource(proposal.id, {
-                            title: sourceTitle,
-                            text: sourceText,
-                            origin: sourceOrigin,
-                          });
-                          setSources((prev) => [...prev.filter((i) => i.id !== added.id), added]);
-                          setSourceTitle('');
-                          setSourceText('');
-                          setSourceOrigin('');
-                          setNotice('Source attached.');
-                        });
-                      }}
-                    >
-                      <input
-                        value={sourceTitle}
-                        onChange={(e) => setSourceTitle(e.target.value)}
-                        placeholder="Source title or label"
-                        required
-                      />
-                      <input
-                        value={sourceOrigin}
-                        onChange={(e) => setSourceOrigin(e.target.value)}
-                        placeholder="DOI or document URL"
-                        required
-                      />
-                      <textarea
-                        value={sourceText}
-                        onChange={(e) => setSourceText(e.target.value)}
-                        placeholder="Paste document text or excerpt…"
-                        rows={5}
-                        required
-                      />
-                      <button className="button small">Attach text</button>
-                    </form>
-                  </details>
-                )}
               </div>
             )}
 
             {/* TAB: META LLAMA AI DRAFTING */}
             {workspaceRightTab === 'ai' && (
               <div className="sidebar-tab-content">
-                <div className="ai-assistant-header">
-                  <div className="ai-model-tag">
-                    <Sparkles className="w-3.5 h-3.5 text-[#225bb2]" />
-                    <span>Meta Llama 3.3 (70B) Grounded</span>
+                {!proposal ? (
+                  <div className="sidebar-empty-state compact">
+                    <div className="mini-empty-icon">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <h4>Grounded drafting is ready</h4>
+                    <p>Select a proposal to generate a cited section using the selected provider.</p>
+                    <button type="button" className="button small" onClick={() => setCurrentView('workspace')}>
+                      Open workspace
+                    </button>
                   </div>
-                  <p className="muted">
-                    Request a cited section. Quotes are checked word-for-word against selected sources.
-                  </p>
-                </div>
-
-                <form
-                  className="draft-prompt-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void requestDraft();
-                  }}
-                >
-                  <label>
-                    Target section
-                    <input
-                      value={section}
-                      onChange={(e) => setSection(e.target.value)}
-                      placeholder="e.g. Methodology, Objectives"
-                      required
-                      disabled={!proposal || !editable || busy}
-                    />
-                  </label>
-                  <label>
-                    Drafting prompt
-                    <textarea
-                      value={instruction}
-                      onChange={(e) => setInstruction(e.target.value)}
-                      placeholder="Describe what to draft based on the selected evidence…"
-                      rows={4}
-                      maxLength={8000}
-                      required
-                      disabled={!proposal || !editable || busy}
-                    />
-                  </label>
-                  <button
-                    className="primary wide"
-                    disabled={
-                      busy ||
-                      !proposal ||
-                      !editable ||
-                      dirty ||
-                      !!conflict ||
-                      selected.length === 0 ||
-                      jobs.some((item) => item.state === 'queued' || item.state === 'running')
-                    }
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>Generate Cited Draft</span>
-                  </button>
-                  {dirty && <p className="muted small">Save proposal changes before generating a draft.</p>}
-                  {selected.length === 0 && proposal && (
-                    <p className="muted small">Select at least one source in the Evidence tab.</p>
-                  )}
-                </form>
-
-                {/* Suggestions Output */}
-                {jobs.length > 0 && (
-                  <div className="suggestions-history">
-                    <div className="suggestions-header">
-                      <h4>Draft History ({jobs.length})</h4>
-                      <select
-                        value={job?.id ?? ''}
-                        onChange={(e) => setJobId(e.target.value)}
-                        className="job-history-select"
-                      >
-                        {jobs.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.state} · Rev {item.base_revision} · {new Date(item.created_at).toLocaleTimeString()}
-                          </option>
-                        ))}
-                      </select>
+                ) : (
+                  <>
+                    <div className="ai-assistant-header">
+                      <div className="ai-model-tag">
+                        <Sparkles className="w-3.5 h-3.5 text-[#225bb2]" />
+                        <span>Grounded draft assistant</span>
+                      </div>
+                      <p className="muted">
+                        Model/provider details appear here when a live provider is connected. All suggestions are checked against selected evidence.
+                      </p>
                     </div>
 
-                    {job && (
-                      <div className="job-result-card">
-                        <div className="job-state-row">
-                          <span className={`status-dot ${job.state}`} />
-                          <strong>
-                            {job.state === 'failed' && job.error?.code === 'cancelled'
-                              ? 'Cancelled'
-                              : job.state.toUpperCase()}
-                          </strong>
-                          <small className="muted">Based on revision {job.base_revision}</small>
+                    <form
+                      className="draft-prompt-form"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void requestDraft();
+                      }}
+                    >
+                      <label>
+                        Target section
+                        <input
+                          value={section}
+                          onChange={(e) => setSection(e.target.value)}
+                          placeholder="e.g. Methodology, Objectives"
+                          required
+                          disabled={!proposal || !editable || busy}
+                        />
+                      </label>
+                      <label>
+                        Drafting prompt
+                        <textarea
+                          value={instruction}
+                          onChange={(e) => setInstruction(e.target.value)}
+                          placeholder="Describe what to draft based on the selected evidence…"
+                          rows={4}
+                          maxLength={8000}
+                          required
+                          disabled={!proposal || !editable || busy}
+                        />
+                      </label>
+                      <button
+                        className="primary wide"
+                        disabled={
+                          busy ||
+                          !proposal ||
+                          !editable ||
+                          dirty ||
+                          !!conflict ||
+                          selected.length === 0 ||
+                          jobs.some((item) => item.state === 'queued' || item.state === 'running')
+                        }
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        <span>Generate Cited Draft</span>
+                      </button>
+                      {dirty && <p className="muted small">Save proposal changes before generating a draft.</p>}
+                      {selected.length === 0 && proposal && (
+                        <p className="muted small">Select at least one source in the Evidence tab.</p>
+                      )}
+                    </form>
+
+                    {jobs.length > 0 && (
+                      <div className="suggestions-history">
+                        <div className="suggestions-header">
+                          <h4>Draft History ({jobs.length})</h4>
+                          <select
+                            value={job?.id ?? ''}
+                            onChange={(e) => setJobId(e.target.value)}
+                            className="job-history-select"
+                          >
+                            {jobs.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.state} · Rev {item.base_revision} · {new Date(item.created_at).toLocaleTimeString()}
+                              </option>
+                            ))}
+                          </select>
                         </div>
 
-                        {(job.state === 'queued' || job.state === 'running') && (
-                          <button
-                            type="button"
-                            className="button small"
-                            onClick={() =>
-                              void run(async () => {
-                                const next = await api.cancel(job.id);
-                                setJobs((prev) => prev.map((j) => (j.id === next.id ? next : j)));
-                              })
-                            }
-                          >
-                            Cancel Draft
-                          </button>
-                        )}
+                        {job && (
+                          <div className="job-result-card">
+                            <div className="job-state-row">
+                              <span className={`status-dot ${job.state}`} />
+                              <strong>
+                                {job.state === 'failed' && job.error?.code === 'cancelled'
+                                  ? 'Cancelled'
+                                  : job.state.toUpperCase()}
+                              </strong>
+                              <small className="muted">Based on revision {job.base_revision}</small>
+                            </div>
 
-                        {job.error && (
-                          <p className="alert error" role="alert">{job.error.message}</p>
-                        )}
-
-                        {job.output && (
-                          <div className="suggestion-body">
-                            <div className="suggestion-text">{job.output.text}</div>
-                            {job.output.insufficient_evidence && (
-                              <p className="alert warning">
-                                Model reported insufficient evidence in selected sources.
-                              </p>
-                            )}
-
-                            <div className="suggestion-actions">
+                            {(job.state === 'queued' || job.state === 'running') && (
                               <button
                                 type="button"
                                 className="button small"
-                                onClick={() => void copyToClipboard(job.output!.text)}
-                              >
-                                Copy text
-                              </button>
-                              <button
-                                type="button"
-                                className="primary small"
-                                disabled={busy || !editable || !proposal || !!conflict || !canApplyDraft(job, proposal, dirty)}
                                 onClick={() =>
                                   void run(async () => {
-                                    if (proposal && canApplyDraft(job, proposal, dirty)) {
-                                      await save(appendSuggestion(content, job.output!.text));
-                                    }
+                                    const next = await api.cancel(job.id);
+                                    setJobs((prev) => prev.map((j) => (j.id === next.id ? next : j)));
                                   })
                                 }
                               >
-                                Append to proposal & Save
+                                Cancel Draft
                               </button>
-                            </div>
+                            )}
 
-                            {/* Verified Verbatim Quotes */}
-                            <div className="citations-list">
-                              <h5>Verified Verbatim Citations ({job.output.citations.length})</h5>
-                              {job.output.citations.length === 0 && (
-                                <p className="muted small">No direct quotes provided.</p>
-                              )}
-                              {job.output.citations.map((c, idx) => (
-                                <blockquote key={`${c.source_id}-${idx}`} className="citation-quote">
-                                  <p>“{c.quote}”</p>
-                                  <footer>
-                                    <strong>{c.title}</strong>
-                                    <OriginLink value={c.origin} />
-                                  </footer>
-                                </blockquote>
-                              ))}
-                            </div>
+                            {job.error && (
+                              <p className="alert error" role="alert">{job.error.message}</p>
+                            )}
+
+                            {job.output && (
+                              <div className="suggestion-body">
+                                <div className="suggestion-text">{job.output.text}</div>
+                                {job.output.insufficient_evidence && (
+                                  <p className="alert warning">
+                                    Model reported insufficient evidence in selected sources.
+                                  </p>
+                                )}
+
+                                <div className="suggestion-actions">
+                                  <button
+                                    type="button"
+                                    className="button small"
+                                    onClick={() => void copyToClipboard(job.output!.text)}
+                                  >
+                                    Copy text
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="primary small"
+                                    disabled={busy || !editable || !proposal || !!conflict || !canApplyDraft(job, proposal, dirty)}
+                                    onClick={() =>
+                                      void run(async () => {
+                                        if (proposal && canApplyDraft(job, proposal, dirty)) {
+                                          await save(appendSuggestion(content, job.output!.text));
+                                        }
+                                      })
+                                    }
+                                  >
+                                    Append to proposal & Save
+                                  </button>
+                                </div>
+
+                                <div className="citations-list">
+                                  <h5>Verified Verbatim Citations ({job.output.citations.length})</h5>
+                                  {job.output.citations.length === 0 && (
+                                    <p className="muted small">No direct quotes provided.</p>
+                                  )}
+                                  {job.output.citations.map((c, idx) => (
+                                    <blockquote key={`${c.source_id}-${idx}`} className="citation-quote">
+                                      <p>“{c.quote}”</p>
+                                      <footer>
+                                        <strong>{c.title}</strong>
+                                        <OriginLink value={c.origin} />
+                                      </footer>
+                                    </blockquote>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             )}
