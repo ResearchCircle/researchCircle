@@ -67,6 +67,7 @@ import GraphViewer from '@/components/GraphViewer';
 import ChatInterface from '@/components/ChatInterface';
 import CitationPanel from '@/components/CitationPanel';
 import CollaborationHub from '@/components/CollaborationHub';
+import CampusIntelligenceHub from '@/components/CampusIntelligenceHub';
 import PdfViewerModal from '@/components/PdfViewerModal';
 import {
   canChangeTeam,
@@ -2335,6 +2336,15 @@ export default function App() {
               </aside>
             )}
           </div>
+        </main>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* VIEW 6: THE LIVING CAMPUS GRAPH & SERENDIPITY INTELLIGENCE    */}
+      {/* ------------------------------------------------------------- */}
+      {currentView === 'campus' && (
+        <main className="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden">
+          <CampusIntelligenceHub />
         </main>
       )}
         </div>

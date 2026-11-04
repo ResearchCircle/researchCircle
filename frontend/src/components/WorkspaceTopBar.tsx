@@ -22,6 +22,7 @@ type Props = {
 };
 
 const viewTitles: Record<AppView, string> = {
+  campus: 'Living Campus Graph',
   workspace: 'Proposals',
   collaborators: 'Find collaborators',
   graph: 'Knowledge graph',

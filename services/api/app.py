@@ -14,6 +14,7 @@ from services.api.routes.pursuits import router as pursuits_router
 from services.api.routes.shortlists import router as shortlists_router
 from services.api.routes.graph import router as graph_router
 from services.api.routes.chat import router as chat_router
+from services.api.routes.campus import router as campus_router
 from src.platform.chatbot.service import ResearchChatService
 from src.platform.database import Database
 from src.platform.models.fixtures import ExtractiveFixtureProvider
@@ -100,6 +101,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     application.include_router(shortlists_router)
     application.include_router(graph_router)
     application.include_router(chat_router)
+    application.include_router(campus_router)
     return application
 
 

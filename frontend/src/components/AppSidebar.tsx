@@ -3,17 +3,19 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import {
   ChevronLeft,
+  Compass,
   FileText,
   MessageSquare,
   Network,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   Users,
 } from 'lucide-react';
 import type { Proposal } from '@/lib/api';
 
-export type AppView = 'workspace' | 'collaborators' | 'graph' | 'search' | 'chat';
+export type AppView = 'workspace' | 'collaborators' | 'graph' | 'search' | 'chat' | 'campus';
 
 type Props = {
   currentView: AppView;
@@ -32,6 +34,7 @@ type Props = {
 };
 
 const navigation: { view: AppView; label: string; icon: typeof FileText }[] = [
+  { view: 'campus', label: 'Living Campus Graph', icon: Sparkles },
   { view: 'workspace', label: 'Workspace', icon: FileText },
   { view: 'collaborators', label: 'Find Collaborators', icon: Users },
   { view: 'graph', label: 'Knowledge Graph', icon: Network },
