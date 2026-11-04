@@ -311,7 +311,7 @@ def get_public_graph(
                 PublicRecord.kind == 'paper'
             )
             .order_by(Source.title)
-            .limit(max(limit, 200))
+            .limit(max(limit * 3, 1200))
         ).all()
 
         rows = list(dict.fromkeys(researcher_rows + paper_rows))

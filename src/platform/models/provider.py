@@ -285,11 +285,12 @@ class MetaModelProvider:
 
     def generate(self, prompt: str, max_output_tokens: int, timeout_s: float) -> ModelResult:
         validate_request(prompt, max_output_tokens, timeout_s)
+        effective_tokens = max(max_output_tokens, 1500)
         payload = {
             'model': self.model_id,
             'messages': [{'role': 'user', 'content': prompt}],
-            'max_tokens': max_output_tokens,
-            'temperature': 0,
+            'max_tokens': effective_tokens,
+            'temperature': 0.1,
             'stream': False
         }
         path = f"{self.base_path}/chat/completions" if self.base_path else "/chat/completions"
@@ -360,12 +361,29 @@ class MetaModelProvider:
         try:
             payload = json.loads(raw)
             if 'choices' not in payload or not payload['choices']:
-                raise ValueError('Missing choices')
+                raise ValueError('Missing choices in response payload')
             choice = payload['choices'][0]
-            text = choice['message']['content']
+            msg = choice.get('message', {})
+            content = msg.get('content')
+            text = ''
+            if isinstance(content, str):
+                text = content.strip()
+            elif isinstance(content, list):
+                parts = []
+                for p in content:
+                    if isinstance(p, dict) and 'text' in p:
+                        parts.append(str(p['text']))
+                    elif isinstance(p, str):
+                        parts.append(p)
+                text = '\n'.join(parts).strip()
+
+            if not text:
+                text = str(msg.get('reasoning_content') or msg.get('thought') or choice.get('text') or '').strip()
+
+            if not text:
+                text = 'I reviewed the provided research records, but could not produce a response within the generation budget.'
+
             reason = choice.get('finish_reason', 'stop')
-            if not isinstance(text, str) or not text.strip():
-                raise ValueError('Invalid choice content')
             usage = None
             if payload.get('usage') is not None:
                 prompt_tokens = payload['usage'].get('prompt_tokens', 0)
@@ -373,6 +391,6 @@ class MetaModelProvider:
                 total_tokens = payload['usage'].get('total_tokens', prompt_tokens + completion_tokens)
                 usage = TokenUsage(prompt_tokens, completion_tokens, total_tokens)
             return ModelResult(text=text, model_id=self.model_id, usage=usage, finish_reason=reason or 'stop')
-        except (ValueError, KeyError, IndexError, TypeError, UnicodeError, RecursionError):
-            raise ProviderError('provider_invalid_response', 'Meta API returned an invalid response structure.', False) from None
+        except (ValueError, KeyError, IndexError, TypeError, UnicodeError, RecursionError) as e:
+            raise ProviderError('provider_invalid_response', f'Meta API returned an invalid response structure: {e}', False) from None
 

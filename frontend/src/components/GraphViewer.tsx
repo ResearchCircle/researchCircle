@@ -143,6 +143,7 @@ export default function GraphViewer({
 
   const handleLimitChange = (newLimit: number) => {
     setNodeLimit(newLimit);
+    void loadGraph(topicQuery, centerNodeId, hops, newLimit);
   };
 
   // Fixed Cluster Selection with Smooth Camera Fly-To Bounding Box
@@ -480,6 +481,30 @@ export default function GraphViewer({
         </div>
 
         <div className="graph-controls">
+          {/* Node Budget Selector */}
+          <select
+            value={nodeLimit}
+            onChange={(e) => handleLimitChange(Number(e.target.value))}
+            className="graph-limit-select"
+            title="Adjust node density and budget"
+            style={{
+              fontSize: '11px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              border: isDarkMode ? '1px solid rgba(255,255,255,0.15)' : '1px solid #cbd5e1',
+              background: isDarkMode ? '#1e293b' : '#ffffff',
+              color: isDarkMode ? '#e2e8f0' : '#1e293b',
+              fontWeight: 500,
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+          >
+            <option value={150}>150 nodes</option>
+            <option value={300}>300 nodes</option>
+            <option value={600}>600 nodes</option>
+            <option value={1000}>1,000 nodes</option>
+          </select>
+
           {/* Theme Switcher Toggle */}
           <button
             type="button"

@@ -22,6 +22,20 @@ import {
   HelpCircle,
   BookOpen,
   MessageSquare,
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  Heading1,
+  Heading2,
+  Eye,
+  Edit3,
+  Columns,
+  X,
+  ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
 import {
   api,
@@ -37,7 +51,7 @@ import {
   type Team,
   type User,
 } from '@/lib/api';
-import { appendSuggestion, canApplyDraft, hasEdits, safeOrigin } from '@/lib/editor';
+import { appendSuggestion, canApplyDraft, hasEdits, safeOrigin, renderMarkdownSimple } from '@/lib/editor';
 import PursuitPanel from '@/components/PursuitPanel';
 import ShortlistPanel from '@/components/ShortlistPanel';
 import TeamMembersPanel from '@/components/TeamMembersPanel';
@@ -107,6 +121,44 @@ export default function App() {
 
   // Right sidebar tab in Workspace
   const [workspaceRightTab, setWorkspaceRightTab] = useState<'evidence' | 'ai'>('evidence');
+  const [workspaceLeftTab, setWorkspaceLeftTab] = useState<'proposals' | 'team' | 'shortlist'>('proposals');
+  const [editorMode, setEditorMode] = useState<'edit' | 'split' | 'preview'>('edit');
+  const [evidenceCollapsed, setEvidenceCollapsed] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const insertFormatting = (prefix: string, suffix: string = '') => {
+    const el = textareaRef.current;
+    if (!el) {
+      setContent((prev) => `${prev}\n${prefix}${suffix}`);
+      return;
+    }
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selectedText = content.substring(start, end) || 'text';
+    const replacement = `${prefix}${selectedText}${suffix}`;
+    const nextContent = content.substring(0, start) + replacement + content.substring(end);
+    setContent(nextContent);
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(start + prefix.length, start + prefix.length + selectedText.length);
+    }, 10);
+  };
+
+  const insertTemplate = (templateType: 'nsf' | 'nih' | 'darpa') => {
+    let templateText = '';
+    if (templateType === 'nsf') {
+      templateText = `# Project Description\n\n## 1. Overview and Objectives\n[State the overarching goals, hypotheses, and primary research questions of the proposed project.]\n\n## 2. Intellectual Merit\n[Detail the scientific significance, novelty, and technological innovation.]\n\n## 3. Proposed Research Methodology & Work Plan\n[Provide the detailed experimental design, algorithms, baseline metrics, and validation.]\n\n## 4. Broader Impacts\n[Describe the societal benefits, education/outreach, student training, and dissemination.]\n\n## 5. Timeline and Key Milestones\n- Year 1: Baseline development and dataset curation.\n- Year 2: Algorithmic prototyping and empirical validation.\n- Year 3: System deployment, user studies, and final evaluation.`;
+    } else if (templateType === 'nih') {
+      templateText = `# Specific Aims\n\n## Significance & Background\n[Briefly summarize the critical biomedical or algorithmic challenge.]\n\n## Specific Aim 1\n[Formulate Aim 1, testable hypothesis, and anticipated research milestone.]\n\n## Specific Aim 2\n[Formulate Aim 2, experimental protocol, and expected outcomes.]\n\n## Innovation & Potential Pitfalls\n[Highlight conceptual innovations, potential pitfalls, and alternative strategies.]`;
+    } else if (templateType === 'darpa') {
+      templateText = `# Technical Proposal & Approach\n\n## 1. Executive Summary & Problem Statement\n[Define the critical operational challenge and state-of-the-art limitations.]\n\n## 2. Proposed Technical Breakthrough\n[Describe the transformative technology, architecture, and expected performance gains.]\n\n## 3. Measurable Technical Milestones\n- Month 6: Proof-of-concept prototype demonstrating 2x efficiency.\n- Month 12: Laboratory validation and stress testing under adversarial conditions.\n- Month 18: Full system demonstration and transition plan.\n\n## 4. Risk Mitigation Matrix\n[Identify high-risk technical barriers and corresponding mitigation protocols.]`;
+    }
+    if (!content.trim()) {
+      setContent(templateText);
+    } else {
+      setContent((prev) => `${prev.trimEnd()}\n\n${templateText}`);
+    }
+  };
 
   // Manual source state
   const [sourceTitle, setSourceTitle] = useState('');
@@ -728,188 +780,218 @@ export default function App() {
         <div className="workspace-tri-grid">
           {/* Left Column: Teams, Members, & Proposals */}
           <aside className="workspace-sidebar" aria-label="Teams and proposals">
-            <div className="sidebar-section">
-              <div className="sidebar-header">
-                <h3>Teams & Access</h3>
-                <button type="button" className="text-button" onClick={() => void run(refreshLists)}>
-                  Refresh
-                </button>
-              </div>
+            <div className="workspace-sidebar-tabs">
+              <button
+                type="button"
+                className={`sidebar-tab-btn ${workspaceLeftTab === 'proposals' ? 'active' : ''}`}
+                onClick={() => setWorkspaceLeftTab('proposals')}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Proposals ({proposals.filter((item) => item.team_id === teamId).length})</span>
+              </button>
+              <button
+                type="button"
+                className={`sidebar-tab-btn ${workspaceLeftTab === 'team' ? 'active' : ''}`}
+                onClick={() => setWorkspaceLeftTab('team')}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Team & Access</span>
+              </button>
+              <button
+                type="button"
+                className={`sidebar-tab-btn ${workspaceLeftTab === 'shortlist' ? 'active' : ''}`}
+                onClick={() => setWorkspaceLeftTab('shortlist')}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Shortlist</span>
+              </button>
+            </div>
 
-              {selectedTeam && user && (
-                <TeamMembersPanel
-                  key={selectedTeam.id}
-                  team={selectedTeam}
-                  currentUserId={user.id}
-                  onChanged={refreshLists}
-                  beforeSelfChange={() => (!dirty && !shortlistDirty) || confirmDiscard()}
-                />
-              )}
+            {/* TAB 1: PROPOSALS */}
+            {workspaceLeftTab === 'proposals' && (
+              <div className="sidebar-section">
+                <div className="sidebar-header">
+                  <h3>Team Proposals</h3>
+                  <span className="count-pill">
+                    {proposals.filter((item) => item.team_id === teamId).length}
+                  </span>
+                </div>
 
-              {selectedTeam?.role === 'owner' && (
-                <details className="accordion-card">
-                  <summary>Invite a teammate</summary>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void run(async () => {
-                        await api.invite(teamId, inviteEmail, inviteRole);
-                        setInviteEmail('');
-                        setNotice('Invitation sent.');
-                      });
-                    }}
-                  >
-                    <label>
-                      Email address
-                      <input
-                        type="email"
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        placeholder="colleague@rit.edu"
-                        required
-                      />
-                    </label>
-                    <label>
-                      Role access
-                      <select
-                        value={inviteRole}
-                        onChange={(e) => setInviteRole(e.target.value as 'editor' | 'viewer')}
+                <div className="proposals-list" role="list">
+                  {proposals
+                    .filter((item) => item.team_id === teamId)
+                    .map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`proposal-item ${item.id === proposal?.id ? 'active' : ''}`}
+                        disabled={busy}
+                        onClick={() => {
+                          if (guardEdits()) void run(() => openProposal(item.id));
+                        }}
                       >
-                        <option value="editor">Editor (Can edit & draft)</option>
-                        <option value="viewer">Viewer (Read-only)</option>
-                      </select>
-                    </label>
-                    <button disabled={busy} className="button small">Send Invite</button>
-                  </form>
-                </details>
-              )}
+                        <FileText className="w-4 h-4 shrink-0" />
+                        <div className="proposal-item-text">
+                          <span className="proposal-title">{item.title}</span>
+                          <small className="muted">Revision {item.revision}</small>
+                        </div>
+                      </button>
+                    ))}
 
-              <details className="accordion-card">
-                <summary>Create another team</summary>
+                  {!proposals.some((item) => item.team_id === teamId) && (
+                    <p className="empty">No proposals in this team yet.</p>
+                  )}
+                </div>
+
                 <form
+                  className="new-proposal-form"
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (guardEdits()) {
                       void run(async () => {
-                        const t = await api.createTeam(teamName);
-                        setTeamName('');
-                        await refreshLists();
-                        activateTeam(t.id);
-                        setNotice('Team created.');
+                        const next = await api.createProposal(teamId, newTitle);
+                        await openProposal(next.id);
+                        setNewTitle('');
                       });
                     }
                   }}
                 >
                   <input
-                    value={teamName}
-                    onChange={(e) => setTeamName(e.target.value)}
-                    placeholder="Team name"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="New proposal title…"
                     required
-                    maxLength={160}
+                    maxLength={240}
+                    disabled={!teamId || selectedTeam?.role === 'viewer'}
                   />
-                  <button disabled={busy} className="button small">Create</button>
+                  <button
+                    type="submit"
+                    className="primary wide"
+                    disabled={busy || !teamId || selectedTeam?.role === 'viewer'}
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create Proposal</span>
+                  </button>
                 </form>
-              </details>
-
-              {invitations.length > 0 && (
-                <div className="invitations-box">
-                  <h4>Pending Invitations ({invitations.length})</h4>
-                  {invitations.map((invite) => (
-                    <div key={invite.id} className="invite-row">
-                      <span>{invite.team_name} ({invite.role})</span>
-                      <button
-                        type="button"
-                        className="button small"
-                        onClick={() => {
-                          if (canChangeTeam(teamId, invite.team_id, dirty, confirmDiscard)) {
-                            void run(async () => {
-                              const accepted = await api.accept(invite.id);
-                              await refreshLists();
-                              activateTeam(accepted.team_id);
-                              setNotice('Invitation accepted.');
-                            });
-                          }
-                        }}
-                      >
-                        Accept
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="sidebar-divider" />
-
-            {/* Proposals Section */}
-            <div className="sidebar-section">
-              <div className="sidebar-header">
-                <h3>Proposals</h3>
-                <span className="count-pill">
-                  {proposals.filter((item) => item.team_id === teamId).length}
-                </span>
               </div>
+            )}
 
-              <div className="proposals-list" role="list">
-                {proposals
-                  .filter((item) => item.team_id === teamId)
-                  .map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={`proposal-item ${item.id === proposal?.id ? 'active' : ''}`}
-                      disabled={busy}
-                      onClick={() => {
-                        if (guardEdits()) void run(() => openProposal(item.id));
+            {/* TAB 2: TEAM & ACCESS */}
+            {workspaceLeftTab === 'team' && (
+              <div className="sidebar-section">
+                <div className="sidebar-header">
+                  <h3>Teams & Access</h3>
+                  <button type="button" className="text-button" onClick={() => void run(refreshLists)}>
+                    Refresh
+                  </button>
+                </div>
+
+                {selectedTeam && user && (
+                  <TeamMembersPanel
+                    key={selectedTeam.id}
+                    team={selectedTeam}
+                    currentUserId={user.id}
+                    onChanged={refreshLists}
+                    beforeSelfChange={() => (!dirty && !shortlistDirty) || confirmDiscard()}
+                  />
+                )}
+
+                {selectedTeam?.role === 'owner' && (
+                  <details className="accordion-card">
+                    <summary>Invite a teammate</summary>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void run(async () => {
+                          await api.invite(teamId, inviteEmail, inviteRole);
+                          setInviteEmail('');
+                          setNotice('Invitation sent.');
+                        });
                       }}
                     >
-                      <FileText className="w-4 h-4 shrink-0" />
-                      <div className="proposal-item-text">
-                        <span className="proposal-title">{item.title}</span>
-                        <small className="muted">Revision {item.revision}</small>
-                      </div>
-                    </button>
-                  ))}
+                      <label>
+                        Email address
+                        <input
+                          type="email"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                          placeholder="colleague@rit.edu"
+                          required
+                        />
+                      </label>
+                      <label>
+                        Role access
+                        <select
+                          value={inviteRole}
+                          onChange={(e) => setInviteRole(e.target.value as 'editor' | 'viewer')}
+                        >
+                          <option value="editor">Editor (Can edit & draft)</option>
+                          <option value="viewer">Viewer (Read-only)</option>
+                        </select>
+                      </label>
+                      <button disabled={busy} className="button small">Send Invite</button>
+                    </form>
+                  </details>
+                )}
 
-                {!proposals.some((item) => item.team_id === teamId) && (
-                  <p className="empty">No proposals in this team yet.</p>
+                <details className="accordion-card">
+                  <summary>Create another team</summary>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (guardEdits()) {
+                        void run(async () => {
+                          const t = await api.createTeam(teamName);
+                          setTeamName('');
+                          await refreshLists();
+                          activateTeam(t.id);
+                          setNotice('Team created.');
+                        });
+                      }
+                    }}
+                  >
+                    <input
+                      value={teamName}
+                      onChange={(e) => setTeamName(e.target.value)}
+                      placeholder="Team name"
+                      required
+                      maxLength={160}
+                    />
+                    <button disabled={busy} className="button small">Create</button>
+                  </form>
+                </details>
+
+                {invitations.length > 0 && (
+                  <div className="invitations-box">
+                    <h4>Pending Invitations ({invitations.length})</h4>
+                    {invitations.map((invite) => (
+                      <div key={invite.id} className="invite-row">
+                        <span>{invite.team_name} ({invite.role})</span>
+                        <button
+                          type="button"
+                          className="button small"
+                          onClick={() => {
+                            if (canChangeTeam(teamId, invite.team_id, dirty, confirmDiscard)) {
+                              void run(async () => {
+                                const accepted = await api.accept(invite.id);
+                                await refreshLists();
+                                activateTeam(accepted.team_id);
+                                setNotice('Invitation accepted.');
+                              });
+                            }
+                          }}
+                        >
+                          Accept
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
+            )}
 
-              <form
-                className="new-proposal-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (guardEdits()) {
-                    void run(async () => {
-                      const next = await api.createProposal(teamId, newTitle);
-                      await openProposal(next.id);
-                      setNewTitle('');
-                    });
-                  }
-                }}
-              >
-                <input
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="New proposal title…"
-                  required
-                  maxLength={240}
-                  disabled={!teamId || selectedTeam?.role === 'viewer'}
-                />
-                <button
-                  type="submit"
-                  className="primary wide"
-                  disabled={busy || !teamId || selectedTeam?.role === 'viewer'}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Create Proposal</span>
-                </button>
-              </form>
-            </div>
-
-            {/* Team Shortlist Preview */}
-            {selectedTeam && (
+            {/* TAB 3: SHORTLIST */}
+            {workspaceLeftTab === 'shortlist' && selectedTeam && (
               <div className="sidebar-section">
                 <ShortlistPanel
                   team={selectedTeam}
@@ -1045,12 +1127,111 @@ export default function App() {
                     />
                   </label>
 
-                  <label className="content-field">
-                    <div className="content-field-header">
-                      <span>Proposal body</span>
-                      <small className="muted">{content.length.toLocaleString()} characters · Markdown enabled</small>
+                  {/* Document Metrics & Mode Bar */}
+                  <div className="editor-metrics-bar">
+                    <div className="metrics-group">
+                      <span className="metric-item">
+                        <strong>{content.trim() ? content.trim().split(/\s+/).length : 0}</strong> words
+                      </span>
+                      <span className="metric-divider">·</span>
+                      <span className="metric-item">
+                        <strong>{((content.trim() ? content.trim().split(/\s+/).length : 0) / 500).toFixed(1)}</strong> pages
+                      </span>
+                      <span className="metric-divider">·</span>
+                      <span className="metric-item">
+                        <strong>{content.length.toLocaleString()}</strong> characters
+                      </span>
+                      <span className="metric-divider">·</span>
+                      <span className="metric-item">
+                        <strong>{Math.max(1, Math.ceil((content.trim() ? content.trim().split(/\s+/).length : 0) / 200))}</strong> min read
+                      </span>
                     </div>
+
+                    <div className="editor-mode-switcher">
+                      <button
+                        type="button"
+                        className={`mode-btn ${editorMode === 'edit' ? 'active' : ''}`}
+                        onClick={() => setEditorMode('edit')}
+                        title="Editor only"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`mode-btn ${editorMode === 'split' ? 'active' : ''}`}
+                        onClick={() => setEditorMode('split')}
+                        title="Split view (Editor + Live Preview)"
+                      >
+                        <Columns className="w-3 h-3" />
+                        <span>Split</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`mode-btn ${editorMode === 'preview' ? 'active' : ''}`}
+                        onClick={() => setEditorMode('preview')}
+                        title="Formatted manuscript preview"
+                      >
+                        <Eye className="w-3 h-3" />
+                        <span>Preview</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Formatting Toolbar & Template Inserter */}
+                  {editorMode !== 'preview' && (
+                    <div className="editor-toolbar">
+                      <div className="toolbar-btn-group">
+                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('**', '**')} title="Bold">
+                          <Bold className="w-3.5 h-3.5" />
+                        </button>
+                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('*', '*')} title="Italic">
+                          <Italic className="w-3.5 h-3.5" />
+                        </button>
+                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('## ')} title="Heading 2">
+                          <Heading1 className="w-3.5 h-3.5" />
+                        </button>
+                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('### ')} title="Heading 3">
+                          <Heading2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('- ')} title="Bullet list">
+                          <List className="w-3.5 h-3.5" />
+                        </button>
+                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('1. ')} title="Numbered list">
+                          <ListOrdered className="w-3.5 h-3.5" />
+                        </button>
+                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('> ')} title="Blockquote">
+                          <Quote className="w-3.5 h-3.5" />
+                        </button>
+                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('```\n', '\n```')} title="Code or equation block">
+                          <Code className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="toolbar-templates-dropdown">
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              insertTemplate(e.target.value as any);
+                              e.target.value = '';
+                            }
+                          }}
+                          defaultValue=""
+                          className="template-select"
+                        >
+                          <option value="" disabled>+ Insert Grant Template…</option>
+                          <option value="nsf">NSF Project Description (Intellectual Merit & Broader Impacts)</option>
+                          <option value="nih">NIH Specific Aims (Significance & Innovation)</option>
+                          <option value="darpa">DoD / DARPA Technical Approach & Milestones</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dynamic Canvas: Edit / Split / Preview */}
+                  {editorMode === 'edit' && (
                     <textarea
+                      ref={textareaRef}
                       className="content-textarea"
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
@@ -1058,7 +1239,32 @@ export default function App() {
                       placeholder="Draft your proposal introduction, methodology, and aims here. You can request cited suggestions from the Evidence sidebar on the right…"
                       rows={22}
                     />
-                  </label>
+                  )}
+
+                  {editorMode === 'split' && (
+                    <div className="editor-split-container">
+                      <textarea
+                        ref={textareaRef}
+                        className="content-textarea"
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        disabled={busy || !editable}
+                        placeholder="Draft markdown text here…"
+                        rows={22}
+                      />
+                      <div
+                        className="editor-preview-pane"
+                        dangerouslySetInnerHTML={{ __html: renderMarkdownSimple(content) }}
+                      />
+                    </div>
+                  )}
+
+                  {editorMode === 'preview' && (
+                    <div
+                      className="editor-preview-standalone"
+                      dangerouslySetInnerHTML={{ __html: renderMarkdownSimple(content) }}
+                    />
+                  )}
                 </div>
 
                 {/* Grant Pursuit Tracking */}
@@ -1230,6 +1436,43 @@ export default function App() {
                       disabled={!proposal || !editable || busy}
                     />
                   </label>
+                  <div className="co-pilot-prompts-row">
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Quick Prompts:</span>
+                    <button
+                      type="button"
+                      className="co-pilot-chip"
+                      onClick={() => {
+                        setSection('Technical Approach & Methodology');
+                        setInstruction('Draft a rigorous methodology section synthesizing the key experimental techniques, architectures, and baseline evaluations from the selected evidence sources.');
+                      }}
+                    >
+                      <Sparkles className="w-3 h-3 text-blue-500" />
+                      <span>Methodology from Evidence</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="co-pilot-chip"
+                      onClick={() => {
+                        setSection('Intellectual Merit');
+                        setInstruction('Draft the Intellectual Merit section highlighting the novelty, technological gap, and primary scientific breakthroughs addressed in this proposal.');
+                      }}
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      <span>Intellectual Merit</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="co-pilot-chip"
+                      onClick={() => {
+                        setSection('Broader Impacts');
+                        setInstruction('Draft the Broader Impacts section detailing the educational outreach, student training, and societal benefits of the proposed research.');
+                      }}
+                    >
+                      <Sparkles className="w-3 h-3 text-emerald-500" />
+                      <span>Broader Impacts</span>
+                    </button>
+                  </div>
+
                   <label>
                     Drafting prompt
                     <textarea
@@ -1656,8 +1899,25 @@ export default function App() {
             </p>
           </div>
 
-          <div className="chat-container-grid">
+          <div className={`chat-container-grid ${evidenceCollapsed ? 'evidence-collapsed' : ''}`}>
             <div className="chat-main-column">
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <button
+                  type="button"
+                  className="button small"
+                  onClick={() => setEvidenceCollapsed(!evidenceCollapsed)}
+                  title={evidenceCollapsed ? 'Show evidence side panel' : 'Hide evidence side panel'}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '3px 8px' }}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>
+                    {evidenceCollapsed
+                      ? `Show Evidence Panel ${chatCitations.length > 0 ? `(${chatCitations.length})` : ''}`
+                      : 'Hide Evidence Panel'}
+                  </span>
+                </button>
+              </div>
+
               <ChatInterface
                 proposalId={proposal?.id}
                 proposalTitle={proposal?.title}
@@ -1665,9 +1925,25 @@ export default function App() {
               />
             </div>
 
-            <aside className="chat-citations-column" aria-label="Active Grounded Citations">
-              <CitationPanel citations={chatCitations} />
-            </aside>
+            {!evidenceCollapsed && (
+              <aside className="chat-citations-column" aria-label="Active Grounded Citations">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingBottom: '6px', borderBottom: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
+                    Active Citations ({chatCitations.length})
+                  </span>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => setEvidenceCollapsed(true)}
+                    title="Collapse Evidence Panel"
+                    style={{ padding: '2px 4px', height: '24px', width: '24px' }}
+                  >
+                    <X className="w-3.5 h-3.5 text-slate-500" />
+                  </button>
+                </div>
+                <CitationPanel citations={chatCitations} />
+              </aside>
+            )}
           </div>
         </main>
       )}

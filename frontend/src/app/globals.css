@@ -2594,3 +2594,222 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 350px; overflo
     padding: 24px;
   }
 }
+
+/* ========================================================================= */
+/* WORKSPACE & EDITOR ENHANCEMENTS                                           */
+/* ========================================================================= */
+
+.chat-container-grid.evidence-collapsed {
+  grid-template-columns: 1fr;
+}
+
+.workspace-sidebar-tabs {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 14px;
+  gap: 2px;
+}
+
+.sidebar-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 6px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.sidebar-tab-btn:hover {
+  color: #1e293b;
+}
+
+.sidebar-tab-btn.active {
+  background: white;
+  color: #0f172a;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.editor-metrics-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  font-size: 11.5px;
+  color: #64748b;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.metrics-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.metric-divider {
+  color: #cbd5e1;
+}
+
+.editor-mode-switcher {
+  display: flex;
+  background: #e2e8f0;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.mode-btn.active {
+  background: white;
+  color: #0f172a;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.toolbar-btn:hover {
+  background: white;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.template-select {
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #1e293b;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+}
+
+.editor-split-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+  background: white;
+}
+
+.editor-split-container .content-textarea {
+  border: none;
+  border-radius: 0;
+  border-right: 1px solid #e2e8f0;
+  min-height: 520px;
+  margin: 0;
+}
+
+.editor-preview-pane {
+  padding: 16px 20px;
+  overflow-y: auto;
+  max-height: 600px;
+  background: #ffffff;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #1e293b;
+}
+
+.editor-preview-standalone {
+  border: 1px solid #e2e8f0;
+  border-radius: 0 0 8px 8px;
+  padding: 24px 32px;
+  background: #ffffff;
+  min-height: 480px;
+  max-height: 680px;
+  overflow-y: auto;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.co-pilot-prompts-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  margin-bottom: 12px;
+}
+
+.co-pilot-chip {
+  text-align: left;
+  font-size: 11.5px;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.co-pilot-chip:hover {
+  background: #f1f5f9;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
