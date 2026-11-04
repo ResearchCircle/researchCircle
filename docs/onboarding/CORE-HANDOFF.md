@@ -119,6 +119,25 @@ Use `mistral` unless you have the memory for `qwen3:14b`, which also handled the
 
 Measured on 2026-10-31 on an Apple M4 Max with a small synthetic set, so expect different speed on other machines and treat the scores as a rough guide. These checks prove each quote appears word for word in the source, not that the draft's claims are right, so read the drafts. Ollama results never count as Orin acceptance, and the shared demo launcher refuses this provider.
 
+### Meta Muse (optional)
+
+The local development launcher also supports Meta's chat-completions API. The Meta
+provider defaults to model ID `muse-spark-1.3`; confirm that this model is enabled
+for your account before switching providers. Set `META_API_KEY` in your local
+environment (never commit or paste it into chat), then run:
+
+```sh
+.venv/bin/python -m deployment.dev --provider meta --model-id muse-spark-1.3 --build
+```
+
+The launcher stores private runtime settings in ignored `dist/core-runtime.env`
+with mode 0600. Drafts are sent only after a researcher explicitly requests one,
+using the selected sources; the API request reserves a bounded 512 tokens for
+reasoning in addition to the 512-token draft budget. This is a real external model
+call and may incur account usage. Run fixture mode again for no-cost demos and
+browser tests. Verbatim quote checks do not prove that a generated claim is true;
+review every suggestion before appending it to a proposal.
+
 ## Evidence
 
 See [core acceptance](../qa/core-acceptance.md) and its JSON evidence. On 2026-10-31,

@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from .runtime import ROOT, RuntimeConfig
+from src.platform.models.provider import DEFAULT_META_MODEL_ID
 from .start import read_settings
 from .readiness import wait_for_runtime
 
@@ -40,7 +41,7 @@ def configure_development(path: Path, provider: str, base_url: str | None, model
         values.update(META_API_KEY=key,
                       MODEL_API_KEY=key,
                       TBR_MODEL_BASE_URL=base_url or 'https://api.meta.ai/v1',
-                      TBR_MODEL_ID=model_id or 'muse-spark-1.3')
+                      TBR_MODEL_ID=model_id or DEFAULT_META_MODEL_ID)
     else:
         values.pop('TBR_MODEL_BASE_URL', None)
         values.pop('TBR_MODEL_ID', None)

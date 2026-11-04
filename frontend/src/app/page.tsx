@@ -5,12 +5,10 @@ import Link from 'next/link';
 import {
   FileText,
   Users,
-  Network,
   Search,
   Sparkles,
   ShieldCheck,
   Layers,
-  ArrowRight,
   ExternalLink,
   Plus,
   Trash2,
@@ -22,6 +20,8 @@ import {
   HelpCircle,
   BookOpen,
   MessageSquare,
+  PanelRight,
+  CircleHelp,
   Bold,
   Italic,
   List,
@@ -34,8 +34,6 @@ import {
   Edit3,
   Columns,
   X,
-  ChevronRight,
-  ChevronLeft,
 } from 'lucide-react';
 import {
   api,
@@ -45,16 +43,22 @@ import {
   type CollaboratorMatch,
   type DraftJob,
   type Invitation,
+  type ModelInfo,
   type Proposal,
   type SearchPage,
   type SourceSnapshot,
   type Team,
+  type TeamMember,
   type User,
 } from '@/lib/api';
 import { appendSuggestion, canApplyDraft, hasEdits, safeOrigin, renderMarkdownSimple } from '@/lib/editor';
+import AppSidebar, { type AppView } from '@/components/AppSidebar';
+import ContextPanel, { type ContextTab } from '@/components/ContextPanel';
 import PursuitPanel from '@/components/PursuitPanel';
 import ShortlistPanel from '@/components/ShortlistPanel';
 import TeamMembersPanel from '@/components/TeamMembersPanel';
+import WorkspaceTopBar from '@/components/WorkspaceTopBar';
+import PublicLanding from '@/components/PublicLanding';
 import GraphViewer from '@/components/GraphViewer';
 import ChatInterface from '@/components/ChatInterface';
 import CitationPanel from '@/components/CitationPanel';
@@ -81,15 +85,45 @@ function OriginLink({ value }: { value: string }) {
   );
 }
 
+function DraftText({
+  text,
+  citations,
+  jobId,
+}: {
+  text: string;
+  citations: NonNullable<DraftJob['output']>['citations'];
+  jobId: string;
+}) {
+  const parts = text.split(/(\[[0-9a-f]{8}-[0-9a-f-]{27}\])/gi);
+  return (
+    <div className="draft-text-content">
+      {parts.map((part, index) => {
+        const sourceId = part.startsWith('[') ? part.slice(1, -1) : '';
+        const citationIndex = citations.findIndex(citation => citation.source_id === sourceId);
+        if (citationIndex < 0) return <span key={index}>{part}</span>;
+        return (
+          <a
+            key={index}
+            className="citation-chip"
+            href={`#draft-citation-${jobId}-${citationIndex}`}
+            aria-label={`Go to citation ${citationIndex + 1}: ${citations[citationIndex].title}`}
+          >
+            [{citationIndex + 1}]
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 function formatError(error: unknown) {
   return error instanceof Error ? error.message : 'The request failed. Please try again.';
 }
 
-type ViewTab = 'workspace' | 'collaborators' | 'graph' | 'search' | 'chat';
-
 export default function App() {
   const [checking, setChecking] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
 
   // Auth form states
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -98,16 +132,19 @@ export default function App() {
   const [name, setName] = useState('');
 
   // App navigation & status
-  const [currentView, setCurrentView] = useState<ViewTab>('workspace');
+  const [currentView, setCurrentView] = useState<AppView>('workspace');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(true);
 
   // Team states
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamId, setTeamId] = useState('');
   const [teamName, setTeamName] = useState('');
   const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
 
@@ -122,12 +159,7 @@ export default function App() {
   const [conflict, setConflict] = useState<Proposal | null>(null);
   const [activePdf, setActivePdf] = useState<{ id: string; title: string } | null>(null);
   const [collaboratorViewMode, setCollaboratorViewMode] = useState<'synthesizer' | 'lexical'>('synthesizer');
-
-  // Right sidebar tab in Workspace
-  const [workspaceRightTab, setWorkspaceRightTab] = useState<'evidence' | 'ai'>('evidence');
-  const [workspaceLeftTab, setWorkspaceLeftTab] = useState<'proposals' | 'team' | 'shortlist'>('proposals');
   const [editorMode, setEditorMode] = useState<'edit' | 'split' | 'preview'>('edit');
-  const [evidenceCollapsed, setEvidenceCollapsed] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const insertFormatting = (prefix: string, suffix: string = '') => {
@@ -157,12 +189,14 @@ export default function App() {
     } else if (templateType === 'darpa') {
       templateText = `# Technical Proposal & Approach\n\n## 1. Executive Summary & Problem Statement\n[Define the critical operational challenge and state-of-the-art limitations.]\n\n## 2. Proposed Technical Breakthrough\n[Describe the transformative technology, architecture, and expected performance gains.]\n\n## 3. Measurable Technical Milestones\n- Month 6: Proof-of-concept prototype demonstrating 2x efficiency.\n- Month 12: Laboratory validation and stress testing under adversarial conditions.\n- Month 18: Full system demonstration and transition plan.\n\n## 4. Risk Mitigation Matrix\n[Identify high-risk technical barriers and corresponding mitigation protocols.]`;
     }
-    if (!content.trim()) {
-      setContent(templateText);
-    } else {
-      setContent((prev) => `${prev.trimEnd()}\n\n${templateText}`);
+    if (templateText) {
+      setContent((prev) => (prev.trim() ? `${prev}\n\n${templateText}` : templateText));
     }
   };
+
+  // Right sidebar tab in Workspace
+  const [workspaceRightTab, setWorkspaceRightTab] = useState<ContextTab>('ai');
+  const contextTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Manual source state
   const [sourceTitle, setSourceTitle] = useState('');
@@ -191,6 +225,7 @@ export default function App() {
   const [matchingBusy, setMatchingBusy] = useState(false);
   const [savedCollaboratorIds, setSavedCollaboratorIds] = useState<string[]>([]);
   const [chatCitations, setChatCitations] = useState<ChatCitation[]>([]);
+  const [evidenceCollapsed, setEvidenceCollapsed] = useState(false);
 
   const opening = useRef(0);
   const selectedTeam = teams.find((team) => team.id === teamId);
@@ -236,6 +271,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (window.matchMedia('(max-width: 760px)').matches) setContextOpen(false);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     api
       .me()
@@ -262,6 +301,42 @@ export default function App() {
   }, [user, refreshLists]);
 
   useEffect(() => {
+    if (!user) {
+      setModelInfo(null);
+      return;
+    }
+    let active = true;
+    api.modelInfo()
+      .then((result) => {
+        if (active) setModelInfo(result);
+      })
+      .catch((err) => {
+        if (active) setError(formatError(err));
+      });
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!selectedTeam) {
+      setTeamMembers([]);
+      return;
+    }
+    let active = true;
+    api.teamDetails(selectedTeam.id)
+      .then(details => {
+        if (active) setTeamMembers(details.members);
+      })
+      .catch(err => {
+        if (active) setError(formatError(err));
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedTeam?.id]);
+
+  useEffect(() => {
     if (!dirty && !shortlistDirty) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -281,6 +356,19 @@ export default function App() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const submitAuth = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void run(async () => {
+      const res = await api.authenticate(authMode, {
+        email,
+        password,
+        ...(authMode === 'register' ? { name } : {}),
+      });
+      setUser(res.user);
+      setPassword('');
+    });
   };
 
   const install = (next: Proposal) => {
@@ -311,7 +399,22 @@ export default function App() {
   const confirmDiscard = () =>
     window.confirm('Discard unsaved changes and continue? Copy your text first if you want to keep it.');
 
-  const guardEdits = () => !dirty || confirmDiscard();
+  const guardEdits = () => (!dirty && !shortlistDirty) || confirmDiscard();
+
+  const navigateView = (view: AppView) => {
+    if (view === currentView || guardEdits()) {
+      setCurrentView(view);
+      setSidebarOpen(false);
+    }
+  };
+
+  const createProposal = async (proposalTitle: string) => {
+    if (!teamId || !guardEdits()) return;
+    await run(async () => {
+      const created = await api.createProposal(teamId, proposalTitle);
+      await openProposal(created.id);
+    });
+  };
 
   const activateTeam = (nextTeamId: string) => {
     if (nextTeamId !== teamId) {
@@ -323,7 +426,7 @@ export default function App() {
   };
 
   const changeTeam = (nextTeamId: string) => {
-    if (canChangeTeam(teamId, nextTeamId, dirty, confirmDiscard)) {
+    if (canChangeTeam(teamId, nextTeamId, dirty || shortlistDirty, confirmDiscard)) {
       activateTeam(nextTeamId);
     }
   };
@@ -366,7 +469,7 @@ export default function App() {
       setJobs((previous) => [next, ...previous]);
       setJobId(next.id);
       setWorkspaceRightTab('ai');
-      setNotice('Draft queued with Meta Llama model. You can keep editing while it runs.');
+      setNotice('Draft queued. Review the suggestion and its sources before adding it to your proposal.');
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         setError(`Draft was not queued: ${error.message}`);
@@ -489,304 +592,221 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="landing-page">
-        {/* Navigation Bar */}
-        <header className="landing-topbar">
-          <div className="brand">
-            <span className="brand-mark small">trb</span>
-            <div>
-              <strong>Tiger Research Buddy</strong>
-              <small>RIT Academic Research Platform</small>
-            </div>
-          </div>
-          <div className="landing-topbar-actions">
-            <a href="#features" className="button text-button">Features</a>
-            <a href="#auth" className="button primary">Sign In / Register</a>
-          </div>
-        </header>
-
-        {/* Hero Section */}
-        <section className="landing-hero">
-          <div className="landing-hero-content">
-            <div className="hero-pill">
-              <Sparkles className="w-4 h-4 text-[#225bb2]" />
-              <span>Evidence-Grounded AI Research Co-Authoring</span>
-            </div>
-            <h1>
-              From First Research Idea<br />to Funded, Cited Proposal.
-            </h1>
-            <p className="hero-description">
-              Tiger Research Buddy unites RIT faculty discovery, institutional knowledge graphs,
-              and hallucination-free Meta Llama AI drafting—validating every claim word-for-word against verified sources.
-            </p>
-            <div className="hero-actions">
-              <a href="#auth" className="button primary large">
-                <span>Start Researching</span>
-                <ArrowRight className="w-4 h-4" />
-              </a>
-              <a href="#features" className="button large">
-                Explore Core Capabilities
-              </a>
-            </div>
-          </div>
-
-          {/* Auth Card */}
-          <div id="auth" className="landing-auth-card">
-            <div className="auth-tabs">
-              <button
-                type="button"
-                className={`auth-tab ${authMode === 'login' ? 'active' : ''}`}
-                onClick={() => {
-                  setAuthMode('login');
-                  setError('');
-                }}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                className={`auth-tab ${authMode === 'register' ? 'active' : ''}`}
-                onClick={() => {
-                  setAuthMode('register');
-                  setError('');
-                }}
-              >
-                Create Account
-              </button>
-            </div>
-
-            {error && (
-              <div className="alert error" role="alert">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void run(async () => {
-                  const res = await api.authenticate(authMode, {
-                    email,
-                    password,
-                    ...(authMode === 'register' ? { name } : {}),
-                  });
-                  setUser(res.user);
-                  setPassword('');
-                });
-              }}
-            >
-              {authMode === 'register' && (
-                <label>
-                  Full name
-                  <input
-                    type="text"
-                    placeholder="e.g. Dr. Alex River"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    maxLength={100}
-                  />
-                </label>
-              )}
-              <label>
-                Academic email
-                <input
-                  type="email"
-                  placeholder="name@rit.edu"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </label>
-              <label>
-                Password
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  minLength={authMode === 'register' ? 12 : undefined}
-                  maxLength={1024}
-                  required
-                />
-                {authMode === 'register' && (
-                  <span className="muted">Minimum 12 characters.</span>
-                )}
-              </label>
-              <button className="primary wide" disabled={busy}>
-                {busy ? 'Verifying credentials…' : authMode === 'login' ? 'Sign In to Workspace' : 'Create Free Account'}
-              </button>
-            </form>
-          </div>
-        </section>
-
-        {/* Feature Grid Section */}
-        <section id="features" className="landing-features">
-          <div className="features-header">
-            <h2>Engineered for Transparent Research Collaboration</h2>
-            <p className="muted">
-              Built on verified public university records, revision-locked proposals, and strict quotation bounds.
-            </p>
-          </div>
-
-          <div className="feature-cards-grid">
-            <article className="feature-card">
-              <div className="feature-icon-wrapper faculty">
-                <Users className="w-6 h-6 text-[#225bb2]" />
-              </div>
-              <h3>Faculty Collaborator Matching</h3>
-              <p>
-                Describe your research hypothesis or grant scope. The platform computes term coverage across RIT faculty profiles and publications, showing exact matched evidence without fabricating unearned connections.
-              </p>
-            </article>
-
-            <article className="feature-card">
-              <div className="feature-icon-wrapper graph">
-                <Network className="w-6 h-6 text-[#14766d]" />
-              </div>
-              <h3>Public Knowledge Graph</h3>
-              <p>
-                Explore interdisciplinary relationships visually. Inspect actual co-authorship networks, university departments, and research clusters with direct provenance links.
-              </p>
-            </article>
-
-            <article className="feature-card">
-              <div className="feature-icon-wrapper ai">
-                <Sparkles className="w-6 h-6 text-[#d97706]" />
-              </div>
-              <h3>Evidence-Grounded AI Drafting</h3>
-              <p>
-                Powered by Meta Llama API. Every generated claim is validated word-for-word against your selected sources. If a quote is not found verbatim in the evidence, the draft is rejected before it can pollute your proposal.
-              </p>
-            </article>
-
-            <article className="feature-card">
-              <div className="feature-icon-wrapper workspace">
-                <FileText className="w-6 h-6 text-[#4f46e5]" />
-              </div>
-              <h3>Collaborative Workspace & Grants</h3>
-              <p>
-                Co-author with your research team. Enforce role boundaries (Owner, Editor, Viewer), resolve simultaneous edit conflicts safely, and manage submissions across the full grant pursuit lifecycle.
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <footer className="landing-footer">
-          <p>© 2026 Tiger Research Buddy · ResearchCircle · RIT Research Platform</p>
-        </footer>
-      </div>
+      <PublicLanding
+        authMode={authMode}
+        email={email}
+        password={password}
+        name={name}
+        busy={busy}
+        error={error}
+        onModeChange={(mode) => {
+          setAuthMode(mode);
+          setError('');
+        }}
+        onEmailChange={setEmail}
+        onPasswordChange={setPassword}
+        onNameChange={setName}
+        onSubmit={submitAuth}
+      />
     );
   }
 
   // -------------------------------------------------------------
   // VIEW: AUTHENTICATED APPLICATION
   // -------------------------------------------------------------
+  const inviteForm = selectedTeam?.role === 'owner' ? (
+    <form
+      onSubmit={event => {
+        event.preventDefault();
+        void run(async () => {
+          await api.invite(teamId, inviteEmail, inviteRole);
+          setInviteEmail('');
+          setNotice('Invitation sent.');
+        });
+      }}
+    >
+      <label>
+        Email address
+        <input
+          type="email"
+          value={inviteEmail}
+          onChange={event => setInviteEmail(event.target.value)}
+          placeholder="colleague@rit.edu"
+          required
+        />
+      </label>
+      <label>
+        Role
+        <select
+          value={inviteRole}
+          onChange={event => setInviteRole(event.target.value as 'editor' | 'viewer')}
+        >
+          <option value="editor">Editor</option>
+          <option value="viewer">Viewer (read only)</option>
+        </select>
+      </label>
+      <button className="primary" disabled={busy}>Send invitation</button>
+    </form>
+  ) : (
+    <p className="muted">Only a team owner can invite members.</p>
+  );
+
+  const teamSettingsContent = (
+    <div className="team-settings-sections">
+      {selectedTeam && user && (
+        <section>
+          <h3>Members and access</h3>
+          <TeamMembersPanel
+            key={selectedTeam.id}
+            team={selectedTeam}
+            currentUserId={user.id}
+            onChanged={async () => {
+              await refreshLists();
+              const details = await api.teamDetails(selectedTeam.id);
+              setTeamMembers(details.members);
+            }}
+            beforeSelfChange={() => (!dirty && !shortlistDirty) || confirmDiscard()}
+          />
+        </section>
+      )}
+      {selectedTeam?.role === 'owner' && (
+        <section>
+          <h3>Invite a teammate</h3>
+          {inviteForm}
+        </section>
+      )}
+      <section>
+        <h3>Create another team</h3>
+        <form
+          onSubmit={event => {
+            event.preventDefault();
+            if (guardEdits()) {
+              void run(async () => {
+                const nextTeam = await api.createTeam(teamName);
+                setTeamName('');
+                await refreshLists();
+                activateTeam(nextTeam.id);
+                setNotice('Team created.');
+              });
+            }
+          }}
+        >
+          <label>
+            New team name
+            <input value={teamName} onChange={event => setTeamName(event.target.value)} required maxLength={160} />
+          </label>
+          <button type="submit" disabled={busy}>Create team</button>
+        </form>
+      </section>
+      {invitations.length > 0 && (
+        <section>
+          <h3>Pending invitations</h3>
+          {invitations.map(invite => (
+            <div className="invite-row" key={invite.id}>
+              <span>{invite.team_name} ({invite.role})</span>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  if (canChangeTeam(teamId, invite.team_id, dirty, confirmDiscard)) {
+                    void run(async () => {
+                      const accepted = await api.accept(invite.id);
+                      await refreshLists();
+                      activateTeam(accepted.team_id);
+                      setNotice('Invitation accepted.');
+                    });
+                  }
+                }}
+              >
+                Accept
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
+    </div>
+  );
+
+  const shortlistContent = selectedTeam ? (
+    <details className="sidebar-shortlist-details">
+      <summary>Team shortlist</summary>
+      <ShortlistPanel
+        team={selectedTeam}
+        proposal={proposal}
+        attachedSourceIds={sources.map(source => source.id)}
+        refreshVersion={shortlistVersion}
+        workspaceBusy={busy}
+        noteDrafts={shortlistDrafts[teamId] ?? {}}
+        onNoteChange={(entryId, value, savedNote) =>
+          setShortlistDrafts(previous => editShortlistDraft(previous, teamId, entryId, value, savedNote))
+        }
+        onNoteSaved={(entryId, savedNote) =>
+          setShortlistDrafts(previous => acknowledgeShortlistDraft(previous, teamId, entryId, savedNote))
+        }
+        onRemove={entryId =>
+          setShortlistDrafts(previous => {
+            const notes = { ...previous[teamId] };
+            delete notes[entryId];
+            return { ...previous, [teamId]: notes };
+          })
+        }
+        onAttach={sourceId =>
+          run(async () => {
+            if (!proposal || !canAttachToProposal(teamId, proposal)) return;
+            const source = await api.attach(proposal.id, sourceId);
+            setSources(previous => [...previous.filter(item => item.id !== source.id), source]);
+            setNotice('Shortlisted source attached to proposal.');
+          })
+        }
+      />
+    </details>
+  ) : null;
+
   return (
     <div className="workspace-app">
-      {/* Top Application Bar */}
-      <header className="app-topbar">
-        <div className="brand" onClick={() => setCurrentView('workspace')} style={{ cursor: 'pointer' }}>
-          <span className="brand-mark small">trb</span>
-          <div className="brand-titles">
-            <strong>Tiger Research Buddy</strong>
-            <small>Research Workspace</small>
-          </div>
-        </div>
-
-        {/* Primary Navigation Tabs */}
-        <nav className="main-nav-tabs" aria-label="Main Navigation">
-          <button
-            type="button"
-            className={`nav-tab ${currentView === 'workspace' ? 'active' : ''}`}
-            onClick={() => setCurrentView('workspace')}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Workspace & Editor</span>
-            {proposal && <span className="tab-badge active-proposal">{proposal.title.slice(0, 18)}…</span>}
-          </button>
-          <button
-            type="button"
-            className={`nav-tab ${currentView === 'collaborators' ? 'active' : ''}`}
-            onClick={() => setCurrentView('collaborators')}
-          >
-            <Users className="w-4 h-4" />
-            <span>Find Collaborators</span>
-          </button>
-          <button
-            type="button"
-            className={`nav-tab ${currentView === 'graph' ? 'active' : ''}`}
-            onClick={() => setCurrentView('graph')}
-          >
-            <Network className="w-4 h-4" />
-            <span>Knowledge Graph</span>
-          </button>
-          <button
-            type="button"
-            className={`nav-tab ${currentView === 'search' ? 'active' : ''}`}
-            onClick={() => setCurrentView('search')}
-          >
-            <Search className="w-4 h-4" />
-            <span>Literature Search</span>
-          </button>
-          <button
-            type="button"
-            className={`nav-tab ${currentView === 'chat' ? 'active' : ''}`}
-            onClick={() => setCurrentView('chat')}
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>Research Chat</span>
-            {chatCitations.length > 0 && (
-              <span className="tab-badge">{chatCitations.length} citations</span>
-            )}
-          </button>
-        </nav>
-
-        {/* Right Header Section: Active Team Switcher & User Menu */}
-        <div className="topbar-user-area">
-          <div className="team-picker">
-            <span className="team-picker-label">Team:</span>
-            <select
-              value={teamId}
-              disabled={busy}
-              onChange={(e) => changeTeam(e.target.value)}
-              className="team-select"
-            >
-              <option value="" disabled>Choose a team</option>
-              {teams.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} ({t.role})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="user-profile">
-            <div className="user-info">
-              <span className="user-name">{user.name}</span>
-              <small className="user-email">{user.email}</small>
-            </div>
-            <button
-              type="button"
-              className="logout-button"
-              disabled={busy}
-              onClick={() => {
-                if ((!dirty && !shortlistDirty) || confirmDiscard()) {
-                  void run(async () => {
-                    await api.logout();
-                    setShortlistDrafts({});
-                    clearEditor();
-                    setTeamId('');
-                    setUser(null);
-                  });
-                }
-              }}
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      </header>
+      <WorkspaceTopBar
+        currentView={currentView}
+        title={title}
+        teams={teams}
+        teamId={teamId}
+        members={teamMembers}
+        user={user}
+        busy={busy}
+        sidebarOpen={sidebarOpen}
+        settingsContent={teamSettingsContent}
+        inviteContent={inviteForm}
+        onTeamChange={changeTeam}
+        onToggleSidebar={() => setSidebarOpen(value => !value)}
+        onSignOut={() => {
+          if ((!dirty && !shortlistDirty) || confirmDiscard()) {
+            void run(async () => {
+              await api.logout();
+              setShortlistDrafts({});
+              clearEditor();
+              setTeamId('');
+              setUser(null);
+            });
+          }
+        }}
+      />
+      <div className="app-shell-body">
+        <AppSidebar
+          currentView={currentView}
+          busy={busy}
+          canEdit={selectedTeam?.role !== 'viewer'}
+          proposals={proposals}
+          teamId={teamId}
+          activeProposalId={proposal?.id ?? null}
+          mobileOpen={sidebarOpen}
+          shortlist={shortlistContent}
+          onNavigate={navigateView}
+          onOpenProposal={id => {
+            if (guardEdits()) void run(() => openProposal(id));
+          }}
+          onCreateProposal={createProposal}
+          onMobileClose={() => setSidebarOpen(false)}
+        />
+        <div className="app-content">
 
       {/* Global Notice / Error Alerts */}
       <div className="feedback-banner" aria-live="polite">
@@ -810,110 +830,17 @@ export default function App() {
       {/* VIEW 1: PROPOSALS & WORKSPACE                                  */}
       {/* ------------------------------------------------------------- */}
       {currentView === 'workspace' && (
-        <div className="workspace-tri-grid">
-          {/* Left Column: Teams, Members, & Proposals */}
-          <aside className="workspace-sidebar" aria-label="Teams and proposals">
-            <div className="workspace-sidebar-tabs">
-              <button
-                type="button"
-                className={`sidebar-tab-btn ${workspaceLeftTab === 'proposals' ? 'active' : ''}`}
-                onClick={() => setWorkspaceLeftTab('proposals')}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Proposals ({proposals.filter((item) => item.team_id === teamId).length})</span>
-              </button>
-              <button
-                type="button"
-                className={`sidebar-tab-btn ${workspaceLeftTab === 'team' ? 'active' : ''}`}
-                onClick={() => setWorkspaceLeftTab('team')}
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>Team & Access</span>
-              </button>
-              <button
-                type="button"
-                className={`sidebar-tab-btn ${workspaceLeftTab === 'shortlist' ? 'active' : ''}`}
-                onClick={() => setWorkspaceLeftTab('shortlist')}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Shortlist</span>
-              </button>
-            </div>
-
-            {/* TAB 1: PROPOSALS */}
-            {workspaceLeftTab === 'proposals' && (
+        <div className={`workspace-editor-layout ${contextOpen ? 'with-context-panel' : ''}`}>
+          {false && <aside className="workspace-sidebar" aria-label="Teams and proposals">
+            <details className="workspace-utility-card">
+              <summary>Team settings, members & invitations</summary>
+              <p className="workspace-help">
+                Use these settings to manage who can work on this team. Editors can change proposals;
+                viewers can only read them.
+              </p>
               <div className="sidebar-section">
                 <div className="sidebar-header">
-                  <h3>Team Proposals</h3>
-                  <span className="count-pill">
-                    {proposals.filter((item) => item.team_id === teamId).length}
-                  </span>
-                </div>
-
-                <div className="proposals-list" role="list">
-                  {proposals
-                    .filter((item) => item.team_id === teamId)
-                    .map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className={`proposal-item ${item.id === proposal?.id ? 'active' : ''}`}
-                        disabled={busy}
-                        onClick={() => {
-                          if (guardEdits()) void run(() => openProposal(item.id));
-                        }}
-                      >
-                        <FileText className="w-4 h-4 shrink-0" />
-                        <div className="proposal-item-text">
-                          <span className="proposal-title">{item.title}</span>
-                          <small className="muted">Revision {item.revision}</small>
-                        </div>
-                      </button>
-                    ))}
-
-                  {!proposals.some((item) => item.team_id === teamId) && (
-                    <p className="empty">No proposals in this team yet.</p>
-                  )}
-                </div>
-
-                <form
-                  className="new-proposal-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (guardEdits()) {
-                      void run(async () => {
-                        const next = await api.createProposal(teamId, newTitle);
-                        await openProposal(next.id);
-                        setNewTitle('');
-                      });
-                    }
-                  }}
-                >
-                  <input
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="New proposal title…"
-                    required
-                    maxLength={240}
-                    disabled={!teamId || selectedTeam?.role === 'viewer'}
-                  />
-                  <button
-                    type="submit"
-                    className="primary wide"
-                    disabled={busy || !teamId || selectedTeam?.role === 'viewer'}
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Create Proposal</span>
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* TAB 2: TEAM & ACCESS */}
-            {workspaceLeftTab === 'team' && (
-              <div className="sidebar-section">
-                <div className="sidebar-header">
-                  <h3>Teams & Access</h3>
+                  <h3>Team access</h3>
                   <button type="button" className="text-button" onClick={() => void run(refreshLists)}>
                     Refresh
                   </button>
@@ -921,9 +848,9 @@ export default function App() {
 
                 {selectedTeam && user && (
                   <TeamMembersPanel
-                    key={selectedTeam.id}
-                    team={selectedTeam}
-                    currentUserId={user.id}
+                    key={selectedTeam?.id}
+                    team={selectedTeam!}
+                    currentUserId={user!.id}
                     onChanged={refreshLists}
                     beforeSelfChange={() => (!dirty && !shortlistDirty) || confirmDiscard()}
                   />
@@ -1021,71 +948,157 @@ export default function App() {
                   </div>
                 )}
               </div>
-            )}
+            </details>
 
-            {/* TAB 3: SHORTLIST */}
-            {workspaceLeftTab === 'shortlist' && selectedTeam && (
-              <div className="sidebar-section">
-                <ShortlistPanel
-                  team={selectedTeam}
-                  proposal={proposal}
-                  attachedSourceIds={sources.map((s) => s.id)}
-                  refreshVersion={shortlistVersion}
-                  workspaceBusy={busy}
-                  noteDrafts={shortlistDrafts[teamId] ?? {}}
-                  onNoteChange={(entryId, val, savedNote) =>
-                    setShortlistDrafts((prev) => editShortlistDraft(prev, teamId, entryId, val, savedNote))
-                  }
-                  onNoteSaved={(entryId, savedNote) =>
-                    setShortlistDrafts((prev) => acknowledgeShortlistDraft(prev, teamId, entryId, savedNote))
-                  }
-                  onRemove={(entryId) =>
-                    setShortlistDrafts((prev) => {
-                      const notes = { ...prev[teamId] };
-                      delete notes[entryId];
-                      return { ...prev, [teamId]: notes };
-                    })
-                  }
-                  onAttach={(sourceId) =>
-                    run(async () => {
-                      if (!proposal || !canAttachToProposal(teamId, proposal)) return;
-                      const source = await api.attach(proposal.id, sourceId);
-                      setSources((prev) => [...prev.filter((i) => i.id !== source.id), source]);
-                      setNotice('Shortlisted source attached to proposal.');
-                    })
-                  }
-                />
+            <section className="sidebar-section workspace-step-card" aria-labelledby="proposal-select-heading">
+              <div className="workspace-step-heading">
+                <span className="workspace-step-number" aria-hidden="true">1</span>
+                <div>
+                  <h2 id="proposal-select-heading">Choose or create a proposal</h2>
+                  <p>A proposal is the shared document for one research idea. Open one to continue, or create one to start fresh. The saved version number changes when edits are saved.</p>
+                </div>
+                <span className="count-pill">
+                  {proposals.filter((item) => item.team_id === teamId).length}{' '}
+                  {proposals.filter((item) => item.team_id === teamId).length === 1 ? 'proposal' : 'proposals'}
+                </span>
               </div>
-            )}
-          </aside>
 
-          {/* Center Column: Focused Proposal Editor */}
+              <div className="proposals-list" role="list">
+                {proposals
+                  .filter((item) => item.team_id === teamId)
+                  .map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`proposal-item ${item.id === proposal?.id ? 'active' : ''}`}
+                      disabled={busy}
+                      onClick={() => {
+                        if (guardEdits()) void run(() => openProposal(item.id));
+                      }}
+                    >
+                      <FileText className="w-4 h-4 shrink-0" />
+                      <div className="proposal-item-text">
+                        <span className="proposal-title">{item.title}</span>
+                        <small className="muted">
+                          {item.id === proposal?.id ? 'Currently open · ' : ''}Saved version {item.revision}
+                        </small>
+                      </div>
+                    </button>
+                  ))}
+
+                {!proposals.some((item) => item.team_id === teamId) && (
+                  <p className="empty">No proposals in this team yet.</p>
+                )}
+              </div>
+
+              <form
+                className="new-proposal-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (guardEdits()) {
+                    void run(async () => {
+                      const next = await api.createProposal(teamId, newTitle);
+                      await openProposal(next.id);
+                      setNewTitle('');
+                    });
+                  }
+                }}
+              >
+                <input
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="Name your research idea…"
+                  required
+                  maxLength={240}
+                  disabled={!teamId || selectedTeam?.role === 'viewer'}
+                />
+                <button
+                  type="submit"
+                  className="primary wide"
+                  disabled={busy || !teamId || selectedTeam?.role === 'viewer'}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Create Proposal</span>
+                </button>
+              </form>
+            </section>
+
+            {/* Team Shortlist Preview */}
+            {selectedTeam && (
+              <details className="workspace-utility-card">
+                <summary>Manage team shortlist</summary>
+                <p className="workspace-help">
+                  A shortlist is a team-wide holding area for papers and researcher profiles. Attach a saved
+                  source to the open proposal when you are ready to use it.
+                </p>
+                <div className="sidebar-section">
+                  <ShortlistPanel
+                    team={selectedTeam!}
+                    proposal={proposal}
+                    attachedSourceIds={sources.map((s) => s.id)}
+                    refreshVersion={shortlistVersion}
+                    workspaceBusy={busy}
+                    noteDrafts={shortlistDrafts[teamId] ?? {}}
+                    onNoteChange={(entryId, val, savedNote) =>
+                      setShortlistDrafts((prev) => editShortlistDraft(prev, teamId, entryId, val, savedNote))
+                    }
+                    onNoteSaved={(entryId, savedNote) =>
+                      setShortlistDrafts((prev) => acknowledgeShortlistDraft(prev, teamId, entryId, savedNote))
+                    }
+                    onRemove={(entryId) =>
+                      setShortlistDrafts((prev) => {
+                        const notes = { ...prev[teamId] };
+                        delete notes[entryId];
+                        return { ...prev, [teamId]: notes };
+                      })
+                    }
+                    onAttach={(sourceId) =>
+                      run(async () => {
+                        if (!proposal || !canAttachToProposal(teamId, proposal)) return;
+                        const source = await api.attach(proposal.id, sourceId);
+                        setSources((prev) => [...prev.filter((i) => i.id !== source.id), source]);
+                        setNotice('Shortlisted source attached to proposal.');
+                      })
+                    }
+                  />
+                </div>
+              </details>
+            )}
+          </aside>}
+
           <main id="main" className="workspace-editor-canvas">
             {proposal ? (
               <div className="editor-card">
-                <div className="editor-top-controls">
-                  <div>
-                    <span className="badge team-badge">
-                      {selectedTeam?.name ?? 'Team proposal'} · {proposal.role} access
-                    </span>
-                    <span className={`save-status-pill ${dirty ? 'unsaved' : 'saved'}`}>
-                      {dirty ? '● Unsaved changes' : `✓ Saved · Revision ${proposal.revision}`}
-                    </span>
-                  </div>
-
-                  <div className="editor-btn-group">
+                <div className="editor-toolbar">
+                  <label className="editor-title-input">
+                    <span className="sr-only">Proposal title</span>
+                    <input
+                      value={title}
+                      onChange={event => setTitle(event.target.value)}
+                      maxLength={240}
+                      required
+                      disabled={busy || !editable}
+                      placeholder="Untitled proposal"
+                    />
+                  </label>
+                  <span className={`save-status-pill ${dirty ? 'unsaved' : 'saved'}`} role="status">
+                    {dirty ? 'Unsaved changes' : `Saved · v${proposal.revision}`}
+                  </span>
+                  <div className="editor-toolbar-actions">
                     <button
                       type="button"
                       className="primary"
                       disabled={busy || !editable || !dirty || !title.trim() || !!conflict}
                       onClick={() => void run(() => save())}
                     >
-                      <Save className="w-4 h-4" />
-                      <span>Save changes</span>
+                      <Save className="w-4 h-4" aria-hidden="true" />
+                      <span>Save</span>
                     </button>
                     <button
                       type="button"
-                      className="button"
+                      className="icon-button"
+                      aria-label="Download proposal as Markdown"
+                      title="Download as Markdown"
                       disabled={busy}
                       onClick={() =>
                         void run(async () => {
@@ -1102,8 +1115,17 @@ export default function App() {
                         })
                       }
                     >
-                      <Download className="w-4 h-4" />
-                      <span>Export Markdown</span>
+                      <Download className="w-4 h-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      ref={contextTriggerRef}
+                      type="button"
+                      className="icon-button context-toggle"
+                      aria-label={contextOpen ? 'Close proposal tools' : 'Open proposal tools'}
+                      aria-expanded={contextOpen}
+                      onClick={() => setContextOpen(value => !value)}
+                    >
+                      <PanelRight className="w-4 h-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -1145,21 +1167,7 @@ export default function App() {
                   </section>
                 )}
 
-                {/* Title & Body Inputs */}
                 <div className="editor-inputs">
-                  <label className="title-field">
-                    <span>Proposal title</span>
-                    <input
-                      className="title-input-large"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      maxLength={240}
-                      required
-                      disabled={busy || !editable}
-                      placeholder="Title of research proposal…"
-                    />
-                  </label>
-
                   {/* Document Metrics & Mode Bar */}
                   <div className="editor-metrics-bar">
                     <div className="metrics-group">
@@ -1187,7 +1195,7 @@ export default function App() {
                         onClick={() => setEditorMode('edit')}
                         title="Editor only"
                       >
-                        <Edit3 className="w-3 h-3" />
+                        <Edit3 className="w-3.5 h-3.5" />
                         <span>Edit</span>
                       </button>
                       <button
@@ -1196,7 +1204,7 @@ export default function App() {
                         onClick={() => setEditorMode('split')}
                         title="Split view (Editor + Live Preview)"
                       >
-                        <Columns className="w-3 h-3" />
+                        <Columns className="w-3.5 h-3.5" />
                         <span>Split</span>
                       </button>
                       <button
@@ -1205,7 +1213,7 @@ export default function App() {
                         onClick={() => setEditorMode('preview')}
                         title="Formatted manuscript preview"
                       >
-                        <Eye className="w-3 h-3" />
+                        <Eye className="w-3.5 h-3.5" />
                         <span>Preview</span>
                       </button>
                     </div>
@@ -1269,8 +1277,8 @@ export default function App() {
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
                       disabled={busy || !editable}
-                      placeholder="Draft your proposal introduction, methodology, and aims here. You can request cited suggestions from the Evidence sidebar on the right…"
-                      rows={22}
+                      placeholder="Start with your research question, aims, or methods…"
+                      rows={26}
                     />
                   )}
 
@@ -1283,7 +1291,7 @@ export default function App() {
                         onChange={(e) => setContent(e.target.value)}
                         disabled={busy || !editable}
                         placeholder="Draft markdown text here…"
-                        rows={22}
+                        rows={26}
                       />
                       <div
                         className="editor-preview-pane"
@@ -1300,62 +1308,41 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Grant Pursuit Tracking */}
-                <div className="editor-pursuit-section">
-                  <PursuitPanel proposal={proposal} />
-                </div>
               </div>
             ) : (
               <div className="no-proposal-empty-state">
-                <div className="empty-icon-circle">
-                  <FileText className="w-8 h-8 text-[#225bb2]" />
-                </div>
-                <h2>Select or Create a Research Proposal</h2>
-                <p className="muted">
-                  Choose a proposal from the left sidebar to start editing, or create a new proposal.
-                  You can also explore collaborator recommendations or search the literature.
-                </p>
-                <div className="empty-quick-actions">
-                  <button type="button" className="button" onClick={() => setCurrentView('collaborators')}>
-                    <Users className="w-4 h-4" />
-                    <span>Find Collaborators</span>
-                  </button>
-                  <button type="button" className="button" onClick={() => setCurrentView('graph')}>
-                    <Network className="w-4 h-4" />
-                    <span>Explore Knowledge Graph</span>
-                  </button>
-                </div>
+                <strong>Choose a proposal from the sidebar, or create a new one.</strong>
+                <button type="button" className="text-button" onClick={() => { setWorkspaceRightTab('ai'); setContextOpen(true); }}>
+                  Draft with AI
+                </button>
               </div>
             )}
           </main>
 
-          {/* Right Column: Evidence & AI Assistant */}
-          <aside className="workspace-evidence-sidebar" aria-label="Evidence and AI Assistant">
-            <div className="sidebar-tab-switcher">
-              <button
-                type="button"
-                className={`sidebar-tab ${workspaceRightTab === 'evidence' ? 'active' : ''}`}
-                onClick={() => setWorkspaceRightTab('evidence')}
-              >
-                <span>Attached Evidence ({sources.length})</span>
-              </button>
-              <button
-                type="button"
-                className={`sidebar-tab ${workspaceRightTab === 'ai' ? 'active' : ''}`}
-                onClick={() => setWorkspaceRightTab('ai')}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Meta Llama Assistant</span>
-              </button>
-            </div>
+          <ContextPanel
+            userId={user.id}
+            activeTab={workspaceRightTab}
+            open={contextOpen}
+            sourceCount={sources.length}
+            triggerRef={contextTriggerRef}
+            onTabChange={setWorkspaceRightTab}
+            onOpenChange={setContextOpen}
+          >
+            <>
 
             {/* TAB: ATTACHED EVIDENCE */}
-            {workspaceRightTab === 'evidence' && (
+            {workspaceRightTab === 'sources' && (
               <div className="sidebar-tab-content">
                 <div className="tab-instructions">
                   <p className="muted">
-                    Sources selected below will ground AI draft suggestions. Every claim is strictly validated against these documents.
+                    Select sources to make them available to AI Draft.
                   </p>
+                  {proposal && (
+                    <p className="source-selection-count">
+                      {selected.length} of {sources.length} source{sources.length === 1 ? '' : 's'} selected
+                      for drafting.
+                    </p>
+                  )}
                 </div>
 
                 {!proposal && <p className="empty">Open a proposal to view attached sources.</p>}
@@ -1380,12 +1367,12 @@ export default function App() {
                         <div className="evidence-meta">
                           <strong>{s.title}</strong>
                           <small>
-                            {s.is_public ? 'Public literature' : 'Proposal source'} · Version {s.version}
+                            {s.is_public ? 'Public literature' : 'Added to this proposal'}
                           </small>
                         </div>
                       </label>
                       <details className="source-preview-details">
-                        <summary>View text excerpt</summary>
+                        <summary>Preview source text and link</summary>
                         <pre>{s.text}</pre>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
                           <OriginLink value={s.origin} />
@@ -1424,25 +1411,34 @@ export default function App() {
                         });
                       }}
                     >
-                      <input
-                        value={sourceTitle}
-                        onChange={(e) => setSourceTitle(e.target.value)}
-                        placeholder="Source title or label"
-                        required
-                      />
-                      <input
-                        value={sourceOrigin}
-                        onChange={(e) => setSourceOrigin(e.target.value)}
-                        placeholder="DOI or document URL"
-                        required
-                      />
-                      <textarea
-                        value={sourceText}
-                        onChange={(e) => setSourceText(e.target.value)}
-                        placeholder="Paste document text or excerpt…"
-                        rows={5}
-                        required
-                      />
+                      <label>
+                        Source title
+                        <input
+                          value={sourceTitle}
+                          onChange={(e) => setSourceTitle(e.target.value)}
+                          placeholder="For example, the paper title"
+                          required
+                        />
+                      </label>
+                      <label>
+                        Where it came from
+                        <input
+                          value={sourceOrigin}
+                          onChange={(e) => setSourceOrigin(e.target.value)}
+                          placeholder="Paste a web link or DOI"
+                          required
+                        />
+                      </label>
+                      <label>
+                        Source text
+                        <textarea
+                          value={sourceText}
+                          onChange={(e) => setSourceText(e.target.value)}
+                          placeholder="Paste the useful passage or document text…"
+                          rows={5}
+                          required
+                        />
+                      </label>
                       <button className="button small">Attach text</button>
                     </form>
                   </details>
@@ -1450,17 +1446,24 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB: META LLAMA AI DRAFTING */}
+            {/* TAB: AI DRAFTING */}
             {workspaceRightTab === 'ai' && (
               <div className="sidebar-tab-content">
                 <div className="ai-assistant-header">
                   <div className="ai-model-tag">
                     <Sparkles className="w-3.5 h-3.5 text-[#225bb2]" />
-                    <span>Meta Llama 3.3 (70B) Grounded</span>
+                    {modelInfo?.provider === 'fixture' && (
+                      <span className="fixture-badge" tabIndex={0} title="Sample response only; no live AI model call is made.">
+                        Demo fixture (no live model call)
+                        <CircleHelp className="w-3 h-3" aria-hidden="true" />
+                      </span>
+                    )}
+                    {modelInfo?.provider !== 'fixture' && (
+                      <span>{modelInfo?.display_name ?? 'AI Draft Assistant'}</span>
+                    )}
                   </div>
-                  <p className="muted">
-                    Request a cited section. Quotes are checked word-for-word against selected sources.
-                  </p>
+                  <p className="safety-note">Suggestions are never added automatically; review before adding.</p>
+                  <p className="safety-note">Verify every claim; an exact quote does not prove the surrounding claim.</p>
                 </div>
 
                 <form
@@ -1471,64 +1474,44 @@ export default function App() {
                   }}
                 >
                   <label>
-                    Target section
+                    Which part are you drafting?
                     <input
                       value={section}
                       onChange={(e) => setSection(e.target.value)}
-                      placeholder="e.g. Methodology, Objectives"
+                      placeholder="e.g. Research approach, objectives, or impact"
                       required
                       disabled={!proposal || !editable || busy}
                     />
                   </label>
-                  <div className="co-pilot-prompts-row">
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Quick Prompts:</span>
-                    <button
-                      type="button"
-                      className="co-pilot-chip"
-                      onClick={() => {
-                        setSection('Technical Approach & Methodology');
-                        setInstruction('Draft a rigorous methodology section synthesizing the key experimental techniques, architectures, and baseline evaluations from the selected evidence sources.');
-                      }}
-                    >
-                      <Sparkles className="w-3 h-3 text-blue-500" />
-                      <span>Methodology from Evidence</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="co-pilot-chip"
-                      onClick={() => {
-                        setSection('Intellectual Merit');
-                        setInstruction('Draft the Intellectual Merit section highlighting the novelty, technological gap, and primary scientific breakthroughs addressed in this proposal.');
-                      }}
-                    >
-                      <Sparkles className="w-3 h-3 text-amber-500" />
-                      <span>Intellectual Merit</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="co-pilot-chip"
-                      onClick={() => {
-                        setSection('Broader Impacts');
-                        setInstruction('Draft the Broader Impacts section detailing the educational outreach, student training, and societal benefits of the proposed research.');
-                      }}
-                    >
-                      <Sparkles className="w-3 h-3 text-emerald-500" />
-                      <span>Broader Impacts</span>
-                    </button>
-                  </div>
-
                   <label>
-                    Drafting prompt
+                    What should the suggestion cover?
                     <textarea
                       value={instruction}
                       onChange={(e) => setInstruction(e.target.value)}
-                      placeholder="Describe what to draft based on the selected evidence…"
+                      placeholder="Ask for a specific draft based on your selected sources…"
                       rows={4}
                       maxLength={8000}
                       required
                       disabled={!proposal || !editable || busy}
                     />
                   </label>
+                  <div className="prompt-examples" aria-label="Example prompts">
+                    {[
+                      'Summarize the main approaches in these sources.',
+                      'Compare what the sources agree and disagree about.',
+                      'Identify an unanswered question suggested by these sources.',
+                    ].map(example => (
+                      <button
+                        key={example}
+                        type="button"
+                        className="prompt-chip"
+                        disabled={!proposal || busy}
+                        onClick={() => setInstruction(example)}
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
                   <button
                     className="primary wide"
                     disabled={
@@ -1546,7 +1529,7 @@ export default function App() {
                   </button>
                   {dirty && <p className="muted small">Save proposal changes before generating a draft.</p>}
                   {selected.length === 0 && proposal && (
-                    <p className="muted small">Select at least one source in the Evidence tab.</p>
+                    <p className="muted small">Select sources in the Sources tab first.</p>
                   )}
                 </form>
 
@@ -1601,7 +1584,9 @@ export default function App() {
 
                         {job.output && (
                           <div className="suggestion-body">
-                            <div className="suggestion-text">{job.output.text}</div>
+                            <div className="suggestion-text">
+                              <DraftText text={job.output.text} citations={job.output.citations} jobId={job.id} />
+                            </div>
                             {job.output.insufficient_evidence && (
                               <p className="alert warning">
                                 Model reported insufficient evidence in selected sources.
@@ -1639,7 +1624,12 @@ export default function App() {
                                 <p className="muted small">No direct quotes provided.</p>
                               )}
                               {job.output.citations.map((c, idx) => (
-                                <blockquote key={`${c.source_id}-${idx}`} className="citation-quote">
+                                <blockquote
+                                  key={`${c.source_id}-${idx}`}
+                                  id={`draft-citation-${job.id}-${idx}`}
+                                  className="citation-quote"
+                                >
+                                  <span className="citation-number">[{idx + 1}]</span>
                                   <p>“{c.quote}”</p>
                                   <footer>
                                     <strong>{c.title}</strong>
@@ -1667,7 +1657,13 @@ export default function App() {
                 )}
               </div>
             )}
-          </aside>
+            {workspaceRightTab === 'funding' && (
+              proposal
+                ? <PursuitPanel proposal={proposal} />
+                : <p className="empty">Open a proposal to track its funding progress.</p>
+            )}
+            </>
+          </ContextPanel>
         </div>
       )}
 
@@ -2008,25 +2004,8 @@ export default function App() {
             </p>
           </div>
 
-          <div className={`chat-container-grid ${evidenceCollapsed ? 'evidence-collapsed' : ''}`}>
+          <div className="chat-container-grid">
             <div className="chat-main-column">
-              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <button
-                  type="button"
-                  className="button small"
-                  onClick={() => setEvidenceCollapsed(!evidenceCollapsed)}
-                  title={evidenceCollapsed ? 'Show evidence side panel' : 'Hide evidence side panel'}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', padding: '3px 8px' }}
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>
-                    {evidenceCollapsed
-                      ? `Show Evidence Panel ${chatCitations.length > 0 ? `(${chatCitations.length})` : ''}`
-                      : 'Hide Evidence Panel'}
-                  </span>
-                </button>
-              </div>
-
               <ChatInterface
                 proposalId={proposal?.id}
                 proposalTitle={proposal?.title}
@@ -2059,6 +2038,8 @@ export default function App() {
           </div>
         </main>
       )}
+        </div>
+      </div>
 
       {activePdf && (
         <PdfViewerModal

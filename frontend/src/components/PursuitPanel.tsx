@@ -76,8 +76,8 @@ function ProposalPursuit({ proposal }: Props) {
   };
 
   return <section className="discovery pursuit-panel" aria-labelledby="pursuit-heading">
-    <div className="section-heading"><div><h2 id="pursuit-heading">Opportunity and outcome</h2><p className="muted">Keep a manual record of this proposal’s progress.</p></div><button disabled={busy || loading} onClick={() => void refresh()}>Refresh tracking</button></div>
-    <p className="muted">Recording “submitted” here does not submit anything to a funding portal. Unknown results remain submitted until you record an outcome.</p>
+    <div className="section-heading"><div><h2 id="pursuit-heading">Track funding progress</h2><p className="muted">Optionally link an opportunity and track progress.</p></div><button disabled={busy || loading} onClick={() => void refresh()}>Refresh tracking</button></div>
+    <p className="muted">Manual record only—applications are submitted outside this app.</p>
     {loading && <p role="status" className="empty">Loading proposal tracking…</p>}
     {busy && <p role="status" className="muted">Saving tracking record…</p>}
     {error && <p className="alert error" role="alert">{error}</p>}
@@ -89,7 +89,35 @@ function ProposalPursuit({ proposal }: Props) {
         if (!current()) return;
         setPursuit(saved.pursuit); setNotice('Proposal progress saved.');
       })}>
-        <fieldset disabled={locked} className="tracking-fields"><label>Linked opportunity<select value={opportunityId} onChange={event => setOpportunityId(event.target.value)}><option value="">No linked opportunity</option>{opportunities.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label><label>Proposal progress<select value={progressValue} onChange={event => setState(event.target.value as PursuitState)}>{terminal && <option value={progressValue}>Final outcome: {progressValue}</option>}<option value="draft">Draft</option><option value="shortlisted">Shortlisted</option><option value="collaborating">Collaborating</option><option value="submitted">Submitted (manually recorded)</option></select></label></fieldset>
+        <fieldset disabled={locked} className="tracking-fields">
+          <label>
+            Linked opportunity
+            <select value={opportunityId} onChange={event => setOpportunityId(event.target.value)}>
+              <option value="">No linked opportunity</option>
+              {opportunities.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+            </select>
+          </label>
+          <div className="tracking-progress-field">
+            <div className="tracking-progress-label">
+              <label htmlFor={`pursuit-progress-${proposal.id}`}>Proposal progress</label>
+              <details className="pursuit-info">
+                <summary aria-label="About Submitted status">i</summary>
+                <span>Submitted records that your team sent an application elsewhere; this workspace does not submit it.</span>
+              </details>
+            </div>
+            <select
+              id={`pursuit-progress-${proposal.id}`}
+              value={progressValue}
+              onChange={event => setState(event.target.value as PursuitState)}
+            >
+              {terminal && <option value={progressValue}>Final outcome: {progressValue}</option>}
+              <option value="draft">Draft</option>
+              <option value="shortlisted">Shortlisted</option>
+              <option value="collaborating">Collaborating</option>
+              <option value="submitted">Submitted</option>
+            </select>
+          </div>
+        </fieldset>
         <button className="tracking-save" disabled={locked}>Save proposal progress</button>
       </form>
       {opportunity && <div className="opportunity-summary"><h3>{opportunity.title}</h3><p>Eligibility: {opportunity.eligibility === 'unknown' ? 'Unknown; verify with the opportunity provider' : opportunity.eligibility}</p><p>{opportunity.deadline ? `Deadline: ${timestamp(opportunity.deadline)} (your local time)${opportunity.deadline_timezone ? `; recorded timezone ${opportunity.deadline_timezone}` : ''}` : 'Deadline: unknown'}</p>{opportunity.source_url && safeOrigin(opportunity.source_url) && <a href={safeOrigin(opportunity.source_url)} target="_blank" rel="noopener noreferrer">View opportunity source</a>}{opportunity.notes && <p className="tracking-notes">{opportunity.notes}</p>}</div>}
@@ -128,8 +156,8 @@ function ProposalPursuit({ proposal }: Props) {
         setOpportunities(previous => [...previous, saved]); setOpportunityId(saved.id);
         setTitle(''); setSourceUrl(''); setDeadline(''); setNotes(''); setEligibility('unknown');
         setNotice('Opportunity added to your team. Save proposal progress to link it to this proposal.');
-      })}><fieldset disabled={busy || loading} className="tracking-form"><label>Opportunity title<input value={title} onChange={event => setTitle(event.target.value)} required maxLength={300} /></label><label>Opportunity source URL (optional)<input type="url" pattern="https?://.*" value={sourceUrl} onChange={event => setSourceUrl(event.target.value)} placeholder="https://…" maxLength={2000} /></label><label>Deadline (optional, {timezone})<input type="datetime-local" value={deadline} onChange={event => setDeadline(event.target.value)} /></label><p className="muted">Leave blank when unknown. The entered time uses your browser’s detected timezone ({timezone}).</p><label>Eligibility<select value={eligibility} onChange={event => setEligibility(event.target.value as Eligibility)}><option value="unknown">Unknown</option><option value="eligible">Eligible (manually verified)</option><option value="ineligible">Ineligible (manually verified)</option></select></label><label>Opportunity notes<textarea rows={3} value={notes} onChange={event => setNotes(event.target.value)} maxLength={10000} /></label></fieldset><button disabled={busy || loading || !title.trim()}>Add opportunity</button></form></details>}
-      <div className="outcome-record"><h3>Record an outcome</h3>{terminal ? <p className="muted">A final outcome has been recorded. Progress and outcome records are read-only.</p> : <><p className="muted">Record submission first. A result is never inferred from a missing response.</p><form onSubmit={event => submit(event, async current => {
+      })}><fieldset disabled={busy || loading} className="tracking-form"><label>Opportunity title<input value={title} onChange={event => setTitle(event.target.value)} required maxLength={300} /></label><label>Opportunity source URL (optional)<input type="url" pattern="https?://.*" value={sourceUrl} onChange={event => setSourceUrl(event.target.value)} placeholder="https://…" maxLength={2000} /></label><label>Deadline (optional, {timezone})<input type="datetime-local" value={deadline} onChange={event => setDeadline(event.target.value)} /></label><label>Eligibility<select value={eligibility} onChange={event => setEligibility(event.target.value as Eligibility)}><option value="unknown">Unknown</option><option value="eligible">Eligible (manually verified)</option><option value="ineligible">Ineligible (manually verified)</option></select></label><label>Opportunity notes<textarea rows={3} value={notes} onChange={event => setNotes(event.target.value)} maxLength={10000} /></label></fieldset><button disabled={busy || loading || !title.trim()}>Add opportunity</button></form></details>}
+      <div className="outcome-record"><h3>Record an outcome</h3>{terminal ? <p className="muted">A final outcome has been recorded. Progress and outcome records are read-only.</p> : <>{pursuit?.state !== 'submitted' && <p className="muted">Record submission first.</p>}<form onSubmit={event => submit(event, async current => {
         const reference = awardReference.trim() || null;
         const retry = outcomeAttempt(attempt.current, proposal.id, outcome, reference, crypto.randomUUID());
         attempt.current = retry;

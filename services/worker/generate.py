@@ -11,7 +11,12 @@ from src.platform.drafting.fixtures import FixtureTokenCounter
 from src.platform.drafting.service import DraftingService
 from src.platform.drafting.worker import GenerationWorker
 from src.platform.models.fixtures import ExtractiveFixtureProvider
-from src.platform.models.provider import LocalModelProvider, OllamaModelProvider, MetaModelProvider
+from src.platform.models.provider import (
+    DEFAULT_META_MODEL_ID,
+    LocalModelProvider,
+    MetaModelProvider,
+    OllamaModelProvider,
+)
 from src.platform.workflow.draft_jobs import PersistedJobStore
 
 
@@ -35,7 +40,11 @@ def main() -> int:
     if config.provider == 'fixture':
         provider, counter, idle = ExtractiveFixtureProvider(), FixtureTokenCounter(), lambda: True
     elif config.provider == 'meta':
-        provider = MetaModelProvider(config.meta_api_key, config.model_id or 'meta/llama-3.3-70b-instruct', config.model_base_url or 'https://api.meta.ai/v1')
+        provider = MetaModelProvider(
+            config.meta_api_key,
+            config.model_id or DEFAULT_META_MODEL_ID,
+            config.model_base_url or 'https://api.meta.ai/v1',
+        )
         counter, idle = provider, provider.is_idle
     else:
         provider_type = OllamaModelProvider if config.provider == 'ollama' else LocalModelProvider

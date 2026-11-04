@@ -5,7 +5,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
-from src.platform.models.provider import LocalModelProvider, OllamaModelProvider, MetaModelProvider
+from src.platform.models.provider import (
+    DEFAULT_META_MODEL_ID,
+    LocalModelProvider,
+    MetaModelProvider,
+    OllamaModelProvider,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,7 +45,8 @@ class RuntimeConfig:
         elif provider == 'meta':
             if not meta_key:
                 raise ValueError('Meta provider requires META_API_KEY or MODEL_API_KEY in environment.')
-            MetaModelProvider(meta_key, model or 'muse-spark-1.3', url or 'https://api.meta.ai/v1')
+            model = model or DEFAULT_META_MODEL_ID
+            MetaModelProvider(meta_key, model, url or 'https://api.meta.ai/v1')
         source = Path(env.get('TBR_DATA_SOURCE', str(ROOT / 'data'))).expanduser().resolve()
         work = Path(env.get('TBR_DATA_WORK', '/tmp/tbr-v2-work')).expanduser().resolve()
         if source == work or source in work.parents or work in source.parents:

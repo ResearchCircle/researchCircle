@@ -46,6 +46,9 @@ class ModelProvider(Protocol):
         ...
 
 
+DEFAULT_META_MODEL_ID = 'muse-spark-1.3'
+
+
 def validate_request(prompt: str, max_output_tokens: int, timeout_s: float) -> None:
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError('prompt must be a nonempty string')
@@ -262,25 +265,49 @@ class MetaModelProvider:
     """
 
     _MAX_RESPONSE_BYTES = 1024 * 1024
+    _ALLOWED_HOSTS = frozenset({'api.meta.ai', 'dev.meta.ai'})
 
     def __init__(
         self,
         api_key: str,
-        model_id: str = 'meta/llama-3.3-70b-instruct',
+        model_id: str = DEFAULT_META_MODEL_ID,
         base_url: str = 'https://api.meta.ai/v1'
     ):
         if not isinstance(api_key, str) or not api_key.strip():
             raise ValueError('api_key must be an explicit nonempty token')
-        if not isinstance(model_id, str) or not model_id.strip():
+        if (not isinstance(model_id, str) or not model_id.strip()
+                or model_id != model_id.strip() or len(model_id) > 200
+                or any(ord(char) < 32 or ord(char) == 127 for char in model_id)):
             raise ValueError('model_id must be an explicit nonempty model identifier')
-        url = urlsplit(base_url)
-        if url.scheme not in ('https', 'http') or not url.hostname:
-            raise ValueError('base_url must be an HTTP or HTTPS endpoint with a valid host')
+        try:
+            url = urlsplit(base_url)
+            host = url.hostname
+            port = url.port or (443 if url.scheme == 'https' else 80)
+            try:
+                loopback = host == 'localhost' or (
+                    host is not None and ipaddress.ip_address(host).is_loopback
+                )
+            except ValueError:
+                loopback = False
+            valid_url = (
+                host is not None
+                and (
+                    (url.scheme == 'https' and host in self._ALLOWED_HOSTS and port == 443)
+                    or (url.scheme == 'http' and loopback)
+                )
+                and not url.username and not url.password and not url.query and not url.fragment
+                and url.path.rstrip('/') in ('', '/v1')
+                and 1 <= port <= 65535
+            )
+        except ValueError:
+            valid_url = False
+        if not valid_url:
+            raise ValueError('base_url must use Meta HTTPS or loopback HTTP for local tests')
         self.api_key = api_key.strip()
         self.model_id = model_id.strip()
         self.is_https = url.scheme == 'https'
-        self.host = url.hostname
-        self.port = url.port or (443 if self.is_https else 80)
+        self.host = host
+        self.port = port
         self.base_path = url.path.rstrip('/')
 
     def generate(self, prompt: str, max_output_tokens: int, timeout_s: float) -> ModelResult:
@@ -299,7 +326,8 @@ class MetaModelProvider:
 
     def count_input_tokens(self, prompt: str, timeout_s: float) -> int:
         validate_request(prompt, 512, timeout_s)
-        return len(prompt.encode('utf-8')) // 3 + 32
+        # The API has no tokenizer endpoint; use a conservative UTF-8 byte bound.
+        return len(prompt.encode('utf-8'))
 
     def is_idle(self, timeout_s: float = 5) -> bool:
         return True
@@ -360,37 +388,39 @@ class MetaModelProvider:
     def _parse(self, raw: bytes) -> ModelResult:
         try:
             payload = json.loads(raw)
-            if 'choices' not in payload or not payload['choices']:
-                raise ValueError('Missing choices in response payload')
+            if payload['model'] != self.model_id or len(payload['choices']) != 1:
+                raise ValueError
             choice = payload['choices'][0]
-            msg = choice.get('message', {})
+            msg = choice['message']
             content = msg.get('content')
-            text = ''
             if isinstance(content, str):
-                text = content.strip()
+                text = content
             elif isinstance(content, list):
                 parts = []
-                for p in content:
-                    if isinstance(p, dict) and 'text' in p:
-                        parts.append(str(p['text']))
-                    elif isinstance(p, str):
-                        parts.append(p)
-                text = '\n'.join(parts).strip()
-
-            if not text:
-                text = str(msg.get('reasoning_content') or msg.get('thought') or choice.get('text') or '').strip()
-
-            if not text:
-                text = 'I reviewed the provided research records, but could not produce a response within the generation budget.'
-
-            reason = choice.get('finish_reason', 'stop')
+                for part in content:
+                    if isinstance(part, str):
+                        parts.append(part)
+                    elif isinstance(part, dict) and isinstance(part.get('text'), str):
+                        parts.append(part['text'])
+                text = '\n'.join(parts)
+            elif content is None:
+                text = choice.get('text', '')
+            else:
+                raise ValueError
+            if not text and isinstance(choice.get('text'), str):
+                text = choice['text']
+            reason = choice['finish_reason']
+            if (not isinstance(text, str) or (not text.strip() and reason != 'length')
+                    or reason not in ('stop', 'length')):
+                raise ValueError
             usage = None
             if payload.get('usage') is not None:
-                prompt_tokens = payload['usage'].get('prompt_tokens', 0)
-                completion_tokens = payload['usage'].get('completion_tokens', 0)
-                total_tokens = payload['usage'].get('total_tokens', prompt_tokens + completion_tokens)
-                usage = TokenUsage(prompt_tokens, completion_tokens, total_tokens)
-            return ModelResult(text=text, model_id=self.model_id, usage=usage, finish_reason=reason or 'stop')
-        except (ValueError, KeyError, IndexError, TypeError, UnicodeError, RecursionError) as e:
-            raise ProviderError('provider_invalid_response', f'Meta API returned an invalid response structure: {e}', False) from None
-
+                counts = [payload['usage'][key] for key in
+                          ('prompt_tokens', 'completion_tokens', 'total_tokens')]
+                if (any(type(count) is not int or count < 0 for count in counts)
+                        or counts[0] + counts[1] != counts[2]):
+                    raise ValueError
+                usage = TokenUsage(*counts)
+            return ModelResult(text=text, model_id=self.model_id, usage=usage, finish_reason=reason)
+        except (ValueError, KeyError, IndexError, TypeError, UnicodeError, RecursionError):
+            raise ProviderError('provider_invalid_response', 'Meta API returned an invalid response structure.', False) from None

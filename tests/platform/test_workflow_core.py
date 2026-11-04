@@ -1,8 +1,10 @@
 """Behavioral API checks using an isolated SQLite database, never production data."""
 import hashlib
+import os
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select, text, update
@@ -57,6 +59,23 @@ class WorkflowCoreTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/v2/auth/me').status_code, 401)
         self.assertEqual(self.client.post('/api/v2/auth/login', json={
             'email': user['email'], 'password': 'wrong'}).status_code, 401)
+
+    def test_model_info_is_authenticated_and_never_exposes_provider_credentials(self):
+        self.assertEqual(self.client.get('/api/v2/model-info').status_code, 401)
+        self.register()
+        with patch.dict(os.environ, {
+            'TBR_MODEL_PROVIDER': 'meta',
+            'TBR_MODEL_ID': 'muse-spark-1.3',
+            'META_API_KEY': 'private-test-token',
+        }):
+            response = self.client.get('/api/v2/model-info')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {
+            'provider': 'meta',
+            'model_id': 'muse-spark-1.3',
+            'display_name': 'Meta Muse Spark 1.3',
+        })
+        self.assertNotIn('private-test-token', response.text)
 
     def test_revision_save_reopen_stale_conflict_and_export(self):
         _, proposal = self.proposal()
