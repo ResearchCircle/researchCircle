@@ -32,6 +32,26 @@ CLUSTER_PALETTE = [
     '#b45309',  # Bronze
 ]
 
+# Structured multi-domain taxonomy for deep academic concept extraction
+CONCEPT_TAXONOMY: dict[str, str] = {
+    'Artificial Intelligence': r'\b(artificial intelligence|ai\b|intelligent systems?|deep reinforcement learning|autonomous agents?|agentic|heuristic search)\b',
+    'Machine Learning': r'\b(machine learning|deep learning|neural networks?|cnn|rnn|lstm|transformers?|self-attention|supervised|unsupervised|self-supervised|representation learning|fine-tuning|backpropagation)\b',
+    'Computer Vision': r'\b(computer vision|image processing|segmentation|object detection|video analysis|optical|photometric|visual recognition|gaze tracking|rendering|point cloud|3d reconstruction)\b',
+    'Natural Language Processing': r'\b(natural language|nlp\b|computational linguistics|text processing|language models?|llms?|sentiment analysis|machine translation|dialogue|speech recognition|text generation)\b',
+    'Human-Computer Interaction': r'\b(human-computer|hci\b|user interface|ui/ux|user experience|interaction design|interactive systems?|usability|user stud(y|ies)|crowdsourcing|design teams?)\b',
+    'Accessibility': r'\b(accessibility|accessible|disabilit(y|ies)|impairment|assistive (technology|tools?)|blind|deaf|screen readers?|neurodivergent|captioning)\b',
+    'Cybersecurity & Privacy': r'\b(cybersecurity|security|privacy|cryptography|adversarial|intrusion detection|malware|vulnerabilit(y|ies)|threats?|authentication|zero-trust|encryption)\b',
+    'Data Science & Analytics': r'\b(data science|data mining|big data|predictive analytics|clustering|knowledge discovery|data management|time series|statistical modeling)\b',
+    'Robotics & Autonomous Systems': r'\b(robotics?|autonomous (vehicles?|systems?)|manipulation|path planning|kinematics|drones?|uav|swarm robotics)\b',
+    'Software Engineering': r'\b(software engineering|code analysis|refactoring|software testing|debugging|program analysis|software architecture|devops|version control)\b',
+    'Virtual & Augmented Reality': r'\b(virtual reality|augmented reality|mixed reality|vr\b|ar\b|xr\b|spatial computing|immersive environments?|metaverse)\b',
+    'Biomedical & Health': r'\b(biomedical|health informatics|clinical|medical imaging|healthcare|genomics|bioinformatics|neuroscience|cancer detection|physiological)\b',
+    'Networks & Distributed Systems': r'\b(networks?|distributed systems?|cloud computing|edge computing|federated learning|iot\b|internet of things|wireless|sensor networks?|protocols?)\b',
+    'Theory & Algorithms': r'\b(algorithms?|computational complexity|graph theory|optimization|combinatorics|formal methods|automata|algorithmic)\b',
+    'Quantum Information': r'\b(quantum (computing|algorithms?|information|cryptography)|qubits?|entanglement|superconducting)\b',
+    'STEM Education': r'\b(education|pedagogy|computing education|learning technologies|active learning|curriculum|instructional design|classroom|academic)\b',
+}
+
 
 def clean_name(title: str, kind: str, metadata: dict[str, Any]) -> str:
     """Format an honest node name from public record metadata."""
@@ -49,10 +69,17 @@ def clean_name(title: str, kind: str, metadata: dict[str, Any]) -> str:
 
 
 def extract_topics(title: str, text: str, metadata: dict[str, Any]) -> list[str]:
-    """Extract explicit research topics or interests from record metadata or facts."""
+    """Extract explicit research topics and verified scientific concepts from record metadata or text."""
     topics: list[str] = []
-    # 1. Structured interests from profile metadata
-    raw_interests = metadata.get('interests') or metadata.get('research_interests') or []
+
+    # 1. Structured interests / keywords from profile or paper metadata
+    raw_interests = (
+        metadata.get('interests')
+        or metadata.get('research_interests')
+        or metadata.get('topics')
+        or metadata.get('keywords')
+        or []
+    )
     if isinstance(raw_interests, list):
         for interest in raw_interests:
             if isinstance(interest, str) and interest.strip():
@@ -61,14 +88,33 @@ def extract_topics(title: str, text: str, metadata: dict[str, Any]) -> list[str]
                 topics.append(str(interest['name']).strip())
 
     # 2. Extract key topical phrases from synthetic or bibliographic facts
-    if not topics and ('sensor' in text.lower() or 'sensor' in title.lower()):
-        if 'greenhouse' in text.lower():
+    lower_text = text.lower() if text else ''
+    lower_title = title.lower() if title else ''
+    combined = lower_title + ' ' + lower_text
+
+    if 'sensor' in combined:
+        if 'greenhouse' in combined:
             topics.append('Greenhouse Sensors')
-        if 'water' in text.lower() or 'turbidity' in text.lower():
+        if 'water' in combined or 'turbidity' in combined:
             topics.append('Water Quality Monitoring')
-        if 'battery' in text.lower() or 'energy' in text.lower():
+        if 'battery' in combined or 'energy' in combined:
             topics.append('Energy & Battery Systems')
-    return list(dict.fromkeys(topics))
+
+    # 3. Taxonomy pattern matching across title and text
+    for concept_label, pattern in CONCEPT_TAXONOMY.items():
+        if re.search(pattern, combined, flags=re.IGNORECASE):
+            topics.append(concept_label)
+
+    # Normalize and return distinct topics, limiting to top 4 most specific per record
+    seen: set[str] = set()
+    distinct_topics: list[str] = []
+    for t in topics:
+        norm = t.strip()
+        if norm and norm.lower() not in seen:
+            seen.add(norm.lower())
+            distinct_topics.append(norm)
+
+    return distinct_topics[:4]
 
 
 def _assign_cluster(node: dict[str, Any]) -> str:
@@ -381,6 +427,55 @@ def get_public_graph(
                     a2 = nodes_by_id[author_ids[j]]['name']
                     add_link(author_ids[i], author_ids[j], 'co_authorship', f"Co-authored works ({a1} and {a2})")
 
+    # Pass 3.5: Paper-to-paper shared concept links
+    # Connect papers that address identical scientific concepts (capped to avoid visual clutter)
+    topic_to_papers: dict[str, list[str]] = {}
+    for link in links:
+        if link['relationship'] == 'addresses':
+            topic_to_papers.setdefault(link['target'], []).append(link['source'])
+
+    paper_shared_concept_count: dict[str, int] = {}
+    for topic_id, paper_ids in topic_to_papers.items():
+        topic_name = topic_nodes.get(topic_id, {}).get('name', 'Research Area')
+        for i in range(len(paper_ids)):
+            p1 = paper_ids[i]
+            if paper_shared_concept_count.get(p1, 0) >= 3:
+                continue
+            for j in range(i + 1, min(len(paper_ids), i + 4)):
+                p2 = paper_ids[j]
+                if paper_shared_concept_count.get(p2, 0) >= 3:
+                    continue
+                t1_name = nodes_by_id[p1]['name']
+                t2_name = nodes_by_id[p2]['name']
+                add_link(p1, p2, 'shares_concept', f"Shared concept ({topic_name}) between '{t1_name}' and '{t2_name}'")
+                paper_shared_concept_count[p1] = paper_shared_concept_count.get(p1, 0) + 1
+                paper_shared_concept_count[p2] = paper_shared_concept_count.get(p2, 0) + 1
+
+    # Pass 3.6: Faculty shared research interests across identical domains
+    topic_to_faculty: dict[str, list[str]] = {}
+    for link in links:
+        if link['relationship'] == 'researches':
+            topic_to_faculty.setdefault(link['target'], []).append(link['source'])
+
+    faculty_pair_overlaps: dict[tuple[str, str], list[str]] = {}
+    for topic_id, fac_ids in topic_to_faculty.items():
+        topic_name = topic_nodes.get(topic_id, {}).get('name', 'Research Area')
+        for i in range(len(fac_ids)):
+            for j in range(i + 1, len(fac_ids)):
+                pair = (min(fac_ids[i], fac_ids[j]), max(fac_ids[i], fac_ids[j]))
+                faculty_pair_overlaps.setdefault(pair, []).append(topic_name)
+
+    faculty_shared_interest_count: dict[str, int] = {}
+    for (f1, f2), shared_topics in faculty_pair_overlaps.items():
+        if len(shared_topics) >= 2 or (len(shared_topics) >= 1 and len(nodes_by_id) < 50):
+            if faculty_shared_interest_count.get(f1, 0) < 3 and faculty_shared_interest_count.get(f2, 0) < 3:
+                f1_name = nodes_by_id[f1]['name']
+                f2_name = nodes_by_id[f2]['name']
+                topics_str = ', '.join(shared_topics[:2])
+                add_link(f1, f2, 'shared_interest', f"Shared research interests in {topics_str} ({f1_name} and {f2_name})")
+                faculty_shared_interest_count[f1] = faculty_shared_interest_count.get(f1, 0) + 1
+                faculty_shared_interest_count[f2] = faculty_shared_interest_count.get(f2, 0) + 1
+
     # Combine nodes
     all_nodes = list(nodes_by_id.values()) + list(topic_nodes.values())
 
@@ -448,6 +543,39 @@ def get_public_graph(
             links = [l for l in links if l['source'] in ego_node_ids and l['target'] in ego_node_ids]
         else:
             return {'nodes': [], 'links': []}
+
+    else:
+        # Balanced Global Graph Sampling:
+        # Prevent topic starvation and eliminate zero-degree isolated singletons
+        node_degrees: dict[str, int] = {n['id']: 0 for n in all_nodes}
+        for l in links:
+            node_degrees[l['source']] = node_degrees.get(l['source'], 0) + 1
+            node_degrees[l['target']] = node_degrees.get(l['target'], 0) + 1
+
+        for n in all_nodes:
+            n['degree'] = node_degrees.get(n['id'], 0)
+
+        # Categorize nodes
+        topic_candidates = sorted([n for n in all_nodes if n['type'] == 'topic'], key=lambda x: -x['degree'])
+        faculty_candidates = sorted([n for n in all_nodes if n['type'] == 'faculty'], key=lambda x: -x['degree'])
+        paper_candidates = sorted([n for n in all_nodes if n['type'] == 'paper'], key=lambda x: -x['degree'])
+
+        # Quotas tailored to limit
+        quota_topics = min(len(topic_candidates), max(5, limit // 5))
+        quota_faculty = min(len(faculty_candidates), max(10, limit // 3))
+        quota_papers = min(len(paper_candidates), limit - quota_topics - quota_faculty)
+
+        selected_nodes = topic_candidates[:quota_topics] + faculty_candidates[:quota_faculty] + paper_candidates[:quota_papers]
+        selected_ids = {n['id'] for n in selected_nodes}
+
+        # Fill remaining capacity if any with highest-degree connected candidates
+        if len(selected_nodes) < limit:
+            remaining = sorted([n for n in all_nodes if n['id'] not in selected_ids], key=lambda x: -x['degree'])
+            selected_nodes.extend(remaining[:limit - len(selected_nodes)])
+
+        all_nodes = selected_nodes
+        final_node_ids = {n['id'] for n in all_nodes}
+        links = [l for l in links if l['source'] in final_node_ids and l['target'] in final_node_ids]
 
     # Pass 6: Assign Community Clusters
     cluster_counts: dict[str, int] = {}

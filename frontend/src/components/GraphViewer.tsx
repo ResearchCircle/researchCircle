@@ -650,23 +650,35 @@ export default function GraphViewer({
               if (isDarkMode) {
                 if (rel === 'authored') return 'rgba(45, 212, 191, 0.45)';
                 if (rel === 'co_authorship') return 'rgba(129, 140, 248, 0.4)';
-                if (rel === 'researches') return 'rgba(96, 165, 250, 0.35)';
+                if (rel === 'addresses') return 'rgba(245, 158, 11, 0.45)';
+                if (rel === 'researches') return 'rgba(96, 165, 250, 0.4)';
+                if (rel === 'shares_concept') return 'rgba(56, 189, 248, 0.35)';
+                if (rel === 'shared_interest') return 'rgba(192, 132, 252, 0.35)';
                 return 'rgba(148, 163, 184, 0.2)';
               }
               if (rel === 'authored') return 'rgba(15, 118, 110, 0.45)';
               if (rel === 'co_authorship') return 'rgba(79, 70, 229, 0.35)';
+              if (rel === 'addresses') return 'rgba(217, 119, 6, 0.4)';
               if (rel === 'researches') return 'rgba(37, 99, 235, 0.35)';
+              if (rel === 'shares_concept') return 'rgba(2, 132, 199, 0.3)';
+              if (rel === 'shared_interest') return 'rgba(124, 58, 237, 0.3)';
               return 'rgba(100, 116, 139, 0.22)';
             }}
-            linkWidth={(link: any) => (link.relationship === 'authored' ? 1.6 : 1.1)}
-            linkDirectionalParticles={(link: any) => (link.relationship === 'authored' ? 2 : 1)}
+            linkWidth={(link: any) =>
+              link.relationship === 'authored' ? 1.6 : link.relationship === 'co_authorship' ? 1.4 : 1.1
+            }
+            linkDirectionalParticles={(link: any) =>
+              link.relationship === 'authored' ? 2 : link.relationship === 'addresses' || link.relationship === 'researches' ? 1 : 0
+            }
             linkDirectionalParticleWidth={1.5}
             linkDirectionalParticleSpeed={0.0035}
-            linkDirectionalParticleColor={(link: any) =>
-              link.relationship === 'authored'
-                ? isDarkMode ? '#2dd4bf' : '#0d9488'
-                : isDarkMode ? '#818cf8' : '#6366f1'
-            }
+            linkDirectionalParticleColor={(link: any) => {
+              const rel = link.relationship;
+              if (rel === 'authored') return isDarkMode ? '#2dd4bf' : '#0d9488';
+              if (rel === 'addresses') return isDarkMode ? '#fbbf24' : '#d97706';
+              if (rel === 'researches') return isDarkMode ? '#60a5fa' : '#2563eb';
+              return isDarkMode ? '#818cf8' : '#6366f1';
+            }}
             backgroundColor={isDarkMode ? '#090d16' : '#ffffff'}
             warmupTicks={0}
             cooldownTicks={40}
@@ -809,6 +821,69 @@ export default function GraphViewer({
               )}
             </div>
           )}
+
+          {/* Connected Links / Relationships preview */}
+          {(() => {
+            const connectedLinks = filteredLinks.filter(
+              (l: any) =>
+                (typeof l.source === 'object' ? l.source.id : l.source) === selectedNode.id ||
+                (typeof l.target === 'object' ? l.target.id : l.target) === selectedNode.id
+            );
+            if (connectedLinks.length === 0) return null;
+            return (
+              <div className="drawer-connections" style={{ marginTop: '12px', marginBottom: '12px' }}>
+                <h4 style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '6px' }}>
+                  Connections ({connectedLinks.length})
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '140px', overflowY: 'auto' }}>
+                  {connectedLinks.slice(0, 10).map((l: any, idx: number) => {
+                    const isSrc = (typeof l.source === 'object' ? l.source.id : l.source) === selectedNode.id;
+                    const other = isSrc
+                      ? typeof l.target === 'object'
+                        ? l.target.name || l.target.id
+                        : l.target
+                      : typeof l.source === 'object'
+                      ? l.source.name || l.source.id
+                      : l.source;
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          fontSize: '11px',
+                          padding: '4px 6px',
+                          borderRadius: '4px',
+                          background: isDarkMode ? 'rgba(255,255,255,0.05)' : '#f1f5f9',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span style={{ fontWeight: 600, color: isDarkMode ? '#93c5fd' : '#2563eb' }}>
+                          {l.relationship}
+                        </span>
+                        <span
+                          style={{
+                            color: isDarkMode ? '#cbd5e1' : '#475569',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: '160px',
+                          }}
+                        >
+                          {other}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {connectedLinks.length > 10 && (
+                    <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>
+                      + {connectedLinks.length - 10} more connections
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="drawer-actions">
             {/* Ego-Network neighborhood exploration button */}
