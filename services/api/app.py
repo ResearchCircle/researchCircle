@@ -6,13 +6,18 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException
 
+import os
 from services.api.routes.core import router as core_router
 from services.api.routes.jobs import router as jobs_router
 from services.api.routes.search import router as search_router
 from services.api.routes.pursuits import router as pursuits_router
 from services.api.routes.shortlists import router as shortlists_router
 from services.api.routes.graph import router as graph_router
+from services.api.routes.chat import router as chat_router
+from src.platform.chatbot.service import ResearchChatService
 from src.platform.database import Database
+from src.platform.models.fixtures import ExtractiveFixtureProvider
+from src.platform.models.provider import MetaModelProvider, OllamaModelProvider, LocalModelProvider
 from src.platform.workflow.draft_jobs import PersistedJobStore
 from src.platform.workflow.errors import WorkflowError
 
@@ -21,6 +26,28 @@ def create_app(database_url: str | None = None) -> FastAPI:
     application = FastAPI(title='TigerExchange v2', version='0.2.0')
     application.state.db = Database(database_url)
     application.state.jobs = PersistedJobStore(application.state.db)
+
+    provider_name = os.environ.get('TBR_MODEL_PROVIDER', 'fixture')
+    if provider_name == 'meta' and os.environ.get('META_API_KEY'):
+        provider = MetaModelProvider(
+            os.environ['META_API_KEY'],
+            os.environ.get('TBR_MODEL_ID', 'meta/llama-3.3-70b-instruct'),
+            os.environ.get('TBR_MODEL_BASE_URL', 'https://api.meta.ai/v1')
+        )
+    elif provider_name == 'ollama':
+        provider = OllamaModelProvider(
+            os.environ.get('TBR_MODEL_BASE_URL', 'http://host.docker.internal:11434/v1'),
+            os.environ.get('TBR_MODEL_ID', 'mistral')
+        )
+    elif provider_name == 'local' and os.environ.get('TBR_MODEL_BASE_URL'):
+        provider = LocalModelProvider(
+            os.environ['TBR_MODEL_BASE_URL'],
+            os.environ.get('TBR_MODEL_ID', 'local-model')
+        )
+    else:
+        provider = ExtractiveFixtureProvider()
+
+    application.state.chat_service = ResearchChatService(provider)
 
     @application.exception_handler(HTTPException)
     async def http_error(_request: Request, exc: HTTPException):
@@ -64,6 +91,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     application.include_router(pursuits_router)
     application.include_router(shortlists_router)
     application.include_router(graph_router)
+    application.include_router(chat_router)
     return application
 
 

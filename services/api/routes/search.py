@@ -49,8 +49,9 @@ def seed_samples(session: Session) -> int:
 
 @router.get('/search')
 def search_catalog(session: SessionDependency, q: str = Query(default='', max_length=1000),
-                   limit: int = Query(default=10, ge=1, le=100)):
-    return search_public(session, q, limit)
+                   limit: int = Query(default=10, ge=1, le=100),
+                   semantic: bool = Query(default=True)):
+    return search_public(session, q, limit, semantic=semantic)
 
 
 @router.post('/collaborators/matches')

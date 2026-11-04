@@ -74,6 +74,40 @@ export type GraphData = {
   links: GraphLink[];
 };
 
+export type ChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export type ChatCitation = {
+  source_id: string;
+  version: string;
+  content_hash: string;
+  title: string;
+  origin: string;
+  quote: string;
+};
+
+export type SourceConsulted = {
+  id: string;
+  title: string;
+  origin: string;
+  is_public: boolean;
+};
+
+export type ChatResult = {
+  response: string;
+  citations: ChatCitation[];
+  insufficient_evidence: boolean;
+  sources_consulted: SourceConsulted[];
+};
+
+export type ChatInput = {
+  message: string;
+  history?: ChatMessage[];
+  proposal_id?: string | null;
+};
+
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public retryable = false) { super(message); this.name = 'ApiError'; }
 }
@@ -158,4 +192,5 @@ export const api = {
     if (topic) params.set('topic', topic);
     return request<GraphData>(`/graph?${params.toString()}`);
   },
+  chat: (body: ChatInput) => post<ChatResult>('/chat', body),
 };

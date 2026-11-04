@@ -21,10 +21,12 @@ import {
   AlertCircle,
   HelpCircle,
   BookOpen,
+  MessageSquare,
 } from 'lucide-react';
 import {
   api,
   ApiError,
+  type ChatCitation,
   type CollaboratorCoverage,
   type CollaboratorMatch,
   type DraftJob,
@@ -40,6 +42,8 @@ import PursuitPanel from '@/components/PursuitPanel';
 import ShortlistPanel from '@/components/ShortlistPanel';
 import TeamMembersPanel from '@/components/TeamMembersPanel';
 import GraphViewer from '@/components/GraphViewer';
+import ChatInterface from '@/components/ChatInterface';
+import CitationPanel from '@/components/CitationPanel';
 import {
   canChangeTeam,
   canAttachToProposal,
@@ -65,7 +69,7 @@ function formatError(error: unknown) {
   return error instanceof Error ? error.message : 'The request failed. Please try again.';
 }
 
-type ViewTab = 'workspace' | 'collaborators' | 'graph' | 'search';
+type ViewTab = 'workspace' | 'collaborators' | 'graph' | 'search' | 'chat';
 
 export default function App() {
   const [checking, setChecking] = useState(true);
@@ -130,6 +134,7 @@ export default function App() {
   const [collaboratorCoverage, setCollaboratorCoverage] = useState<CollaboratorCoverage | null>(null);
   const [matchingBusy, setMatchingBusy] = useState(false);
   const [savedCollaboratorIds, setSavedCollaboratorIds] = useState<string[]>([]);
+  const [chatCitations, setChatCitations] = useState<ChatCitation[]>([]);
 
   const opening = useRef(0);
   const selectedTeam = teams.find((team) => team.id === teamId);
@@ -638,6 +643,17 @@ export default function App() {
           >
             <Search className="w-4 h-4" />
             <span>Literature Search</span>
+          </button>
+          <button
+            type="button"
+            className={`nav-tab ${currentView === 'chat' ? 'active' : ''}`}
+            onClick={() => setCurrentView('chat')}
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Research Chat</span>
+            {chatCitations.length > 0 && (
+              <span className="tab-badge">{chatCitations.length} citations</span>
+            )}
           </button>
         </nav>
 
@@ -1623,6 +1639,35 @@ export default function App() {
                 <p className="muted">Try broader terminology or different keywords.</p>
               </div>
             )}
+          </div>
+        </main>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* VIEW 5: GROUNDED RESEARCH CHAT                                 */}
+      {/* ------------------------------------------------------------- */}
+      {currentView === 'chat' && (
+        <main className="chat-view-shell" aria-labelledby="chat-heading">
+          <div className="view-intro-hero">
+            <h1 id="chat-heading">Research Assistant & Multi-Turn Q&A</h1>
+            <p className="muted">
+              Converse with an AI research assistant grounded strictly on verified peer-reviewed publications and RIT faculty facts.
+              Every factual assertion references inspectable verbatim quotations.
+            </p>
+          </div>
+
+          <div className="chat-container-grid">
+            <div className="chat-main-column">
+              <ChatInterface
+                proposalId={proposal?.id}
+                proposalTitle={proposal?.title}
+                onCitationsChange={(c) => setChatCitations(c)}
+              />
+            </div>
+
+            <aside className="chat-citations-column" aria-label="Active Grounded Citations">
+              <CitationPanel citations={chatCitations} />
+            </aside>
           </div>
         </main>
       )}
