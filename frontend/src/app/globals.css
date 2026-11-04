@@ -3151,6 +3151,10 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 350px; overflo
   background: #fffffff2;
   backdrop-filter: blur(8px);
 }
+.editor-back-button { width: auto; min-width: auto; padding: 6px 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; background: white; cursor: pointer; transition: all 0.15s ease; flex-shrink: 0; }
+.editor-back-button:hover { color: var(--ink); background: #f1f5f9; border-color: #cbd5e1; }
+.editor-back-label { white-space: nowrap; }
+@media (max-width: 720px) { .editor-back-label { display: none; } .editor-back-button { width: 36px; min-width: 36px; padding: 6px; justify-content: center; } }
 .editor-title-input { flex: 1; min-width: 0; }
 .editor-title-input input { padding: 7px 9px; border-color: transparent; background: transparent; color: var(--ink); font-size: 17px; font-weight: 650; }
 .editor-title-input input:focus { border-color: var(--line); background: white; }

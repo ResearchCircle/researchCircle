@@ -34,6 +34,7 @@ import {
   Edit3,
   Columns,
   X,
+  ArrowLeft,
   ArrowRight,
   Network,
 } from 'lucide-react';
@@ -1121,6 +1122,16 @@ export default function App() {
             {proposal ? (
               <div className="editor-card">
                 <div className="editor-toolbar">
+                  <button
+                    type="button"
+                    className="icon-button editor-back-button"
+                    aria-label="Back to workspace"
+                    title="Back to workspace"
+                    onClick={() => { if (guardEdits()) clearEditor(); }}
+                  >
+                    <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+                    <span className="editor-back-label">Workspace</span>
+                  </button>
                   <label className="editor-title-input">
                     <span className="sr-only">Proposal title</span>
                     <input
