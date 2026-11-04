@@ -29,6 +29,18 @@ class DevelopmentSetupTests(unittest.TestCase):
             self.assertEqual(settings['TBR_PROFILE'], 'demo')
             self.assertEqual(settings['TBR_MODEL_ID'], 'observed-model')
 
+    def test_meta_setup_defaults_to_muse_and_keeps_key_private(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'runtime.env'
+            settings = configure_development(
+                path, 'meta', None, None, api_key='local-test-secret'
+            )
+            self.assertEqual(settings['TBR_MODEL_PROVIDER'], 'meta')
+            self.assertEqual(settings['TBR_MODEL_ID'], 'muse-spark-1.3')
+            self.assertEqual(settings['META_API_KEY'], 'local-test-secret')
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertNotIn('local-test-secret', str(settings.keys()))
+
     def test_does_not_repurpose_another_application_environment(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'runtime.env'

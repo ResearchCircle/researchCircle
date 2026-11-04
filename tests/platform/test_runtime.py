@@ -16,6 +16,15 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(config.profile, 'development')
         self.assertEqual(config.provider, 'fixture')
 
+    def test_meta_provider_defaults_to_muse_and_requires_a_key(self):
+        with self.assertRaises(ValueError):
+            RuntimeConfig.from_env({'TBR_MODEL_PROVIDER': 'meta'})
+        config = RuntimeConfig.from_env({
+            'TBR_MODEL_PROVIDER': 'meta',
+            'META_API_KEY': 'local-test-secret',
+        })
+        self.assertEqual(config.model_id, 'muse-spark-1.3')
+
     def test_shared_demo_requires_local_model_and_no_development_identity(self):
         for env in [{'TBR_PROFILE': 'demo'}, {'TBR_PROFILE': 'demo', 'TBR_MODEL_PROVIDER': 'fixture'},
                     {'TBR_PROFILE': 'demo', 'TBR_MODEL_PROVIDER': 'local',

@@ -1,6 +1,8 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -93,6 +95,21 @@ class ResearchChatTests(unittest.TestCase):
     def tearDown(self):
         self.app.state.db.engine.dispose()
         self.temp_dir.cleanup()
+
+    def test_meta_chat_provider_defaults_to_muse_and_requires_credentials(self):
+        with patch.dict(os.environ, {'TBR_MODEL_PROVIDER': 'meta'}, clear=True):
+            with self.assertRaisesRegex(ValueError, 'Meta provider requires'):
+                create_app('sqlite://')
+
+        with patch.dict(os.environ, {
+            'TBR_MODEL_PROVIDER': 'meta',
+            'META_API_KEY': 'local-test-secret',
+        }, clear=True):
+            app = create_app('sqlite://')
+        try:
+            self.assertEqual(app.state.chat_service.provider.model_id, 'muse-spark-1.3')
+        finally:
+            app.state.db.engine.dispose()
 
     def _auth_cookie(self, user):
         from src.platform.workflow.accounts import create_session

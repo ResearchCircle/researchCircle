@@ -17,7 +17,12 @@ from services.api.routes.chat import router as chat_router
 from src.platform.chatbot.service import ResearchChatService
 from src.platform.database import Database
 from src.platform.models.fixtures import ExtractiveFixtureProvider
-from src.platform.models.provider import MetaModelProvider, OllamaModelProvider, LocalModelProvider
+from src.platform.models.provider import (
+    DEFAULT_META_MODEL_ID,
+    LocalModelProvider,
+    MetaModelProvider,
+    OllamaModelProvider,
+)
 from src.platform.workflow.draft_jobs import PersistedJobStore
 from src.platform.workflow.errors import WorkflowError
 
@@ -28,11 +33,13 @@ def create_app(database_url: str | None = None) -> FastAPI:
     application.state.jobs = PersistedJobStore(application.state.db)
 
     provider_name = os.environ.get('TBR_MODEL_PROVIDER', 'fixture')
-    meta_key = os.environ.get('META_API_KEY') or os.environ.get('MODEL_API_KEY')
-    if provider_name == 'meta' and meta_key:
+    if provider_name == 'meta':
+        meta_api_key = os.environ.get('META_API_KEY') or os.environ.get('MODEL_API_KEY')
+        if not meta_api_key:
+            raise ValueError('Meta provider requires META_API_KEY or MODEL_API_KEY in environment.')
         provider = MetaModelProvider(
-            meta_key,
-            os.environ.get('TBR_MODEL_ID', 'muse-spark-1.3'),
+            meta_api_key,
+            os.environ.get('TBR_MODEL_ID', DEFAULT_META_MODEL_ID),
             os.environ.get('TBR_MODEL_BASE_URL', 'https://api.meta.ai/v1')
         )
     elif provider_name == 'ollama':

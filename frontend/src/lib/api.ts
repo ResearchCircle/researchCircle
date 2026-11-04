@@ -1,4 +1,5 @@
 export type User = { id: string; email: string; name: string };
+export type ModelInfo = { provider: string; model_id: string | null; display_name: string };
 export type Team = { id: string; name: string; role: 'owner' | 'editor' | 'viewer' };
 export type Invitation = { id: string; team_id: string; team_name: string; role: string };
 export type SourceRef = { id: string; version: string; content_hash: string };
@@ -158,6 +159,7 @@ export const api = {
   outcomes: (id: string) => request<{ items: Outcome[] }>(`/proposals/${id}/outcomes`),
   recordOutcome: (id: string, body: OutcomeInput) => post<Outcome>(`/proposals/${id}/outcomes`, body),
   me: () => request<{ user: User }>('/auth/me'),
+  modelInfo: () => request<ModelInfo>('/model-info'),
   authenticate: (mode: 'login' | 'register', body: { email: string; password: string; name?: string }) => post<{ user: User }>(`/auth/${mode}`, body),
   logout: () => post<void>('/auth/logout'),
   teams: () => request<{ items: Team[] }>('/teams'),

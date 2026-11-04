@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from services.api.dependencies import SESSION_COOKIE, current_user, get_session, require_proposal, team_role
 from src.platform.database.models import Invitation, LoginSession, Membership, Proposal, ProposalSource, Source, Team, User, utcnow
+from src.platform.models.provider import DEFAULT_META_MODEL_ID
 from src.platform.workflow.accounts import authenticate, create_session, password_hasher
 from src.platform.workflow.errors import WorkflowError
 from src.platform.workflow.memberships import change_member, lock_team
@@ -136,6 +137,23 @@ def login(body: Credentials, request: Request, response: Response, session: Sess
 @router.get('/auth/me')
 def me(user: User = Depends(current_user)):
     return user_view(user)
+
+
+@router.get('/model-info')
+def model_info(user: User = Depends(current_user)):
+    provider = os.environ.get('TBR_MODEL_PROVIDER', 'fixture')
+    model_id = os.environ.get('TBR_MODEL_ID')
+    if provider == 'meta':
+        model_id = model_id or DEFAULT_META_MODEL_ID
+        display_name = 'Meta Muse Spark 1.3' if model_id == DEFAULT_META_MODEL_ID else f'Meta model ({model_id})'
+    elif provider == 'fixture':
+        model_id = None
+        display_name = 'Demo fixture (no live model call)'
+    elif provider in ('local', 'ollama'):
+        display_name = f'{provider.title()} model ({model_id or "configured model"})'
+    else:
+        display_name = 'AI draft assistant'
+    return {'provider': provider, 'model_id': model_id, 'display_name': display_name}
 
 
 @router.post('/auth/logout', status_code=204)

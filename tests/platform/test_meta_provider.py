@@ -21,6 +21,7 @@ class MetaProviderTests(unittest.TestCase):
 
                 length = int(self.headers.get('Content-Length', 0))
                 payload = json.loads(self.rfile.read(length)) if length else {}
+                self.server.last_payload = payload
 
                 if self.server.status_code != 200:
                     self.send_response(self.server.status_code)
@@ -35,12 +36,12 @@ class MetaProviderTests(unittest.TestCase):
                 response = {
                     'id': 'chatcmpl-123',
                     'object': 'chat.completion',
-                    'model': payload.get('model', 'meta/llama-3.3-70b-instruct'),
+                    'model': payload.get('model', 'muse-spark-1.3'),
                     'choices': [{
                         'index': 0,
                         'message': {
                             'role': 'assistant',
-                            'content': 'This is a verified Meta Llama draft completion.'
+                            'content': 'This is a verified Meta Muse draft completion.'
                         },
                         'finish_reason': 'stop'
                     }],
@@ -57,6 +58,7 @@ class MetaProviderTests(unittest.TestCase):
 
         cls.server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         cls.server.status_code = 200
+        cls.server.last_payload = None
         cls.port = cls.server.server_address[1]
         cls.thread = threading.Thread(target=cls.server.serve_forever)
         cls.thread.daemon = True
@@ -82,8 +84,11 @@ class MetaProviderTests(unittest.TestCase):
             base_url=f'http://127.0.0.1:{self.port}'
         )
         result = provider.generate('Draft research intro', 64, 5.0)
-        self.assertEqual(result.text, 'This is a verified Meta Llama draft completion.')
-        self.assertEqual(result.model_id, 'meta/llama-3.3-70b-instruct')
+        self.assertEqual(result.text, 'This is a verified Meta Muse draft completion.')
+        self.assertEqual(result.model_id, 'muse-spark-1.3')
+        self.assertEqual(self.server.last_payload['model'], 'muse-spark-1.3')
+        self.assertEqual(self.server.last_payload['max_tokens'], 1500)
+        self.assertNotIn('reasoning_effort', self.server.last_payload)
         self.assertIsNotNone(result.usage)
         self.assertEqual(result.usage.prompt_tokens, 15)
         self.assertEqual(result.usage.completion_tokens, 10)
@@ -118,3 +123,40 @@ class MetaProviderTests(unittest.TestCase):
             MetaModelProvider(api_key='valid', model_id='')
         with self.assertRaises(ValueError):
             MetaModelProvider(api_key='valid', base_url='ftp://not-http')
+        for endpoint in ('http://example.com/v1', 'https://example.com/v1',
+                         'https://api.meta.ai/v1?redirect=elsewhere'):
+            with self.subTest(endpoint=endpoint), self.assertRaises(ValueError):
+                MetaModelProvider(api_key='valid', base_url=endpoint)
+
+    def test_truncated_empty_completion_is_reported_for_drafting_to_reject(self):
+        provider = MetaModelProvider(
+            api_key='test-valid-key',
+            base_url=f'http://127.0.0.1:{self.port}'
+        )
+        raw = json.dumps({
+            'model': 'muse-spark-1.3',
+            'choices': [{'message': {'content': None}, 'finish_reason': 'length'}],
+        }).encode()
+        result = provider._parse(raw)
+        self.assertEqual(result.text, '')
+        self.assertEqual(result.finish_reason, 'length')
+
+    def test_parses_muse_content_blocks_and_rejects_empty_success(self):
+        provider = MetaModelProvider(
+            api_key='test-valid-key',
+            base_url=f'http://127.0.0.1:{self.port}'
+        )
+        result = provider._parse(json.dumps({
+            'model': 'muse-spark-1.3',
+            'choices': [{
+                'message': {'content': [{'type': 'text', 'text': 'Muse response'}]},
+                'finish_reason': 'stop',
+            }],
+        }).encode())
+        self.assertEqual(result.text, 'Muse response')
+        with self.assertRaises(ProviderError) as ctx:
+            provider._parse(json.dumps({
+                'model': 'muse-spark-1.3',
+                'choices': [{'message': {'content': None}, 'finish_reason': 'stop'}],
+            }).encode())
+        self.assertEqual(ctx.exception.code, 'provider_invalid_response')
