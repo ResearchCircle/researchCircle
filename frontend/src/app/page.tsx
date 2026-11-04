@@ -1,2362 +1,3128 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import Link from 'next/link';
-import {
-  FileText,
-  Users,
-  Search,
-  Sparkles,
-  ShieldCheck,
-  Layers,
-  ExternalLink,
-  Plus,
-  Trash2,
-  Download,
-  Save,
-  Check,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  HelpCircle,
-  BookOpen,
-  MessageSquare,
-  PanelRight,
-  CircleHelp,
-  Bold,
-  Italic,
-  List,
-  ListOrdered,
-  Quote,
-  Code,
-  Heading1,
-  Heading2,
-  Eye,
-  Edit3,
-  Columns,
-  X,
-  ArrowLeft,
-  ArrowRight,
-  Network,
-} from 'lucide-react';
-import {
-  api,
-  ApiError,
-  type ChatCitation,
-  type CollaboratorCoverage,
-  type CollaboratorMatch,
-  type DraftJob,
-  type Invitation,
-  type ModelInfo,
-  type Proposal,
-  type SearchPage,
-  type SourceSnapshot,
-  type Team,
-  type TeamMember,
-  type User,
-} from '@/lib/api';
-import { appendSuggestion, canApplyDraft, hasEdits, safeOrigin, renderMarkdownSimple } from '@/lib/editor';
-import AppSidebar, { type AppView } from '@/components/AppSidebar';
-import ContextPanel, { type ContextTab } from '@/components/ContextPanel';
-import PursuitPanel from '@/components/PursuitPanel';
-import ShortlistPanel from '@/components/ShortlistPanel';
-import TeamMembersPanel from '@/components/TeamMembersPanel';
-import WorkspaceTopBar from '@/components/WorkspaceTopBar';
-import PublicLanding from '@/components/PublicLanding';
-import GraphViewer from '@/components/GraphViewer';
-import ChatInterface from '@/components/ChatInterface';
-import CitationPanel from '@/components/CitationPanel';
-import CollaborationHub from '@/components/CollaborationHub';
-import CampusIntelligenceHub from '@/components/CampusIntelligenceHub';
-import PdfViewerModal from '@/components/PdfViewerModal';
-import {
-  canChangeTeam,
-  canAttachToProposal,
-  sourceKindLabel,
-  editShortlistDraft,
-  acknowledgeShortlistDraft,
-  type ShortlistDrafts,
-} from '@/lib/shortlist';
+import { useEffect, useCallback, useMemo, useState, type ReactNode } from "react"
 
-function looksLikePaperSource(opts: { title?: string; origin?: string }): boolean {
-  const title = (opts.title || '').toLowerCase();
-  const origin = (opts.origin || '').toLowerCase();
-  if (title.startsWith('listed author:') || title.startsWith('synthetic researcher')) return false;
-  if (origin.startsWith('synthetic ')) return false;
-  if (!origin.startsWith('http://') && !origin.startsWith('https://')) return false;
-  return true;
+type View = "campus" | "vault" | "pod" | "proof"
+type Overlay = "reveal" | "verify" | "graph" | "funding" | "project" | "peer-review" | "conflict" | "export" | "reasoning"
+type IconName = "arrow" | "bell" | "book" | "brain" | "check" | "chevron" | "clock" | "close" | "code" | "copy" | "download" | "expand" | "eye" | "filter" | "fingerprint" | "graph" | "home" | "lock" | "message" | "more" | "pin" | "plus" | "search" | "seal" | "send" | "shield" | "spark" | "user" | "users" | "verified"
+
+const iconPaths: Record<IconName, ReactNode> = {
+  arrow: (
+    <>
+      <path d="M5 12h14M14 7l5 5-5 5" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+      <path d="M10 21h4" />
+    </>
+  ),
+  book: (
+    <>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5v13Z" />
+      <path d="M8 7h8M8 11h6" />
+    </>
+  ),
+  brain: (
+    <>
+      <path d="M9.5 4.5A3 3 0 0 0 4 6a3 3 0 0 0 .5 5.5A3.5 3.5 0 0 0 9 17v2a2 2 0 0 0 4 0v-2a3.5 3.5 0 0 0 4.5-5.5A3 3 0 0 0 18 6a3 3 0 0 0-5.5-1.5" />
+      <path d="M9 8c2 0 2-2 2-4M15 9c-2 0-2-2-2-4M8 13c2 0 3 1 3 3M16 13c-2 0-3 1-3 3" />
+    </>
+  ),
+  check: <path d="m5 12 4 4L19 6" />,
+  chevron: <path d="m9 18 6-6-6-6" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
+  close: <path d="M6 6l12 12M18 6 6 18" />,
+  code: (
+    <>
+      <path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14" />
+    </>
+  ),
+  copy: (
+    <>
+      <rect x="8" y="8" width="11" height="11" rx="2" />
+      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+      <path d="M5 20h14" />
+    </>
+  ),
+  expand: (
+    <>
+      <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+      <circle cx="12" cy="12" r="2.5" />
+    </>
+  ),
+  filter: (
+    <>
+      <path d="M4 6h16M7 12h10M10 18h4" />
+    </>
+  ),
+  fingerprint: (
+    <>
+      <path d="M7 9a5 5 0 0 1 10 0v3M5 12V9a7 7 0 0 1 14 0v5M8 13v-3a4 4 0 0 1 8 0v5M11 12v3a7 7 0 0 1-2 5M14 12v4a9 9 0 0 1-1 4M17 18l-1 2" />
+    </>
+  ),
+  graph: (
+    <>
+      <circle cx="5" cy="15" r="2" />
+      <circle cx="12" cy="5" r="2" />
+      <circle cx="19" cy="14" r="2" />
+      <path d="m6 13 5-6m2 0 5 5M7 15h10" />
+    </>
+  ),
+  home: (
+    <>
+      <path d="m3 11 9-8 9 8" />
+      <path d="M5 10v10h14V10M9 20v-6h6v6" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="4" y="10" width="16" height="11" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </>
+  ),
+  message: (
+    <path d="M20 15a3 3 0 0 1-3 3H8l-4 3V7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v8Z" />
+  ),
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" />
+    </>
+  ),
+  pin: (
+    <>
+      <path d="M12 17v5M5 17h14" />
+      <path d="m8 4-1 8h10l-1-8H8Z" />
+    </>
+  ),
+  plus: <path d="M12 5v14M5 12h14" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </>
+  ),
+  seal: (
+    <>
+      <path d="M12 2 9.5 4 6 3.5 5 7l-3 2 1.5 3L2 15l3 2 1 3.5 3.5-.5 2.5 2 2.5-2 3.5.5 1-3.5 3-2-1.5-3L22 9l-3-2-1-3.5-3.5.5L12 2Z" />
+      <path d="m8.5 12 2.2 2.2 4.8-5" />
+    </>
+  ),
+  send: (
+    <>
+      <path d="m3 3 18 9-18 9 3-9-3-9Z" />
+      <path d="M6 12h15" />
+    </>
+  ),
+  shield: (
+    <>
+      <path d="M12 3 4 6v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6l-8-3Z" />
+      <path d="m9 12 2 2 4-5" />
+    </>
+  ),
+  spark: (
+    <path d="m12 2 1.4 5.6L19 9l-5.6 1.4L12 16l-1.4-5.6L5 9l5.6-1.4L12 2ZM19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z" />
+  ),
+  user: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 19a6 6 0 0 1 12 0" />
+      <path d="M16 5a3 3 0 0 1 0 6M17 14a5 5 0 0 1 4 5" />
+    </>
+  ),
+  verified: (
+    <>
+      <path d="m12 2 2.2 2.1 3-.4.5 3 2.3 2-.9 2.9.9 2.9-2.3 2-.5 3-3-.4L12 22l-2.2-2.1-3 .4-.5-3-2.3-2 .9-2.9L4 8.5l2.3-2 .5-3 3 .4L12 2Z" />
+      <path d="m8.5 12 2.2 2.2 4.8-5" />
+    </>
+  ),
 }
 
-function OriginLink({ value }: { value: string }) {
-  const href = safeOrigin(value);
-  return href ? (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="origin-link">
-      <span>View public origin</span>
-      <ExternalLink className="w-3 h-3" />
-    </a>
-  ) : (
-    <span className="muted">{value || 'No external link'}</span>
-  );
-}
-
-function DraftText({
-  text,
-  citations,
-  jobId,
-}: {
-  text: string;
-  citations: NonNullable<DraftJob['output']>['citations'];
-  jobId: string;
-}) {
-  const parts = text.split(/(\[[0-9a-f]{8}-[0-9a-f-]{27}\])/gi);
+function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   return (
-    <div className="draft-text-content">
-      {parts.map((part, index) => {
-        const sourceId = part.startsWith('[') ? part.slice(1, -1) : '';
-        const citationIndex = citations.findIndex(citation => citation.source_id === sourceId);
-        if (citationIndex < 0) return <span key={index}>{part}</span>;
-        return (
-          <a
-            key={index}
-            className="citation-chip"
-            href={`#draft-citation-${jobId}-${citationIndex}`}
-            aria-label={`Go to citation ${citationIndex + 1}: ${citations[citationIndex].title}`}
-          >
-            [{citationIndex + 1}]
-          </a>
-        );
-      })}
-    </div>
-  );
-}
-
-function formatError(error: unknown) {
-  return error instanceof Error ? error.message : 'The request failed. Please try again.';
-}
-
-export default function App() {
-  const [checking, setChecking] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
-
-  // Auth form states
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-
-  // App navigation & status
-  const [currentView, setCurrentView] = useState<AppView>('workspace');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [contextOpen, setContextOpen] = useState(true);
-
-  // Team states
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [teamId, setTeamId] = useState('');
-  const [teamName, setTeamName] = useState('');
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
-
-  // Proposal states
-  const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [newTitle, setNewTitle] = useState('');
-  const [dashboardProposalTitle, setDashboardProposalTitle] = useState('');
-  const [proposal, setProposal] = useState<Proposal | null>(null);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [selected, setSelected] = useState<string[]>([]);
-  const [sources, setSources] = useState<SourceSnapshot[]>([]);
-  const [conflict, setConflict] = useState<Proposal | null>(null);
-  const [activePdf, setActivePdf] = useState<{ id: string; title: string } | null>(null);
-  const [collaboratorViewMode, setCollaboratorViewMode] = useState<'synthesizer' | 'lexical'>('synthesizer');
-  const [editorMode, setEditorMode] = useState<'edit' | 'split' | 'preview'>('edit');
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const insertFormatting = (prefix: string, suffix: string = '') => {
-    const el = textareaRef.current;
-    if (!el) {
-      setContent((prev) => `${prev}\n${prefix}${suffix}`);
-      return;
-    }
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const selectedText = content.substring(start, end) || 'text';
-    const replacement = `${prefix}${selectedText}${suffix}`;
-    const nextContent = content.substring(0, start) + replacement + content.substring(end);
-    setContent(nextContent);
-    setTimeout(() => {
-      el.focus();
-      el.setSelectionRange(start + prefix.length, start + prefix.length + selectedText.length);
-    }, 10);
-  };
-
-  const insertTemplate = (templateType: 'nsf' | 'nih' | 'darpa') => {
-    let templateText = '';
-    if (templateType === 'nsf') {
-      templateText = `# Project Description\n\n## 1. Overview and Objectives\n[State the overarching goals, hypotheses, and primary research questions of the proposed project.]\n\n## 2. Intellectual Merit\n[Detail the scientific significance, novelty, and technological innovation.]\n\n## 3. Proposed Research Methodology & Work Plan\n[Provide the detailed experimental design, algorithms, baseline metrics, and validation.]\n\n## 4. Broader Impacts\n[Describe the societal benefits, education/outreach, student training, and dissemination.]\n\n## 5. Timeline and Key Milestones\n- Year 1: Baseline development and dataset curation.\n- Year 2: Algorithmic prototyping and empirical validation.\n- Year 3: System deployment, user studies, and final evaluation.`;
-    } else if (templateType === 'nih') {
-      templateText = `# Specific Aims\n\n## Significance & Background\n[Briefly summarize the critical biomedical or algorithmic challenge.]\n\n## Specific Aim 1\n[Formulate Aim 1, testable hypothesis, and anticipated research milestone.]\n\n## Specific Aim 2\n[Formulate Aim 2, experimental protocol, and expected outcomes.]\n\n## Innovation & Potential Pitfalls\n[Highlight conceptual innovations, potential pitfalls, and alternative strategies.]`;
-    } else if (templateType === 'darpa') {
-      templateText = `# Technical Proposal & Approach\n\n## 1. Executive Summary & Problem Statement\n[Define the critical operational challenge and state-of-the-art limitations.]\n\n## 2. Proposed Technical Breakthrough\n[Describe the transformative technology, architecture, and expected performance gains.]\n\n## 3. Measurable Technical Milestones\n- Month 6: Proof-of-concept prototype demonstrating 2x efficiency.\n- Month 12: Laboratory validation and stress testing under adversarial conditions.\n- Month 18: Full system demonstration and transition plan.\n\n## 4. Risk Mitigation Matrix\n[Identify high-risk technical barriers and corresponding mitigation protocols.]`;
-    }
-    if (templateText) {
-      setContent((prev) => (prev.trim() ? `${prev}\n\n${templateText}` : templateText));
-    }
-  };
-
-  // Right sidebar tab in Workspace
-  const [workspaceRightTab, setWorkspaceRightTab] = useState<ContextTab>('ai');
-  const contextTriggerRef = useRef<HTMLButtonElement>(null);
-
-  // Manual source state
-  const [sourceTitle, setSourceTitle] = useState('');
-  const [sourceText, setSourceText] = useState('');
-  const [sourceOrigin, setSourceOrigin] = useState('');
-
-  // Drafting states
-  const [section, setSection] = useState('Research approach');
-  const [instruction, setInstruction] = useState('');
-  const [jobs, setJobs] = useState<DraftJob[]>([]);
-  const [jobId, setJobId] = useState('');
-  const [pollError, setPollError] = useState('');
-
-  // Shortlist states
-  const [shortlistVersion, setShortlistVersion] = useState(0);
-  const [shortlistDrafts, setShortlistDrafts] = useState<ShortlistDrafts>({});
-
-  // Discovery search states
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchPage | null>(null);
-
-  // Collaborator matching states
-  const [collaboratorIdea, setCollaboratorIdea] = useState('');
-  const [collaboratorMatches, setCollaboratorMatches] = useState<CollaboratorMatch[] | null>(null);
-  const [collaboratorCoverage, setCollaboratorCoverage] = useState<CollaboratorCoverage | null>(null);
-  const [matchingBusy, setMatchingBusy] = useState(false);
-  const [savedCollaboratorIds, setSavedCollaboratorIds] = useState<string[]>([]);
-  const [chatCitations, setChatCitations] = useState<ChatCitation[]>([]);
-  const [evidenceCollapsed, setEvidenceCollapsed] = useState(false);
-  const [hasUnseenCitations, setHasUnseenCitations] = useState(false);
-  const prevCitationsKey = useRef<string>('');
-
-  useEffect(() => {
-    const key = chatCitations.map((c) => `${c.source_id}:${c.quote}`).join('|');
-    if (key && key !== prevCitationsKey.current) {
-      if (evidenceCollapsed) setHasUnseenCitations(true);
-    }
-    prevCitationsKey.current = key;
-  }, [chatCitations, evidenceCollapsed]);
-
-  useEffect(() => {
-    if (!evidenceCollapsed) setHasUnseenCitations(false);
-  }, [evidenceCollapsed]);
-
-  const opening = useRef(0);
-  const selectedTeam = teams.find((team) => team.id === teamId);
-  const dirty = !!proposal && hasEdits(proposal, title, content, selected);
-  const shortlistDirty = Object.values(shortlistDrafts).some((notes) => Object.keys(notes).length > 0);
-  const editable = proposal?.role !== 'viewer';
-  const canEditTeam = selectedTeam?.role !== 'viewer';
-  const job = jobs.find((item) => item.id === jobId) ?? jobs[0];
-
-  const clearEditor = useCallback(() => {
-    ++opening.current;
-    setProposal(null);
-    setTitle('');
-    setContent('');
-    setSelected([]);
-    setSources([]);
-    setJobs([]);
-    setJobId('');
-    setConflict(null);
-    setPollError('');
-    setSourceTitle('');
-    setSourceText('');
-    setSourceOrigin('');
-    setSection('Research approach');
-    setInstruction('');
-    setNewTitle('');
-    setInviteEmail('');
-  }, []);
-
-  const refreshLists = useCallback(async () => {
-    const [teamList, proposalList, inbox] = await Promise.all([
-      api.teams(),
-      api.proposals(),
-      api.invitations(),
-    ]);
-    setTeams(teamList.items);
-    setProposals(proposalList.items);
-    setInvitations(inbox.items);
-    setTeamId((previous) =>
-      teamList.items.some((item) => item.id === previous)
-        ? previous
-        : teamList.items[0]?.id ?? ''
-    );
-  }, []);
-
-  useEffect(() => {
-    if (window.matchMedia('(max-width: 760px)').matches) setContextOpen(false);
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    api
-      .me()
-      .then((result) => {
-        if (active) setUser(result.user);
-      })
-      .catch((err) => {
-        if (active && !(err instanceof ApiError && err.status === 401)) {
-          setError(formatError(err));
-        }
-      })
-      .finally(() => {
-        if (active) setChecking(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      void refreshLists().catch((err) => setError(formatError(err)));
-    }
-  }, [user, refreshLists]);
-
-  useEffect(() => {
-    if (!user) {
-      setModelInfo(null);
-      return;
-    }
-    let active = true;
-    api.modelInfo()
-      .then((result) => {
-        if (active) setModelInfo(result);
-      })
-      .catch((err) => {
-        if (active) setError(formatError(err));
-      });
-    return () => {
-      active = false;
-    };
-  }, [user]);
-
-  useEffect(() => {
-    if (!selectedTeam) {
-      setTeamMembers([]);
-      return;
-    }
-    let active = true;
-    api.teamDetails(selectedTeam.id)
-      .then(details => {
-        if (active) setTeamMembers(details.members);
-      })
-      .catch(err => {
-        if (active) setError(formatError(err));
-      });
-    return () => {
-      active = false;
-    };
-  }, [selectedTeam?.id]);
-
-  useEffect(() => {
-    if (!dirty && !shortlistDirty) return;
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-    };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty, shortlistDirty]);
-
-  const run = async (action: () => Promise<void>) => {
-    setBusy(true);
-    setError('');
-    setNotice('');
-    try {
-      await action();
-    } catch (err) {
-      setError(formatError(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submitAuth = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    void run(async () => {
-      const res = await api.authenticate(authMode, {
-        email,
-        password,
-        ...(authMode === 'register' ? { name } : {}),
-      });
-      setUser(res.user);
-      setPassword('');
-    });
-  };
-
-  const install = (next: Proposal) => {
-    setProposal(next);
-    setTitle(next.title);
-    setContent(next.content);
-    setSelected(next.selected_sources.map((source) => source.id));
-    setConflict(null);
-    setProposals((previous) => [next, ...previous.filter((item) => item.id !== next.id)]);
-  };
-
-  const openProposal = async (id: string) => {
-    const requestId = ++opening.current;
-    const [next, sourceList, jobList] = await Promise.all([
-      api.proposal(id),
-      api.sources(id),
-      api.jobs(id),
-    ]);
-    if (requestId !== opening.current) return;
-    install(next);
-    setSources(sourceList.items);
-    setJobs(jobList.items);
-    setJobId(jobList.items[0]?.id ?? '');
-    setPollError('');
-    setCurrentView('workspace');
-  };
-
-  const confirmDiscard = () =>
-    window.confirm('Discard unsaved changes and continue? Copy your text first if you want to keep it.');
-
-  const guardEdits = () => (!dirty && !shortlistDirty) || confirmDiscard();
-
-  const navigateView = (view: AppView) => {
-    if (view === currentView || guardEdits()) {
-      setCurrentView(view);
-      setSidebarOpen(false);
-    }
-  };
-
-  const createProposal = async (proposalTitle: string, initialContent: string = '') => {
-    if (!teamId || !guardEdits()) return;
-    await run(async () => {
-      const created = await api.createProposal(teamId, proposalTitle, initialContent);
-      await openProposal(created.id);
-    });
-  };
-
-  const deleteProposal = async (target: Proposal) => {
-    await run(async () => {
-      await api.deleteProposal(target.id);
-      setProposals((previous) => previous.filter((item) => item.id !== target.id));
-      if (proposal?.id === target.id) {
-        clearEditor();
-      }
-      setNotice(`Deleted “${target.title}”.`);
-    });
-  };
-
-  const createProposalWithTemplate = async (proposalTitle: string, templateType: 'nsf' | 'nih' | 'darpa') => {
-    let templateText = '';
-    if (templateType === 'nsf') {
-      templateText = `# Project Description\n\n## 1. Overview and Objectives\n[State the overarching goals, hypotheses, and primary research questions of the proposed project.]\n\n## 2. Intellectual Merit\n[Detail the scientific significance, novelty, and technological innovation.]\n\n## 3. Proposed Research Methodology & Work Plan\n[Provide the detailed experimental design, algorithms, baseline metrics, and validation.]\n\n## 4. Broader Impacts\n[Describe the societal benefits, education/outreach, student training, and dissemination.]\n\n## 5. Timeline and Key Milestones\n- Year 1: Baseline development and dataset curation.\n- Year 2: Algorithmic prototyping and empirical validation.\n- Year 3: System deployment, user studies, and final evaluation.`;
-    } else if (templateType === 'nih') {
-      templateText = `# Specific Aims\n\n## Significance & Background\n[Briefly summarize the critical biomedical or algorithmic challenge.]\n\n## Specific Aim 1\n[Formulate Aim 1, testable hypothesis, and anticipated research milestone.]\n\n## Specific Aim 2\n[Formulate Aim 2, experimental protocol, and expected outcomes.]\n\n## Innovation & Potential Pitfalls\n[Highlight conceptual innovations, potential pitfalls, and alternative strategies.]`;
-    } else if (templateType === 'darpa') {
-      templateText = `# Technical Proposal & Approach\n\n## 1. Executive Summary & Problem Statement\n[Define the critical operational challenge and state-of-the-art limitations.]\n\n## 2. Proposed Technical Breakthrough\n[Describe the transformative technology, architecture, and expected performance gains.]\n\n## 3. Measurable Technical Milestones\n- Month 6: Proof-of-concept prototype demonstrating 2x efficiency.\n- Month 12: Laboratory validation and stress testing under adversarial conditions.\n- Month 18: Full system demonstration and transition plan.\n\n## 4. Risk Mitigation Matrix\n[Identify high-risk technical barriers and corresponding mitigation protocols.]`;
-    }
-    await createProposal(proposalTitle, templateText);
-  };
-
-  const activateTeam = (nextTeamId: string) => {
-    if (nextTeamId !== teamId) {
-      clearEditor();
-      setTeamId(nextTeamId);
-      setError('');
-      setNotice('');
-    }
-  };
-
-  const changeTeam = (nextTeamId: string) => {
-    if (canChangeTeam(teamId, nextTeamId, dirty || shortlistDirty, confirmDiscard)) {
-      activateTeam(nextTeamId);
-    }
-  };
-
-  const save = async (nextContent = content) => {
-    if (!proposal) return;
-    try {
-      const saved = await api.save(proposal.id, {
-        expected_revision: proposal.revision,
-        title,
-        content: nextContent,
-        selected_source_ids: selected,
-      });
-      install(saved);
-      setNotice(`Saved revision ${saved.revision}.`);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        try {
-          const latest = await api.proposal(proposal.id);
-          setConflict(latest);
-          setError('Another member saved a newer revision. Review the differences below.');
-        } catch {
-          setError('Another member saved a newer revision. Please copy your edits and reload.');
-        }
-      } else {
-        throw err;
-      }
-    }
-  };
-
-  const requestDraft = async () => {
-    if (!proposal) return;
-    try {
-      const next = await api.draft(proposal.id, {
-        expected_revision: proposal.revision,
-        section,
-        instruction,
-        source_ids: selected,
-      });
-      setJobs((previous) => [next, ...previous]);
-      setJobId(next.id);
-      setWorkspaceRightTab('ai');
-      setNotice('Draft queued. Review the suggestion and its sources before adding it to your proposal.');
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 409) {
-        setError(`Draft was not queued: ${error.message}`);
-      } else {
-        throw error;
-      }
-    }
-  };
-
-  // Poll active draft jobs
-  const activeJobIds = jobs
-    .filter((item) => item.state === 'queued' || item.state === 'running')
-    .map((item) => item.id)
-    .join(',');
-
-  useEffect(() => {
-    if (!activeJobIds) return;
-    let active = true;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      try {
-        const updated = await Promise.all(activeJobIds.split(',').map((id) => api.job(id)));
-        if (!active) return;
-        setJobs((previous) =>
-          previous.map((item) => updated.find((next) => next.id === item.id) ?? item)
-        );
-        setPollError('');
-      } catch (err) {
-        if (active) setPollError(formatError(err));
-      }
-      if (active) timer = setTimeout(poll, 2000);
-    };
-    timer = setTimeout(poll, 1500);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [activeJobIds]);
-
-  const copyToClipboard = async (value: string) => {
-    await navigator.clipboard.writeText(value);
-    setNotice('Copied to clipboard.');
-  };
-
-  const handleSearchSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    await run(async () => {
-      setResults(await api.search(query.trim()));
-    });
-  };
-
-  const handleCollaboratorMatch = async (idea: string) => {
-    if (!idea.trim()) return;
-    setMatchingBusy(true);
-    setError('');
-    setNotice('');
-    try {
-      const result = await api.matchCollaborators(idea.trim());
-      setCollaboratorMatches(result.items);
-      setCollaboratorCoverage(result.coverage);
-    } catch (err) {
-      setError(formatError(err));
-    } finally {
-      setMatchingBusy(false);
-    }
-  };
-
-  const shortlistCollaborator = async (match: CollaboratorMatch) => {
-    if (!selectedTeam || selectedTeam.role === 'viewer') return;
-    await run(async () => {
-      const rationale = `Match evidence: ${match.evidence_terms.join(', ')}. Overlapping terms: ${match.matched_terms.join(', ')}.`;
-      await api.addShortlist(selectedTeam.id, match.source_id, rationale);
-      setSavedCollaboratorIds((prev) => [...prev, match.source_id]);
-      setShortlistVersion((prev) => prev + 1);
-      setNotice(`Saved ${match.title} to team shortlist.`);
-    });
-  };
-
-  const handleAttachSource = async (sourceId: string) => {
-    if (!proposal) return;
-    if (selected.includes(sourceId)) return;
-    const nextSelected = [...selected, sourceId];
-    setSelected(nextSelected);
-    try {
-      const saved = await api.save(proposal.id, {
-        expected_revision: proposal.revision,
-        title,
-        content,
-        selected_source_ids: nextSelected,
-      });
-      install(saved);
-      setNotice(`Attached source to proposal (revision ${saved.revision}).`);
-    } catch (err) {
-      setError(formatError(err));
-    }
-  };
-
-  const handleShortlistCandidate = async (sourceId: string, candTitle: string, rationale: string) => {
-    if (!selectedTeam || selectedTeam.role === 'viewer') return;
-    await run(async () => {
-      await api.addShortlist(selectedTeam.id, sourceId, rationale);
-      setSavedCollaboratorIds((prev) => [...prev, sourceId]);
-      setShortlistVersion((prev) => prev + 1);
-      setNotice(`Added ${candTitle} to team shortlist.`);
-    });
-  };
-
-  // -------------------------------------------------------------
-  // VIEW: LANDING & AUTH PAGE (When not signed in)
-  // -------------------------------------------------------------
-  if (checking) {
-    return (
-      <main className="auth-shell">
-        <div className="spinner" />
-        <p role="status">Initializing Research Workspace…</p>
-      </main>
-    );
-  }
-
-  if (!user) {
-    return (
-      <PublicLanding
-        authMode={authMode}
-        email={email}
-        password={password}
-        name={name}
-        busy={busy}
-        error={error}
-        onModeChange={(mode) => {
-          setAuthMode(mode);
-          setError('');
-        }}
-        onEmailChange={setEmail}
-        onPasswordChange={setPassword}
-        onNameChange={setName}
-        onSubmit={submitAuth}
-      />
-    );
-  }
-
-  // -------------------------------------------------------------
-  // VIEW: AUTHENTICATED APPLICATION
-  // -------------------------------------------------------------
-  const inviteForm = selectedTeam?.role === 'owner' ? (
-    <form
-      onSubmit={event => {
-        event.preventDefault();
-        void run(async () => {
-          await api.invite(teamId, inviteEmail, inviteRole);
-          setInviteEmail('');
-          setNotice('Invitation sent.');
-        });
-      }}
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
     >
-      <label>
-        Email address
-        <input
-          type="email"
-          value={inviteEmail}
-          onChange={event => setInviteEmail(event.target.value)}
-          placeholder="colleague@rit.edu"
-          required
-        />
-      </label>
-      <label>
-        Role
-        <select
-          value={inviteRole}
-          onChange={event => setInviteRole(event.target.value as 'editor' | 'viewer')}
-        >
-          <option value="editor">Editor</option>
-          <option value="viewer">Viewer (read only)</option>
-        </select>
-      </label>
-      <button className="primary" disabled={busy}>Send invitation</button>
-    </form>
-  ) : (
-    <p className="muted">Only a team owner can invite members.</p>
-  );
+      {iconPaths[name]}
+    </svg>
+  )
+}
 
-  const teamSettingsContent = (
-    <div className="team-settings-sections">
-      {selectedTeam && user && (
-        <section>
-          <h3>Members and access</h3>
-          <TeamMembersPanel
-            key={selectedTeam.id}
-            team={selectedTeam}
-            currentUserId={user.id}
-            onChanged={async () => {
-              await refreshLists();
-              const details = await api.teamDetails(selectedTeam.id);
-              setTeamMembers(details.members);
-            }}
-            beforeSelfChange={() => (!dirty && !shortlistDirty) || confirmDiscard()}
-          />
-        </section>
-      )}
-      {selectedTeam?.role === 'owner' && (
-        <section>
-          <h3>Invite a teammate</h3>
-          {inviteForm}
-        </section>
-      )}
-      <section>
-        <h3>Create another team</h3>
-        <form
-          onSubmit={event => {
-            event.preventDefault();
-            if (guardEdits()) {
-              void run(async () => {
-                const nextTeam = await api.createTeam(teamName);
-                setTeamName('');
-                await refreshLists();
-                activateTeam(nextTeam.id);
-                setNotice('Team created.');
-              });
-            }
-          }}
+function NexusLogo() {
+  return (
+    <svg
+      className="nexus-logo"
+      viewBox="0 0 160 36"
+      role="img"
+      aria-label="Nexus"
+    >
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M5 29V7l21 22V7h11" />
+        <path d="M52 7H37v22h17M37 18h13" />
+        <path d="m61 7 22 22M83 7 61 29" />
+        <path d="M91 7v14c0 5.4 3.7 8 10 8s10-2.6 10-8V7" />
+        <path d="M143 9c-3-2.8-6.8-4-10.7-3.5-5 .6-8.6 3.1-8.4 6.6.5 7.7 18.3 2.3 18.8 10.1.3 4.5-4 7.3-9.7 7.3-4.2 0-8.1-1.5-11-4.4" />
+      </g>
+      <g fill="#0a66c2" stroke="#fff" strokeWidth="1.4">
+        <circle cx="5" cy="7" r="3.6" />
+        <circle cx="26" cy="29" r="3.6" />
+        <circle cx="37" cy="7" r="3.4" />
+        <circle cx="50" cy="18" r="3.1" />
+        <circle cx="72" cy="18" r="4.2" />
+        <circle cx="91" cy="7" r="3.4" />
+        <circle cx="101" cy="29" r="3.8" />
+        <circle cx="111" cy="7" r="3.4" />
+        <circle cx="133" cy="18" r="3.8" />
+        <circle cx="143" cy="9" r="3.2" />
+      </g>
+      <path
+        d="M26 29 37 18M83 29l8-8M111 21l12-9"
+        fill="none"
+        stroke="#0a66c2"
+        strokeWidth="1.4"
+        strokeDasharray="2.5 3"
+        strokeLinecap="round"
+        opacity=".75"
+      />
+    </svg>
+  )
+}
+
+function Avatar({
+  initials,
+  color = "teal",
+  active = false,
+}: {
+  initials: string
+  color?: string
+  active?: boolean
+}) {
+  return (
+    <span className={`avatar avatar-${color} ${active ? "is-active" : ""}`}>
+      {initials}
+    </span>
+  )
+}
+
+function Tag({
+  children,
+  tone = "neutral",
+}: {
+  children: ReactNode
+  tone?: string
+}) {
+  return <span className={`tag tag-${tone}`}>{children}</span>
+}
+
+const viewMeta: Record<View, {
+  label: string
+  icon: IconName
+  subtitle: string
+}> = {
+  campus: {
+    label: "Home",
+    icon: "home",
+    subtitle: "Your research feed",
+  },
+  vault: {
+    label: "Vault",
+    icon: "shield",
+    subtitle: "Prove and share safely",
+  },
+  pod: {
+    label: "Pod",
+    icon: "users",
+    subtitle: "Move the work forward",
+  },
+  proof: {
+    label: "Proposal",
+    icon: "book",
+    subtitle: "Write with verified sources",
+  },
+}
+
+function AppFrame({
+  view,
+  setView,
+  children,
+  onTelemetry,
+  openOverlay,
+}: {
+  view: View
+  setView: (view: View) => void
+  children: ReactNode
+  onTelemetry: () => void
+  openOverlay: (overlay: Overlay) => void
+}) {
+  const [toolsOpen, setToolsOpen] = useState(false)
+  return (
+    <div className="app-shell">
+      <header className="global-header">
+        <button
+          className="wordmark"
+          onClick={() => setView("campus")}
+          aria-label="Nexus home"
         >
-          <label>
-            New team name
-            <input value={teamName} onChange={event => setTeamName(event.target.value)} required maxLength={160} />
-          </label>
-          <button type="submit" disabled={busy}>Create team</button>
-        </form>
+          <NexusLogo />
+        </button>
+        <label className="global-search">
+          <Icon name="search" size={17} />
+          <input placeholder="Search people, projects, papers, or skills" />
+        </label>
+        <nav className="continuum" aria-label="Research continuum">
+          {(Object.keys(viewMeta) as View[]).map((key) => (
+            <button
+              key={key}
+              className={view === key ? "active" : ""}
+              onClick={() => setView(key)}
+            >
+              <span className="continuum-icon">
+                <Icon name={viewMeta[key].icon} size={16} />
+              </span>
+              <span className="continuum-copy">
+                <b>{viewMeta[key].label}</b>
+              </span>
+            </button>
+          ))}
+        </nav>
+        <div className="header-actions">
+          <div className="tools-anchor">
+            <button
+              className={`header-nav-button ${toolsOpen ? "active" : ""}`}
+              onClick={() => setToolsOpen(!toolsOpen)}
+            >
+              <Icon name="graph" size={18} />
+              <span>Tools</span>
+            </button>
+            {toolsOpen && (
+              <div className="tools-menu">
+                <div>
+                  <strong>Research tools</strong>
+                  <small>Open a focused workspace when you need it.</small>
+                </div>
+                <button
+                  onClick={() => {
+                    setView("campus")
+                    setToolsOpen(false)
+                  }}
+                >
+                  <span className="tool-menu-icon blue">
+                    <Icon name="users" />
+                  </span>
+                  <span>
+                    <b>Find collaborators</b>
+                    <small>People matched to your research needs</small>
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    setView("proof")
+                    setToolsOpen(false)
+                  }}
+                >
+                  <span className="tool-menu-icon green">
+                    <Icon name="book" />
+                  </span>
+                  <span>
+                    <b>Literature search</b>
+                    <small>Search and inspect verified papers</small>
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    openOverlay("graph")
+                    setToolsOpen(false)
+                  }}
+                >
+                  <span className="tool-menu-icon violet">
+                    <Icon name="graph" />
+                  </span>
+                  <span>
+                    <b>Knowledge graph</b>
+                    <small>Explore topics, authors, and research gaps</small>
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    onTelemetry()
+                    setToolsOpen(false)
+                  }}
+                >
+                  <span className="tool-menu-icon gold">
+                    <Icon name="message" />
+                  </span>
+                  <span>
+                    <b>Ask the literature</b>
+                    <small>Get answers grounded in your library</small>
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    openOverlay("funding")
+                    setToolsOpen(false)
+                  }}
+                >
+                  <span className="tool-menu-icon teal">
+                    <Icon name="pin" />
+                  </span>
+                  <span>
+                    <b>Funding finder</b>
+                    <small>Find grants that fit your work</small>
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+          <button className="header-nav-button" onClick={onTelemetry}>
+            <Icon name="message" size={18} />
+            <span>Messages</span>
+          </button>
+          <button
+            className="header-nav-button notification"
+            aria-label="Notifications"
+          >
+            <Icon name="bell" />
+            <i />
+            <span>Alerts</span>
+          </button>
+          <button className="me-button">
+            <Avatar initials="AM" color="gold" active />
+            <span>Me</span>
+            <Icon name="chevron" size={11} />
+          </button>
+        </div>
+      </header>
+      <main>{children}</main>
+    </div>
+  )
+}
+
+function MetricRing({
+  value,
+  label,
+  tone = "teal",
+  size = 84,
+}: {
+  value: number
+  label: string
+  tone?: string
+  size?: number
+}) {
+  return (
+    <div
+      className="metric-ring"
+      style={
+        {
+          "--value": `${value * 3.6}deg`,
+          "--ring": `var(--${tone})`,
+          width: size,
+          height: size,
+        } as React.CSSProperties
+      }
+    >
+      <div>
+        <strong>{value}</strong>
+        <span>{label}</span>
+      </div>
+    </div>
+  )
+}
+
+const papers = [
+  {
+    title: "Federated Foundation Models for Privacy-Preserving Neural Decoding",
+    authors: "Zhang et al. · Nature Machine Intelligence",
+    score: 96,
+    verdict: "Supports",
+    person: "MK",
+    color: "blue",
+  },
+  {
+    title: "Cross-Subject EEG Alignment via Optimal Transport",
+    authors: "Li, Verma et al. · NeurIPS 2024",
+    score: 91,
+    verdict: "Methodology",
+    person: "JL",
+    color: "violet",
+  },
+  {
+    title: "The Privacy Cost of Brain–Computer Interfaces",
+    authors: "Rao et al. · ACM FAccT 2023",
+    score: 88,
+    verdict: "Contradicts",
+    person: "AM",
+    color: "gold",
+  },
+]
+
+function PodView({
+  setView,
+  openOverlay,
+}: {
+  setView: (view: View) => void
+  openOverlay: (overlay: Overlay) => void
+}) {
+  const [activeMilestone, setActiveMilestone] = useState(2)
+  const [paperTab, setPaperTab] = useState<"evidence" | "discussion">(
+    "evidence",
+  )
+  const [pinned, setPinned] = useState(2)
+  return (
+    <div className="view pod-view">
+      <section className="pod-identity">
+        <div>
+          <div className="eyebrow">
+            <span className="live-dot" /> NEURAL COMMONS · 4 MEMBERS
+          </div>
+          <h1>Good morning, Aria.</h1>
+          <p>
+            Your pod is moving toward the internal methods review on Friday.
+          </p>
+        </div>
+        <div className="pod-people">
+          <div className="facepile">
+            <Avatar initials="AM" color="gold" active />
+            <Avatar initials="JL" color="blue" active />
+            <Avatar initials="MK" color="violet" active />
+            <Avatar initials="SR" color="teal" />
+          </div>
+          <div className="presence-copy">
+            <strong>3 teammates here</strong>
+            <span>Jon and Maya are editing</span>
+          </div>
+          <button className="icon-button">
+            <Icon name="message" />
+          </button>
+          <button className="dark-button">
+            <Icon name="users" /> Add teammate
+          </button>
+        </div>
       </section>
-      {invitations.length > 0 && (
-        <section>
-          <h3>Pending invitations</h3>
-          {invitations.map(invite => (
-            <div className="invite-row" key={invite.id}>
-              <span>{invite.team_name} ({invite.role})</span>
+
+      <section className="today-focus">
+        <span className="focus-check">
+          <Icon name="verified" size={22} />
+        </span>
+        <div className="focus-copy">
+          <span>YOUR NEXT MOVE</span>
+          <h2>Review 5 claims before Friday’s methods check.</h2>
+          <p>
+            Nexus found the source passages. Confirm the matches and your
+            readiness score will move to 80%.
+          </p>
+        </div>
+        <div className="focus-meta">
+          <span>
+            <b>12 min</b> estimated
+          </span>
+          <span>
+            <b>5</b> claims
+          </span>
+        </div>
+        <button className="accent-button" onClick={() => setView("proof")}>
+          Review claims <Icon name="arrow" />
+        </button>
+        <button
+          className="focus-audit-button"
+          onClick={() => openOverlay("peer-review")}
+        >
+          Run pre-flight audit
+        </button>
+      </section>
+
+      <section className="milestone-band">
+        <div className="milestone-heading">
+          <span>GRANT PROGRESS</span>
+          <button>
+            NSF Smart & Connected Communities <Icon name="chevron" size={14} />
+          </button>
+        </div>
+        <div className="milestone-content">
+          <div className="flightpath">
+            {[
+              "Literature discovery",
+              "Evidence assembly",
+              "Collaborative drafting",
+              "Peer review",
+              "Final submission",
+            ].map((item, i) => (
               <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  if (canChangeTeam(teamId, invite.team_id, dirty, confirmDiscard)) {
-                    void run(async () => {
-                      const accepted = await api.accept(invite.id);
-                      await refreshLists();
-                      activateTeam(accepted.team_id);
-                      setNotice('Invitation accepted.');
-                    });
-                  }
-                }}
+                key={item}
+                className={`${i < activeMilestone ? "complete" : ""} ${
+                  i === activeMilestone ? "current" : ""
+                }`}
+                onClick={() => setActiveMilestone(i)}
               >
-                Accept
+                <span>
+                  {i < activeMilestone ? (
+                    <Icon name="check" size={14} />
+                  ) : (
+                    `0${i + 1}`
+                  )}
+                </span>
+                <b>{item}</b>
+                <small>
+                  {i < activeMilestone
+                    ? "Complete"
+                    : i === activeMilestone
+                      ? "7 of 12 tasks"
+                      : i === 3
+                        ? "Due Oct 18"
+                        : "Not started"}
+                </small>
+              </button>
+            ))}
+          </div>
+          <div className="readiness">
+            <MetricRing value={72} label="READY" />
+            <div>
+              <strong>Proposal readiness</strong>
+              <span>+8 this week</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="pod-grid">
+        <div className="evidence-panel panel">
+          <div className="panel-header">
+            <div>
+              <div className="switcher">
+                <button
+                  className={paperTab === "evidence" ? "active" : ""}
+                  onClick={() => setPaperTab("evidence")}
+                >
+                  Evidence board <span>18</span>
+                </button>
+                <button
+                  className={paperTab === "discussion" ? "active" : ""}
+                  onClick={() => setPaperTab("discussion")}
+                >
+                  Discussion <span>6</span>
+                </button>
+              </div>
+              <p>
+                {paperTab === "evidence"
+                  ? "The sources your team trusts enough to write from."
+                  : "Open questions and decisions that need the team."}
+              </p>
+            </div>
+            <div className="panel-tools">
+              <button className="icon-button">
+                <Icon name="search" />
+              </button>
+              <button className="soft-button">
+                <Icon name="plus" /> Add a paper
               </button>
             </div>
-          ))}
-        </section>
-      )}
-    </div>
-  );
-
-  const shortlistContent = selectedTeam ? (
-    <details className="sidebar-shortlist-details">
-      <summary>Saved Sources</summary>
-      <ShortlistPanel
-        team={selectedTeam}
-        proposal={proposal}
-        attachedSourceIds={sources.map(source => source.id)}
-        refreshVersion={shortlistVersion}
-        workspaceBusy={busy}
-        noteDrafts={shortlistDrafts[teamId] ?? {}}
-        onNoteChange={(entryId, value, savedNote) =>
-          setShortlistDrafts(previous => editShortlistDraft(previous, teamId, entryId, value, savedNote))
-        }
-        onNoteSaved={(entryId, savedNote) =>
-          setShortlistDrafts(previous => acknowledgeShortlistDraft(previous, teamId, entryId, savedNote))
-        }
-        onRemove={entryId =>
-          setShortlistDrafts(previous => {
-            const notes = { ...previous[teamId] };
-            delete notes[entryId];
-            return { ...previous, [teamId]: notes };
-          })
-        }
-        onAttach={sourceId =>
-          run(async () => {
-            if (!proposal || !canAttachToProposal(teamId, proposal)) return;
-            const source = await api.attach(proposal.id, sourceId);
-            setSources(previous => [...previous.filter(item => item.id !== source.id), source]);
-            setNotice('Shortlisted source attached to proposal.');
-          })
-        }
-      />
-    </details>
-  ) : null;
-
-  return (
-    <div className="workspace-app">
-      <WorkspaceTopBar
-        currentView={currentView}
-        title={title}
-        teams={teams}
-        teamId={teamId}
-        members={teamMembers}
-        user={user}
-        busy={busy}
-        sidebarOpen={sidebarOpen}
-        settingsContent={teamSettingsContent}
-        inviteContent={inviteForm}
-        onTeamChange={changeTeam}
-        onToggleSidebar={() => setSidebarOpen(value => !value)}
-        onSignOut={() => {
-          if ((!dirty && !shortlistDirty) || confirmDiscard()) {
-            void run(async () => {
-              await api.logout();
-              setShortlistDrafts({});
-              clearEditor();
-              setTeamId('');
-              setUser(null);
-            });
-          }
-        }}
-      />
-      <div className="app-shell-body">
-        <AppSidebar
-          currentView={currentView}
-          busy={busy}
-          canEdit={selectedTeam?.role !== 'viewer'}
-          proposals={proposals}
-          teamId={teamId}
-          activeProposalId={proposal?.id ?? null}
-          mobileOpen={sidebarOpen}
-          shortlist={shortlistContent}
-          onNavigate={navigateView}
-          onOpenProposal={id => {
-            if (guardEdits()) void run(() => openProposal(id));
-          }}
-          onCreateProposal={createProposal}
-          onDeleteProposal={deleteProposal}
-          onMobileClose={() => setSidebarOpen(false)}
-        />
-        <div className="app-content">
-
-      {/* Global Notice / Error Alerts */}
-      <div className="feedback-banner" aria-live="polite">
-        {busy && <span className="status-pill working">Processing…</span>}
-        {notice && (
-          <span className="status-pill success">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            {notice}
-          </span>
-        )}
-        {error && (
-          <div className="alert error banner-alert" role="alert">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-            <button type="button" aria-label="Dismiss error" onClick={() => setError('')}>×</button>
           </div>
-        )}
-      </div>
-
-      {/* ------------------------------------------------------------- */}
-      {/* VIEW 1: PROPOSALS & WORKSPACE                                  */}
-      {/* ------------------------------------------------------------- */}
-      {currentView === 'workspace' && (
-        <div className={`workspace-editor-layout ${contextOpen ? 'with-context-panel' : ''}`}>
-          {false && <aside className="workspace-sidebar" aria-label="Teams and proposals">
-            <details className="workspace-utility-card">
-              <summary>Team settings, members & invitations</summary>
-              <p className="workspace-help">
-                Use these settings to manage who can work on this team. Editors can change proposals;
-                viewers can only read them.
-              </p>
-              <div className="sidebar-section">
-                <div className="sidebar-header">
-                  <h3>Team access</h3>
-                  <button type="button" className="text-button" onClick={() => void run(refreshLists)}>
-                    Refresh
-                  </button>
-                </div>
-
-                {selectedTeam && user && (
-                  <TeamMembersPanel
-                    key={selectedTeam?.id}
-                    team={selectedTeam!}
-                    currentUserId={user!.id}
-                    onChanged={refreshLists}
-                    beforeSelfChange={() => (!dirty && !shortlistDirty) || confirmDiscard()}
-                  />
-                )}
-
-                {selectedTeam?.role === 'owner' && (
-                  <details className="accordion-card">
-                    <summary>Invite a teammate</summary>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void run(async () => {
-                          await api.invite(teamId, inviteEmail, inviteRole);
-                          setInviteEmail('');
-                          setNotice('Invitation sent.');
-                        });
-                      }}
-                    >
-                      <label>
-                        Email address
-                        <input
-                          type="email"
-                          value={inviteEmail}
-                          onChange={(e) => setInviteEmail(e.target.value)}
-                          placeholder="colleague@rit.edu"
-                          required
-                        />
-                      </label>
-                      <label>
-                        Role access
-                        <select
-                          value={inviteRole}
-                          onChange={(e) => setInviteRole(e.target.value as 'editor' | 'viewer')}
-                        >
-                          <option value="editor">Editor (Can edit & draft)</option>
-                          <option value="viewer">Viewer (Read-only)</option>
-                        </select>
-                      </label>
-                      <button disabled={busy} className="button small">Send Invite</button>
-                    </form>
-                  </details>
-                )}
-
-                <details className="accordion-card">
-                  <summary>Create another team</summary>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (guardEdits()) {
-                        void run(async () => {
-                          const t = await api.createTeam(teamName);
-                          setTeamName('');
-                          await refreshLists();
-                          activateTeam(t.id);
-                          setNotice('Team created.');
-                        });
-                      }
-                    }}
-                  >
-                    <input
-                      value={teamName}
-                      onChange={(e) => setTeamName(e.target.value)}
-                      placeholder="Team name"
-                      required
-                      maxLength={160}
-                    />
-                    <button disabled={busy} className="button small">Create</button>
-                  </form>
-                </details>
-
-                {invitations.length > 0 && (
-                  <div className="invitations-box">
-                    <h4>Pending Invitations ({invitations.length})</h4>
-                    {invitations.map((invite) => (
-                      <div key={invite.id} className="invite-row">
-                        <span>{invite.team_name} ({invite.role})</span>
-                        <button
-                          type="button"
-                          className="button small"
-                          onClick={() => {
-                            if (canChangeTeam(teamId, invite.team_id, dirty, confirmDiscard)) {
-                              void run(async () => {
-                                const accepted = await api.accept(invite.id);
-                                await refreshLists();
-                                activateTeam(accepted.team_id);
-                                setNotice('Invitation accepted.');
-                              });
-                            }
-                          }}
-                        >
-                          Accept
-                        </button>
-                      </div>
-                    ))}
+          {paperTab === "evidence" ? (
+            <div className="paper-list">
+              {papers.map((paper, i) => (
+                <article className="paper-row" key={paper.title}>
+                  <div className="paper-score">
+                    {paper.score}
+                    <small>%</small>
                   </div>
-                )}
-              </div>
-            </details>
-
-            <section className="sidebar-section workspace-step-card" aria-labelledby="proposal-select-heading">
-              <div className="workspace-step-heading">
-                <span className="workspace-step-number" aria-hidden="true">1</span>
-                <div>
-                  <h2 id="proposal-select-heading">Choose or create a proposal</h2>
-                  <p>A proposal is the shared document for one research idea. Open one to continue, or create one to start fresh. The saved version number changes when edits are saved.</p>
-                </div>
-                <span className="count-pill">
-                  {proposals.filter((item) => item.team_id === teamId).length}{' '}
-                  {proposals.filter((item) => item.team_id === teamId).length === 1 ? 'proposal' : 'proposals'}
-                </span>
-              </div>
-
-              <div className="proposals-list" role="list">
-                {proposals
-                  .filter((item) => item.team_id === teamId)
-                  .map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={`proposal-item ${item.id === proposal?.id ? 'active' : ''}`}
-                      disabled={busy}
-                      onClick={() => {
-                        if (guardEdits()) void run(() => openProposal(item.id));
-                      }}
-                    >
-                      <FileText className="w-4 h-4 shrink-0" />
-                      <div className="proposal-item-text">
-                        <span className="proposal-title">{item.title}</span>
-                        <small className="muted">
-                          {item.id === proposal?.id ? 'Currently open · ' : ''}Saved version {item.revision}
-                        </small>
-                      </div>
-                    </button>
-                  ))}
-
-                {!proposals.some((item) => item.team_id === teamId) && (
-                  <p className="empty">No proposals in this team yet.</p>
-                )}
-              </div>
-
-              <form
-                className="new-proposal-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (guardEdits()) {
-                    void run(async () => {
-                      const next = await api.createProposal(teamId, newTitle);
-                      await openProposal(next.id);
-                      setNewTitle('');
-                    });
-                  }
-                }}
-              >
-                <input
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Name your research idea…"
-                  required
-                  maxLength={240}
-                  disabled={!teamId || selectedTeam?.role === 'viewer'}
-                />
-                <button
-                  type="submit"
-                  className="primary wide"
-                  disabled={busy || !teamId || selectedTeam?.role === 'viewer'}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Create Proposal</span>
-                </button>
-              </form>
-            </section>
-
-            {/* Team Shortlist Preview */}
-            {selectedTeam && (
-              <details className="workspace-utility-card">
-                <summary>Manage team shortlist</summary>
-                <p className="workspace-help">
-                  A shortlist is a team-wide holding area for papers and researcher profiles. Attach a saved
-                  source to the open proposal when you are ready to use it.
-                </p>
-                <div className="sidebar-section">
-                  <ShortlistPanel
-                    team={selectedTeam!}
-                    proposal={proposal}
-                    attachedSourceIds={sources.map((s) => s.id)}
-                    refreshVersion={shortlistVersion}
-                    workspaceBusy={busy}
-                    noteDrafts={shortlistDrafts[teamId] ?? {}}
-                    onNoteChange={(entryId, val, savedNote) =>
-                      setShortlistDrafts((prev) => editShortlistDraft(prev, teamId, entryId, val, savedNote))
-                    }
-                    onNoteSaved={(entryId, savedNote) =>
-                      setShortlistDrafts((prev) => acknowledgeShortlistDraft(prev, teamId, entryId, savedNote))
-                    }
-                    onRemove={(entryId) =>
-                      setShortlistDrafts((prev) => {
-                        const notes = { ...prev[teamId] };
-                        delete notes[entryId];
-                        return { ...prev, [teamId]: notes };
-                      })
-                    }
-                    onAttach={(sourceId) =>
-                      run(async () => {
-                        if (!proposal || !canAttachToProposal(teamId, proposal)) return;
-                        const source = await api.attach(proposal.id, sourceId);
-                        setSources((prev) => [...prev.filter((i) => i.id !== source.id), source]);
-                        setNotice('Shortlisted source attached to proposal.');
-                      })
-                    }
-                  />
-                </div>
-              </details>
-            )}
-          </aside>}
-
-          <main id="main" className="workspace-editor-canvas">
-            {proposal ? (
-              <div className="editor-card">
-                <div className="editor-toolbar">
-                  <label className="editor-title-input">
-                    <span className="sr-only">Proposal title</span>
-                    <input
-                      value={title}
-                      onChange={event => setTitle(event.target.value)}
-                      maxLength={240}
-                      required
-                      disabled={busy || !editable}
-                      placeholder="Untitled proposal"
-                    />
-                  </label>
-                  <span className={`save-status-pill ${dirty ? 'unsaved' : 'saved'}`} role="status">
-                    {dirty ? 'Unsaved changes' : `Saved · v${proposal.revision}`}
-                  </span>
-                  <div className="editor-toolbar-actions">
-                    <button
-                      type="button"
-                      className="primary"
-                      disabled={busy || !editable || !dirty || !title.trim() || !!conflict}
-                      onClick={() => void run(() => save())}
-                    >
-                      <Save className="w-4 h-4" aria-hidden="true" />
-                      <span>Save</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label="Download proposal as Markdown"
-                      title="Download as Markdown"
-                      disabled={busy}
-                      onClick={() =>
-                        void run(async () => {
-                          const blob = await api.exportMarkdown(proposal.id);
-                          const url = URL.createObjectURL(blob);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = `proposal-${proposal.id}.md`;
-                          document.body.appendChild(link);
-                          link.click();
-                          link.remove();
-                          setTimeout(() => URL.revokeObjectURL(url), 1000);
-                          setNotice('Exported Markdown downloaded.');
-                        })
-                      }
-                    >
-                      <Download className="w-4 h-4" aria-hidden="true" />
-                    </button>
-                    <button
-                      ref={contextTriggerRef}
-                      type="button"
-                      className="icon-button context-toggle"
-                      aria-label={contextOpen ? 'Close proposal tools' : 'Open proposal tools'}
-                      aria-expanded={contextOpen}
-                      onClick={() => setContextOpen(value => !value)}
-                    >
-                      <PanelRight className="w-4 h-4" aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Revision Conflict Banner */}
-                {conflict && (
-                  <section className="conflict-banner" role="alert">
-                    <h4>Revision Conflict Detected</h4>
-                    <p>Another collaborator saved revision {conflict.revision}. Your changes are preserved in the editor.</p>
-                    <details>
-                      <summary>Compare with server version</summary>
-                      <h5>Server Revision ({conflict.title}):</h5>
-                      <pre>{conflict.content || '(Empty content)'}</pre>
-                    </details>
-                    <div className="conflict-actions">
-                      <button type="button" onClick={() => void copyToClipboard(`# ${title}\n\n${content}`)}>
-                        Copy my edits
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          install(conflict);
-                          setNotice('Loaded the server revision.');
-                        }}
-                      >
-                        Discard mine and load server
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProposal(conflict);
-                          setConflict(null);
-                          setNotice('Reconcile changes and save against latest revision.');
-                        }}
-                      >
-                        Keep my edits for reconciliation
-                      </button>
+                  <div className="paper-copy">
+                    <div className="paper-tags">
+                      <Tag tone={paper.verdict.toLowerCase()}>
+                        {paper.verdict}
+                      </Tag>
+                      <span>FOUNDATIONAL</span>
                     </div>
-                  </section>
-                )}
-
-                <div className="editor-inputs">
-                  {/* Document Metrics & Mode Bar */}
-                  <div className="editor-metrics-bar">
-                    <div className="metrics-group">
-                      <span className="metric-item">
-                        <strong>{content.trim() ? content.trim().split(/\s+/).length : 0}</strong> words
+                    <h3>{paper.title}</h3>
+                    <p>{paper.authors}</p>
+                    <div className="paper-meta">
+                      <Avatar initials={paper.person} color={paper.color} />
+                      <span>
+                        Added by{" "}
+                        {paper.person === "MK"
+                          ? "Maya"
+                          : paper.person === "JL"
+                            ? "Jon"
+                            : "you"}
                       </span>
-                      <span className="metric-divider">·</span>
-                      <span className="metric-item">
-                        <strong>{((content.trim() ? content.trim().split(/\s+/).length : 0) / 500).toFixed(1)}</strong> pages
-                      </span>
-                      <span className="metric-divider">·</span>
-                      <span className="metric-item">
-                        <strong>{content.length.toLocaleString()}</strong> characters
-                      </span>
-                      <span className="metric-divider">·</span>
-                      <span className="metric-item">
-                        <strong>{Math.max(1, Math.ceil((content.trim() ? content.trim().split(/\s+/).length : 0) / 200))}</strong> min read
-                      </span>
+                      <span>·</span>
+                      <span>{i + 2} endorsements</span>
                     </div>
-
-                    <div className="editor-mode-switcher">
-                      <button
-                        type="button"
-                        className={`mode-btn ${editorMode === 'edit' ? 'active' : ''}`}
-                        onClick={() => setEditorMode('edit')}
-                        title="Editor only"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`mode-btn ${editorMode === 'split' ? 'active' : ''}`}
-                        onClick={() => setEditorMode('split')}
-                        title="Split view (Editor + Live Preview)"
-                      >
-                        <Columns className="w-3.5 h-3.5" />
-                        <span>Split</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`mode-btn ${editorMode === 'preview' ? 'active' : ''}`}
-                        onClick={() => setEditorMode('preview')}
-                        title="Formatted manuscript preview"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Preview</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Formatting Toolbar & Template Inserter */}
-                  {editorMode !== 'preview' && (
-                    <div className="editor-toolbar">
-                      <div className="toolbar-btn-group">
-                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('**', '**')} title="Bold">
-                          <Bold className="w-3.5 h-3.5" />
-                        </button>
-                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('*', '*')} title="Italic">
-                          <Italic className="w-3.5 h-3.5" />
-                        </button>
-                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('## ')} title="Heading 2">
-                          <Heading1 className="w-3.5 h-3.5" />
-                        </button>
-                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('### ')} title="Heading 3">
-                          <Heading2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('- ')} title="Bullet list">
-                          <List className="w-3.5 h-3.5" />
-                        </button>
-                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('1. ')} title="Numbered list">
-                          <ListOrdered className="w-3.5 h-3.5" />
-                        </button>
-                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('> ')} title="Blockquote">
-                          <Quote className="w-3.5 h-3.5" />
-                        </button>
-                        <button type="button" className="toolbar-btn" onClick={() => insertFormatting('```\n', '\n```')} title="Code or equation block">
-                          <Code className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      <div className="toolbar-templates-dropdown">
-                        <select
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              insertTemplate(e.target.value as any);
-                              e.target.value = '';
-                            }
-                          }}
-                          defaultValue=""
-                          className="template-select"
-                        >
-                          <option value="" disabled>+ Insert Grant Template…</option>
-                          <option value="nsf">NSF Project Description (Intellectual Merit & Broader Impacts)</option>
-                          <option value="nih">NIH Specific Aims (Significance & Innovation)</option>
-                          <option value="darpa">DoD / DARPA Technical Approach & Milestones</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Dynamic Canvas: Edit / Split / Preview */}
-                  {editorMode === 'edit' && (
-                    <textarea
-                      ref={textareaRef}
-                      className="content-textarea"
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      disabled={busy || !editable}
-                      placeholder="Start with your research question, aims, or methods…"
-                      rows={26}
-                    />
-                  )}
-
-                  {editorMode === 'split' && (
-                    <div className="editor-split-container">
-                      <textarea
-                        ref={textareaRef}
-                        className="content-textarea"
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        disabled={busy || !editable}
-                        placeholder="Draft markdown text here…"
-                        rows={26}
-                      />
-                      <div
-                        className="editor-preview-pane"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdownSimple(content) }}
-                      />
-                    </div>
-                  )}
-
-                  {editorMode === 'preview' && (
-                    <div
-                      className="editor-preview-standalone"
-                      dangerouslySetInnerHTML={{ __html: renderMarkdownSimple(content) }}
-                    />
-                  )}
-                </div>
-
-                <div className="editor-footer-bar">
-                  <div className="editor-footer-left">
-                    <span className={`save-status-pill ${dirty ? 'unsaved' : 'saved'}`} role="status">
-                      {dirty ? 'Unsaved changes' : `Saved · v${proposal.revision}`}
-                    </span>
-                  </div>
-                  <div className="editor-footer-actions">
-                    <button
-                      type="button"
-                      className="button ghost editor-footer-cancel"
-                      disabled={busy}
-                      onClick={() => {
-                        if (dirty && !window.confirm('Discard unsaved changes and return to the workspace?')) return;
-                        clearEditor();
-                      }}
-                    >
-                      <ArrowLeft className="w-4 h-4" aria-hidden="true" />
-                      <span>Back to workspace</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="button primary editor-footer-complete"
-                      disabled={busy || !editable || !title.trim() || !!conflict}
-                      title={dirty ? 'Save and return to workspace' : 'Return to workspace'}
-                      onClick={() => {
-                        void run(async () => {
-                          if (dirty) {
-                            await save();
-                            if (conflict) return;
-                          }
-                          clearEditor();
-                          setNotice(dirty ? 'Proposal saved. Back to workspace.' : 'Returned to workspace.');
-                        });
-                      }}
-                    >
-                      <Check className="w-4 h-4" aria-hidden="true" />
-                      <span>{dirty ? 'Complete & Save' : 'Complete'}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="workspace-dashboard">
-                {/* Hero Welcome Banner */}
-                <div className="dashboard-hero">
-                  <div className="dashboard-hero-content">
-                    <div className="dashboard-badge">
-                      <Sparkles className="w-4 h-4 text-amber-500" />
-                      <span>{selectedTeam ? `${selectedTeam.name} Workspace` : 'Research Workspace'}</span>
-                    </div>
-                    <h2>
-                      Welcome back{user?.name ? <>, <span className="hero-name">{user.name.split(' ')[0]}</span></> : ''} <span className="hero-wave" aria-hidden="true">👋</span>
-                    </h2>
-                    <p className="dashboard-subtitle">
-                      Start a new proposal, continue where you left off, or explore the knowledge graph to find your next collaborator.
-                    </p>
-                  </div>
-                  <div className="dashboard-hero-glyph" aria-hidden="true">
-                    <div className="hero-glyph-ring">
-                      <Sparkles className="w-7 h-7" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Proposal Creator Card */}
-                <div className="dashboard-quickstart-card">
-                  <div className="quickstart-header">
-                    <div className="quickstart-title-row">
-                      <Plus className="w-5 h-5 text-blue-600" />
-                      <h3>Create a Research Proposal</h3>
-                    </div>
-                    <p className="muted">Enter a proposal title or start from a pre-configured grant template.</p>
-                  </div>
-
-                  <form
-                    className="quickstart-form"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (dashboardProposalTitle.trim()) {
-                        void createProposal(dashboardProposalTitle.trim());
-                        setDashboardProposalTitle('');
-                      }
-                    }}
-                  >
-                    <input
-                      type="text"
-                      className="quickstart-input"
-                      placeholder="e.g. Multimodal Deep Learning for Assistive Drone Navigation…"
-                      value={dashboardProposalTitle}
-                      onChange={(e) => setDashboardProposalTitle(e.target.value)}
-                      disabled={busy || !teamId || !canEditTeam}
-                    />
-                    <button
-                      type="submit"
-                      className="button primary quickstart-button"
-                      disabled={busy || !teamId || !canEditTeam || !dashboardProposalTitle.trim()}
-                    >
-                      <span>Create Draft</span>
-                    </button>
-                  </form>
-
-                  <div className="template-quickstarts">
-                    <span className="template-label">Or start with a grant template:</span>
-                    <div className="template-chips">
-                      <button
-                        type="button"
-                        className="template-chip"
-                        onClick={() => void createProposalWithTemplate('NSF Project Description', 'nsf')}
-                        disabled={busy || !teamId || !canEditTeam}
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>NSF Project Description</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="template-chip"
-                        onClick={() => void createProposalWithTemplate('NIH Specific Aims', 'nih')}
-                        disabled={busy || !teamId || !canEditTeam}
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>NIH Specific Aims</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="template-chip"
-                        onClick={() => void createProposalWithTemplate('DoD / DARPA Technical Approach', 'darpa')}
-                        disabled={busy || !teamId || !canEditTeam}
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>DoD / DARPA Technical</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Team Proposals Grid (if any exist) */}
-                {proposals.length > 0 && (
-                  <div className="dashboard-section">
-                    <div className="section-header-row">
-                      <h3>Active Proposals ({proposals.length})</h3>
-                      <span className="section-subtext">Click any card to continue drafting</span>
-                    </div>
-                    <div className="proposals-cards-grid">
-                      {proposals.map((item) => (
-                        <div
-                          key={item.id}
-                          className="proposal-launch-card"
-                          onClick={() => void openProposal(item.id)}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => e.key === 'Enter' && void openProposal(item.id)}
-                        >
-                          <div className="card-top-meta">
-                            <span className="role-tag">{item.role}</span>
-                            <span className="revision-tag">v{item.revision}</span>
-                          </div>
-                          <h4 className="proposal-card-title">{item.title}</h4>
-                          <p className="proposal-card-snippet">
-                            {item.content
-                              ? item.content.slice(0, 140) + '…'
-                              : 'Blank proposal draft. Ready for research aims, methodologies, and literature citations.'}
-                          </p>
-                          <div className="card-footer-meta">
-                            <span className="card-date">
-                              {new Date(item.updated_at).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })}
-                            </span>
-                            <span className="open-link">
-                              Open Editor <ArrowRight className="w-3.5 h-3.5" />
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Platform Capabilities & Quick Nav */}
-                <div className="dashboard-section">
-                  <div className="section-header-row">
-                    <h3>Explore Research Capabilities</h3>
-                    <span className="section-subtext">Integrated tools grounded on verified RIT scholarship</span>
-                  </div>
-                  <div className="tools-cards-grid">
-                    <div
-                      className="tool-card"
-                      onClick={() => navigateView('chat')}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && navigateView('chat')}
-                    >
-                      <div className="tool-icon-circle chat">
-                        <MessageSquare className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <h4>Research Chat</h4>
-                      <p>Ask questions across verified publications and faculty profiles with full multi-session memory and citations.</p>
-                      <span className="tool-card-action">Launch Chat &rarr;</span>
-                    </div>
-
-                    <div
-                      className="tool-card"
-                      onClick={() => navigateView('graph')}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && navigateView('graph')}
-                    >
-                      <div className="tool-icon-circle graph">
-                        <Network className="w-5 h-5 text-teal-600" />
-                      </div>
-                      <h4>Knowledge Graph</h4>
-                      <p>Interactive force-directed graph with 2,500+ nodes, dark obsidian theme, and ego-network clustering.</p>
-                      <span className="tool-card-action">Explore Graph &rarr;</span>
-                    </div>
-
-                    <div
-                      className="tool-card"
-                      onClick={() => navigateView('collaborators')}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && navigateView('collaborators')}
-                    >
-                      <div className="tool-icon-circle collaborators">
-                        <Users className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <h4>Collaborator Discovery</h4>
-                      <p>Match your research concept with faculty research affinities, publication records, and departmental focus.</p>
-                      <span className="tool-card-action">Find Collaborators &rarr;</span>
-                    </div>
-
-                    <div
-                      className="tool-card"
-                      onClick={() => navigateView('search')}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && navigateView('search')}
-                    >
-                      <div className="tool-icon-circle search">
-                        <Search className="w-5 h-5 text-amber-600" />
-                      </div>
-                      <h4>Literature Discovery</h4>
-                      <p>Hybrid semantic and BM25 search across thousands of indexed papers with instant evidence attachment.</p>
-                      <span className="tool-card-action">Search Literature &rarr;</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </main>
-
-          <ContextPanel
-            userId={user.id}
-            activeTab={workspaceRightTab}
-            open={contextOpen}
-            sourceCount={sources.length}
-            triggerRef={contextTriggerRef}
-            onTabChange={setWorkspaceRightTab}
-            onOpenChange={setContextOpen}
-          >
-            <>
-
-            {/* TAB: ATTACHED EVIDENCE */}
-            {workspaceRightTab === 'sources' && (
-              <div className="sidebar-tab-content">
-                <div className="tab-instructions">
-                  <p className="muted">
-                    Select sources to make them available to AI Draft.
-                  </p>
-                  {proposal && (
-                    <p className="source-selection-count">
-                      {selected.length} of {sources.length} source{sources.length === 1 ? '' : 's'} selected
-                      for drafting.
-                    </p>
-                  )}
-                </div>
-
-                {!proposal && <p className="empty">Open a proposal to view attached sources.</p>}
-                {proposal && sources.length === 0 && (
-                  <p className="empty">No evidence attached yet. Search literature or add custom text below.</p>
-                )}
-
-                <div className="sources-checklist">
-                  {sources.map((s) => (
-                    <article key={s.id} className="evidence-item-card">
-                      <label className="evidence-checkbox-label">
-                        <input
-                          type="checkbox"
-                          disabled={busy || !editable}
-                          checked={selected.includes(s.id)}
-                          onChange={(e) =>
-                            setSelected((prev) =>
-                              e.target.checked ? [...prev, s.id] : prev.filter((id) => id !== s.id)
-                            )
-                          }
-                        />
-                        <div className="evidence-meta">
-                          <strong>{s.title}</strong>
-                          <small>
-                            {s.is_public ? 'Public literature' : 'Added to this proposal'}
-                          </small>
-                        </div>
-                      </label>
-                      <details className="source-preview-details">
-                        <summary>Preview source text and link</summary>
-                        <pre>{s.text}</pre>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
-                          <OriginLink value={s.origin} />
-                          {s.is_public && looksLikePaperSource({ title: s.title, origin: s.origin }) && (
-                            <button
-                              type="button"
-                              className="button small"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
-                              onClick={() => setActivePdf({ id: s.id, title: s.title })}
-                            >
-                              <FileText className="w-3 h-3 text-rose-600" />
-                              <span>Read PDF</span>
-                            </button>
-                          )}
-                        </div>
-                      </details>
-                    </article>
-                  ))}
-                </div>
-
-                {proposal && editable && (
-                  <details className="accordion-card mt-4">
-                    <summary>Add custom source text</summary>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        void run(async () => {
-                          const added = await api.addSource(proposal.id, {
-                            title: sourceTitle,
-                            text: sourceText,
-                            origin: sourceOrigin,
-                          });
-                          setSources((prev) => [...prev.filter((i) => i.id !== added.id), added]);
-                          setSourceTitle('');
-                          setSourceText('');
-                          setSourceOrigin('');
-                          setNotice('Source attached.');
-                        });
-                      }}
-                    >
-                      <label>
-                        Source title
-                        <input
-                          value={sourceTitle}
-                          onChange={(e) => setSourceTitle(e.target.value)}
-                          placeholder="For example, the paper title"
-                          required
-                        />
-                      </label>
-                      <label>
-                        Where it came from
-                        <input
-                          value={sourceOrigin}
-                          onChange={(e) => setSourceOrigin(e.target.value)}
-                          placeholder="Paste a web link or DOI"
-                          required
-                        />
-                      </label>
-                      <label>
-                        Source text
-                        <textarea
-                          value={sourceText}
-                          onChange={(e) => setSourceText(e.target.value)}
-                          placeholder="Paste the useful passage or document text…"
-                          rows={5}
-                          required
-                        />
-                      </label>
-                      <button className="button small">Attach text</button>
-                    </form>
-                  </details>
-                )}
-              </div>
-            )}
-
-            {/* TAB: AI DRAFTING */}
-            {workspaceRightTab === 'ai' && (
-              <div className="sidebar-tab-content">
-                <div className="ai-assistant-header">
-                  <div className="ai-model-tag">
-                    <Sparkles className="w-3.5 h-3.5 text-[#225bb2]" />
-                    {modelInfo?.provider === 'fixture' && (
-                      <span className="fixture-badge" tabIndex={0} title="Sample response only; no live AI model call is made.">
-                        Demo fixture (no live model call)
-                        <CircleHelp className="w-3 h-3" aria-hidden="true" />
-                      </span>
-                    )}
-                    {modelInfo?.provider !== 'fixture' && (
-                      <span>{modelInfo?.display_name ?? 'AI Draft Assistant'}</span>
-                    )}
-                  </div>
-                  <p className="safety-note">Suggestions are never added automatically; review before adding.</p>
-                  <p className="safety-note">Verify every claim; an exact quote does not prove the surrounding claim.</p>
-                </div>
-
-                <form
-                  className="draft-prompt-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void requestDraft();
-                  }}
-                >
-                  <label>
-                    Which part are you drafting?
-                    <input
-                      value={section}
-                      onChange={(e) => setSection(e.target.value)}
-                      placeholder="e.g. Research approach, objectives, or impact"
-                      required
-                      disabled={!proposal || !editable || busy}
-                    />
-                  </label>
-                  <label>
-                    What should the suggestion cover?
-                    <textarea
-                      value={instruction}
-                      onChange={(e) => setInstruction(e.target.value)}
-                      placeholder="Ask for a specific draft based on your selected sources…"
-                      rows={4}
-                      maxLength={8000}
-                      required
-                      disabled={!proposal || !editable || busy}
-                    />
-                  </label>
-                  <div className="prompt-examples" aria-label="Example prompts">
-                    {[
-                      'Summarize the main approaches in these sources.',
-                      'Compare what the sources agree and disagree about.',
-                      'Identify an unanswered question suggested by these sources.',
-                    ].map(example => (
-                      <button
-                        key={example}
-                        type="button"
-                        className="prompt-chip"
-                        disabled={!proposal || busy}
-                        onClick={() => setInstruction(example)}
-                      >
-                        {example}
-                      </button>
-                    ))}
                   </div>
                   <button
-                    className="primary wide"
-                    disabled={
-                      busy ||
-                      !proposal ||
-                      !editable ||
-                      dirty ||
-                      !!conflict ||
-                      selected.length === 0 ||
-                      jobs.some((item) => item.state === 'queued' || item.state === 'running')
+                    className={`pin-button ${i < pinned ? "pinned" : ""}`}
+                    onClick={() =>
+                      paper.verdict === "Contradicts"
+                        ? openOverlay("conflict")
+                        : setPinned(i < pinned ? i : i + 1)
                     }
                   >
-                    <Sparkles className="w-4 h-4" />
-                    <span>Generate Cited Draft</span>
+                    <Icon
+                      name={paper.verdict === "Contradicts" ? "eye" : "pin"}
+                    />{" "}
+                    {paper.verdict === "Contradicts"
+                      ? "Compare evidence"
+                      : i < pinned
+                        ? "Pinned to §2.1"
+                        : "Pin citation"}
                   </button>
-                  {dirty && <p className="muted small">Save proposal changes before generating a draft.</p>}
-                  {selected.length === 0 && proposal && (
-                    <p className="muted small">Select sources in the Sources tab first.</p>
-                  )}
-                </form>
-
-                {/* Suggestions Output */}
-                {jobs.length > 0 && (
-                  <div className="suggestions-history">
-                    <div className="suggestions-header">
-                      <h4>Draft History ({jobs.length})</h4>
-                      <select
-                        value={job?.id ?? ''}
-                        onChange={(e) => setJobId(e.target.value)}
-                        className="job-history-select"
-                      >
-                        {jobs.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.state} · Rev {item.base_revision} · {new Date(item.created_at).toLocaleTimeString()}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {job && (
-                      <div className="job-result-card">
-                        <div className="job-state-row">
-                          <span className={`status-dot ${job.state}`} />
-                          <strong>
-                            {job.state === 'failed' && job.error?.code === 'cancelled'
-                              ? 'Cancelled'
-                              : job.state.toUpperCase()}
-                          </strong>
-                          <small className="muted">Based on revision {job.base_revision}</small>
-                        </div>
-
-                        {(job.state === 'queued' || job.state === 'running') && (
-                          <button
-                            type="button"
-                            className="button small"
-                            onClick={() =>
-                              void run(async () => {
-                                const next = await api.cancel(job.id);
-                                setJobs((prev) => prev.map((j) => (j.id === next.id ? next : j)));
-                              })
-                            }
-                          >
-                            Cancel Draft
-                          </button>
-                        )}
-
-                        {job.error && (
-                          <p className="alert error" role="alert">{job.error.message}</p>
-                        )}
-
-                        {job.output && (
-                          <div className="suggestion-body">
-                            <div className="suggestion-text">
-                              <DraftText text={job.output.text} citations={job.output.citations} jobId={job.id} />
-                            </div>
-                            {job.output.insufficient_evidence && (
-                              <p className="alert warning">
-                                Model reported insufficient evidence in selected sources.
-                              </p>
-                            )}
-
-                            <div className="suggestion-actions">
-                              <button
-                                type="button"
-                                className="button small"
-                                onClick={() => void copyToClipboard(job.output!.text)}
-                              >
-                                Copy text
-                              </button>
-                              <button
-                                type="button"
-                                className="primary small"
-                                disabled={busy || !editable || !proposal || !!conflict || !canApplyDraft(job, proposal, dirty)}
-                                onClick={() =>
-                                  void run(async () => {
-                                    if (proposal && canApplyDraft(job, proposal, dirty)) {
-                                      await save(appendSuggestion(content, job.output!.text));
-                                    }
-                                  })
-                                }
-                              >
-                                Append to proposal & Save
-                              </button>
-                            </div>
-
-                            {/* Verified Verbatim Quotes */}
-                            <div className="citations-list">
-                              <h5>Verified Verbatim Citations ({job.output.citations.length})</h5>
-                              {job.output.citations.length === 0 && (
-                                <p className="muted small">No direct quotes provided.</p>
-                              )}
-                              {job.output.citations.map((c, idx) => (
-                                <blockquote
-                                  key={`${c.source_id}-${idx}`}
-                                  id={`draft-citation-${job.id}-${idx}`}
-                                  className="citation-quote"
-                                >
-                                  <span className="citation-number">[{idx + 1}]</span>
-                                  <p>“{c.quote}”</p>
-                                  <footer>
-                                    <strong>{c.title}</strong>
-                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
-                                      <OriginLink value={c.origin} />
-                                      {looksLikePaperSource({ title: c.title, origin: c.origin }) && (
-                                        <button
-                                          type="button"
-                                          className="button small"
-                                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
-                                          onClick={() => setActivePdf({ id: c.source_id, title: c.title })}
-                                        >
-                                          <FileText className="w-3 h-3 text-rose-600" />
-                                          <span>Read PDF</span>
-                                        </button>
-                                      )}
-                                    </div>
-                                  </footer>
-                                </blockquote>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-            {workspaceRightTab === 'funding' && (
-              proposal
-                ? <PursuitPanel proposal={proposal} />
-                : <p className="empty">Open a proposal to track its funding progress.</p>
-            )}
-            </>
-          </ContextPanel>
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* VIEW 2: FIND COLLABORATORS                                     */}
-      {/* ------------------------------------------------------------- */}
-      {currentView === 'collaborators' && (
-        <main className="collaborators-view-shell" aria-labelledby="collab-heading">
-          <div className="view-intro-hero">
-            <h1 id="collab-heading">Faculty Collaborator Discovery & Idea Synthesizer</h1>
-            <p className="muted">
-              Explore strategic interdisciplinary faculty matches, federal funding alignment (NSF, NIH, DARPA, DOE),
-              and verified publication overlap across 3,000+ academic sources.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-            <button
-              type="button"
-              className={`nav-tab ${collaboratorViewMode === 'synthesizer' ? 'active' : ''}`}
-              onClick={() => setCollaboratorViewMode('synthesizer')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
-            >
-              <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span>AI Idea Synthesizer & Grant Fit</span>
-            </button>
-            <button
-              type="button"
-              className={`nav-tab ${collaboratorViewMode === 'lexical' ? 'active' : ''}`}
-              onClick={() => setCollaboratorViewMode('lexical')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
-            >
-              <Search className="w-4 h-4 text-slate-600" />
-              <span>Keyword & Term Directory Matcher</span>
-            </button>
-          </div>
-
-          {collaboratorViewMode === 'synthesizer' ? (
-            <CollaborationHub
-              onAttachSource={proposal ? handleAttachSource : undefined}
-              onShortlist={handleShortlistCandidate}
-              attachedSourceIds={selected}
-              proposalOpen={Boolean(proposal)}
-            />
-          ) : (
-            <>
-              <div className="collaborator-query-card">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void handleCollaboratorMatch(collaboratorIdea);
-                  }}
-                >
-                  <textarea
-                    value={collaboratorIdea}
-                    onChange={(e) => setCollaboratorIdea(e.target.value)}
-                    placeholder="Describe your research concept, for example: 'Wireless sensor networks and battery-powered logging for environmental monitoring'…"
-                    rows={3}
-                    required
-                    maxLength={1000}
-                  />
-                  <div className="query-card-bottom">
-                    <div className="quick-examples">
-                      <span className="muted small">Try an example:</span>
-                      <button
-                        type="button"
-                        className="chip-btn"
-                        onClick={() => {
-                          const text = 'sensor networks for agricultural monitoring and battery telemetry';
-                          setCollaboratorIdea(text);
-                          void handleCollaboratorMatch(text);
-                        }}
-                      >
-                        Environmental Sensors
-                      </button>
-                      <button
-                        type="button"
-                        className="chip-btn"
-                        onClick={() => {
-                          const text = 'deep learning, computer vision and medical image analysis';
-                          setCollaboratorIdea(text);
-                          void handleCollaboratorMatch(text);
-                        }}
-                      >
-                        Computer Vision / AI
-                      </button>
-                    </div>
-                    <button className="primary" disabled={matchingBusy || !collaboratorIdea.trim()}>
-                      <Search className="w-4 h-4" />
-                      <span>{matchingBusy ? 'Searching…' : 'Find Collaborators'}</span>
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Coverage Summary */}
-              {collaboratorCoverage && (
-                <div className="coverage-card">
-                  <div className="coverage-stat">
-                    <strong>{collaboratorMatches?.length ?? 0}</strong>
-                    <span>Matching Candidates</span>
-                  </div>
-                  <div className="coverage-stat">
-                    <strong>{collaboratorCoverage.eligible_profile_count}</strong>
-                    <span>Eligible Faculty Profiles</span>
-                  </div>
-                  <div className="coverage-details">
-                    <p className="muted">{collaboratorCoverage.note}</p>
-                    {collaboratorCoverage.uncovered_terms.length > 0 && (
-                      <p className="muted small">
-                        Unmatched idea terms: <em>{collaboratorCoverage.uncovered_terms.join(', ')}</em>
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Matches List */}
-              <div className="collaborator-results-grid">
-                {collaboratorMatches?.map((match) => (
-                  <article key={match.source_id} className="collaborator-card">
-                    <div className="card-top">
-                      <span className={`tag ${match.candidate_status}`}>
-                        {match.candidate_status.replace('_', ' ').toUpperCase()}
-                      </span>
-                      <span className="coverage-badge">
-                        {Math.round(match.idea_coverage * 100)}% idea coverage
-                      </span>
-                    </div>
-
-                    <h3>{match.title}</h3>
-                    <p className="snippet">{match.snippet}</p>
-
-                    <div className="overlap-tags">
-                      <span className="tag-label">Matched terms:</span>
-                      {match.matched_terms.map((term) => (
-                        <span key={term} className="term-chip">{term}</span>
-                      ))}
-                    </div>
-
-                    <p className="reason-note">{match.reason}</p>
-
-                    <div className="card-actions">
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <OriginLink value={match.origin} />
-                      </div>
-                      <button
-                        type="button"
-                        className="button primary small"
-                        disabled={
-                          busy ||
-                          !selectedTeam ||
-                          selectedTeam.role === 'viewer' ||
-                          savedCollaboratorIds.includes(match.source_id)
-                        }
-                        onClick={() => void shortlistCollaborator(match)}
-                      >
-                        {savedCollaboratorIds.includes(match.source_id)
-                          ? '✓ Saved to Team Shortlist'
-                          : `Shortlist to ${selectedTeam?.name ?? 'Team'}`}
-                      </button>
-                    </div>
-                  </article>
-                ))}
-
-                {collaboratorMatches && collaboratorMatches.length === 0 && (
-                  <div className="empty-results-box">
-                    <Users className="w-8 h-8 text-[#536779]" />
-                    <h3>No matching collaborators found</h3>
-                    <p className="muted">Try broader terminology or different keywords from the institutional directory.</p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </main>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* VIEW 3: KNOWLEDGE GRAPH                                        */}
-      {/* ------------------------------------------------------------- */}
-      {currentView === 'graph' && (
-        <main className="graph-full-view">
-          <GraphViewer
-            onSearchTopic={(topic) => {
-              setQuery(topic);
-              setCurrentView('search');
-              void run(async () => {
-                setResults(await api.search(topic));
-              });
-            }}
-            onAttachSource={(sourceId) => {
-              if (proposal && canAttachToProposal(teamId, proposal)) {
-                void run(async () => {
-                  const s = await api.attach(proposal.id, sourceId);
-                  setSources((prev) => [...prev.filter((i) => i.id !== s.id), s]);
-                  setNotice('Source attached to proposal.');
-                });
-              }
-            }}
-            attachedSourceIds={sources.map((s) => s.id)}
-            proposalOpen={!!proposal && editable}
-          />
-        </main>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* VIEW 4: LITERATURE & EVIDENCE SEARCH                           */}
-      {/* ------------------------------------------------------------- */}
-      {currentView === 'search' && (
-        <main className="search-view-shell" aria-labelledby="search-heading">
-          <div className="view-intro-hero">
-            <h1 id="search-heading">Literature & Evidence Search</h1>
-            <p className="muted">
-              Search peer-reviewed papers, listed publication authors, and researcher facts across the public research corpus.
-            </p>
-          </div>
-
-          <div className="search-bar-card">
-            <form onSubmit={handleSearchSubmit} className="search-input-form">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search research topics, keywords, authors, or DOIs…"
-                required
-              />
-              <button className="primary" disabled={busy || !query.trim()}>
-                <Search className="w-4 h-4" />
-                <span>Search</span>
+                  <button className="icon-button">
+                    <Icon name="more" />
+                  </button>
+                </article>
+              ))}
+              <button className="text-button full">
+                View all 18 sources <Icon name="arrow" />
               </button>
-            </form>
-          </div>
-
-          {results?.degraded && (
-            <p className="alert warning">
-              Search is operating in BM25 keyword mode. Review evidence sources before citing.
-            </p>
+            </div>
+          ) : (
+            <div className="discussion-list">
+              <div>
+                <Avatar initials="JL" color="blue" />
+                <p>
+                  <strong>Jon Lee</strong> Should the privacy bound be the
+                  primary contribution, or supporting infrastructure?
+                </p>
+                <time>8 min</time>
+              </div>
+              <div>
+                <Avatar initials="SR" color="teal" />
+                <p>
+                  <strong>Prof. Rao</strong> Primary. Tie it directly to Aim 2
+                  and cite Zhang’s cross-site result.
+                </p>
+                <time>3 min</time>
+              </div>
+              <div className="reply-box">
+                Write a reply…{" "}
+                <button>
+                  <Icon name="send" />
+                </button>
+              </div>
+            </div>
           )}
+        </div>
 
-          <div className="search-results-list">
-            {results?.items.map((item) => (
-              <article key={item.id} className="search-result-card">
-                <div className="result-card-top">
-                  <span className="tag">
-                    {sourceKindLabel(item.kind, item.evidence_kind, item.identity_status)}
-                  </span>
-                  <span className={`evidence ${item.evidence_kind === 'synthetic' ? 'synthetic' : ''}`}>
-                    {item.evidence_kind === 'synthetic' ? 'Synthetic sample' : 'Public literature'}
+        <aside className="activity-panel panel">
+          <div className="panel-header compact">
+            <div>
+              <span className="section-kicker">LIVE PULSE</span>
+              <h2>Pod activity</h2>
+            </div>
+            <button className="icon-button">
+              <Icon name="filter" />
+            </button>
+          </div>
+          <div className="activity-list">
+            <div>
+              <span className="activity-icon green">
+                <Icon name="check" />
+              </span>
+              <p>
+                <b>Maya</b> verified a citation in{" "}
+                <strong>Methodology §2.1</strong>
+                <small>2 min ago</small>
+              </p>
+            </div>
+            <div>
+              <span className="activity-icon violet">
+                <Icon name="spark" />
+              </span>
+              <p>
+                <b>muse-wonder</b> drafted three variants for{" "}
+                <strong>Broader Impacts</strong>
+                <small>8 min ago</small>
+              </p>
+            </div>
+            <div>
+              <span className="activity-icon blue">
+                <Icon name="book" />
+              </span>
+              <p>
+                <b>Jon</b> added <strong>Cross-Subject EEG Alignment</strong>
+                <small>16 min ago</small>
+              </p>
+            </div>
+            <div>
+              <span className="activity-icon gold">
+                <Icon name="message" />
+              </span>
+              <p>
+                <b>Prof. Rao</b> left feedback on Aim 2<small>31 min ago</small>
+              </p>
+            </div>
+          </div>
+          <div className="deadline-card">
+            <div>
+              <span>NEXT DEADLINE</span>
+              <strong>Internal methods review</strong>
+              <small>Friday, Oct 11 · 4:00 PM</small>
+            </div>
+            <b>
+              2d
+              <br />
+              <small>04h</small>
+            </b>
+          </div>
+        </aside>
+
+        <div className="studio-launch panel">
+          <div className="studio-visual">
+            <div className="document-mini">
+              <span>2.1 TECHNICAL APPROACH</span>
+              <i />
+              <i />
+              <i className="short" />
+              <mark>
+                Cross-site decoding retains 94.2% accuracy<sup>12</sup>
+              </mark>
+              <i />
+              <i className="medium" />
+            </div>
+            <div className="verification-float">
+              <Icon name="verified" />
+              <span>
+                <b>Claim grounded</b>Figure 4b · p. 8
+              </span>
+            </div>
+          </div>
+          <div className="studio-copy">
+            <span className="section-kicker">PROPOSAL</span>
+            <h2>Write the proposal. Keep every claim connected to proof.</h2>
+            <p>
+              Jon and Maya are in the draft now. Nexus keeps each claim linked
+              to the exact passage, figure, or equation that supports it.
+            </p>
+            <div>
+              <Tag tone="verification">
+                <Icon name="shield" size={13} /> 100% citation audit
+              </Tag>
+              <Tag tone="neutral">2,941 papers indexed</Tag>
+            </div>
+            <button className="accent-button" onClick={() => setView("proof")}>
+              Continue writing <Icon name="arrow" />
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function VaultView({
+  openOverlay,
+}: {
+  openOverlay: (overlay: Overlay) => void
+}) {
+  const [step, setStep] = useState<"compose" | "hashing" | "sealed">("compose")
+  const [audience, setAudience] =
+    useState<"Stranger" | "Peer student" | "Professor">("Stranger")
+  const [text, setText] = useState(
+    "A federated adaptation layer can align latent neural representations across institutions without centralizing subject-level EEG data.",
+  )
+  const seal = () => {
+    setStep("hashing")
+    window.setTimeout(() => setStep("sealed"), 1400)
+  }
+  return (
+    <div className="view vault-view">
+      <section className="vault-intro">
+        <div>
+          <div className="eyebrow">
+            <Icon name="lock" size={14} /> PRIVATE UNTIL YOU CHOOSE TO SHARE
+          </div>
+          <h1>
+            Prove you had the idea
+            <br />
+            <em>without revealing it.</em>
+          </h1>
+          <p>
+            Create a timestamped proof on this device. Then publish a safe
+            summary that reveals only what collaborators need to know.
+          </p>
+        </div>
+        <div className="trust-diagram">
+          <div className="active">
+            <Icon name="fingerprint" />
+            <b>Prove</b>
+            <span>Create a private record</span>
+          </div>
+          <i />
+          <div>
+            <Icon name="eye" />
+            <b>Share safely</b>
+            <span>Publish a summary</span>
+          </div>
+          <i />
+          <div>
+            <Icon name="users" />
+            <b>Connect</b>
+            <span>Reveal when both agree</span>
+          </div>
+        </div>
+      </section>
+      <section className="vault-workbench">
+        <div className="vault-editor panel">
+          <div className="panel-header">
+            <div>
+              <span className="section-kicker">ONLY YOU CAN SEE THIS</span>
+              <h2>Write the idea you want to protect</h2>
+            </div>
+            <Tag tone="verification">
+              <Icon name="shield" size={13} /> Stays on this device
+            </Tag>
+          </div>
+          <div className="hypothesis-box">
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              disabled={step !== "compose"}
+              aria-label="Private hypothesis"
+            />
+            <div>
+              <span>{text.length} characters</span>
+              <span>
+                <Icon name="lock" size={12} /> Never transmitted
+              </span>
+            </div>
+          </div>
+          <div className={`hash-console ${step}`}>
+            {step === "compose" && (
+              <>
+                <div className="hash-orb">
+                  <Icon name="fingerprint" size={30} />
+                </div>
+                <div>
+                  <strong>Your idea is ready to protect</strong>
+                  <span>No text will leave this device</span>
+                </div>
+                <button className="accent-button" onClick={seal}>
+                  Create priority proof <Icon name="arrow" />
+                </button>
+              </>
+            )}
+            {step === "hashing" && (
+              <>
+                <div className="hash-orb spinning">
+                  <Icon name="fingerprint" size={30} />
+                </div>
+                <div>
+                  <strong>Creating your private proof…</strong>
+                  <span>
+                    Mixing entropy <code>9f:2a:7c:01</code>
                   </span>
                 </div>
+                <div className="hash-progress">
+                  <i />
+                </div>
+              </>
+            )}
+            {step === "sealed" && (
+              <>
+                <div className="hash-orb complete">
+                  <Icon name="check" size={30} />
+                </div>
+                <div>
+                  <strong>Your priority is recorded</strong>
+                  <span>Certificate #NX-8492 is ready</span>
+                </div>
+                <button className="soft-button">
+                  <Icon name="download" /> Certificate
+                </button>
+              </>
+            )}
+          </div>
+          <div className="technical-foot">
+            <span>
+              <Icon name="code" /> CLIENT LOG
+            </span>
+            <code>
+              {step === "sealed"
+                ? "sha256:b3e1c8f47a...91d2 · merkle:0x774a...18fc"
+                : "Awaiting local cryptographic operation_"}
+            </code>
+          </div>
+        </div>
+        <aside
+          className={`certificate panel ${step === "sealed" ? "issued" : ""}`}
+        >
+          <div className="certificate-seal">
+            <Icon name="seal" size={40} />
+          </div>
+          <span>OFFICIAL NEXUS RECORD</span>
+          <h2>Proof of Priority</h2>
+          <p>
+            This certificate verifies that an undisclosed research artifact
+            existed at the time below.
+          </p>
+          <div className="certificate-id">
+            <small>CERTIFICATE</small>
+            <strong>{step === "sealed" ? "#NX-8492" : "#NX-••••"}</strong>
+          </div>
+          <dl>
+            <div>
+              <dt>Owner</dt>
+              <dd>Aria Malik</dd>
+            </div>
+            <div>
+              <dt>Timestamp</dt>
+              <dd>
+                {step === "sealed"
+                  ? "09 Oct 2025 · 14:32:18 UTC"
+                  : "Pending seal"}
+              </dd>
+            </div>
+            <div>
+              <dt>Merkle root</dt>
+              <dd>{step === "sealed" ? "0x774a…18fc" : "—"}</dd>
+            </div>
+            <div>
+              <dt>Raw content</dt>
+              <dd>Not disclosed</dd>
+            </div>
+          </dl>
+          <button
+            className="certificate-footer"
+            onClick={() => openOverlay("verify")}
+          >
+            <Icon name="verified" />
+            <span>
+              Publicly verifiable
+              <br />
+              <b>Open verification page</b>
+            </span>
+            <Icon name="arrow" size={14} />
+          </button>
+        </aside>
+      </section>
+      <section className="teaser-studio panel">
+        <div className="teaser-copy">
+          <span className="section-kicker">SAFE PUBLIC SUMMARY</span>
+          <h2>Share the opportunity, not the secret.</h2>
+          <p>
+            Nexus drafted a summary that explains what you can offer and what
+            help you need. Sensitive details stay out, and nothing posts until
+            you approve it.
+          </p>
+          <div className="redaction-row">
+            <span>Kept private</span>
+            <Tag tone="danger">Exact architecture</Tag>
+            <Tag tone="danger">Dataset identity</Tag>
+            <Tag tone="danger">94.2% benchmark</Tag>
+          </div>
+        </div>
+        <div className="audience-preview">
+          <div className="preview-toolbar">
+            <span>PREVIEW AS</span>
+            <div>
+              {(["Stranger", "Peer student", "Professor"] as const).map((a) => (
+                <button
+                  className={audience === a ? "active" : ""}
+                  onClick={() => setAudience(a)}
+                  key={a}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+          <article className="project-preview">
+            <div className="preview-head">
+              <span className="project-glyph">
+                <Icon name="brain" />
+              </span>
+              <div>
+                <Tag tone="stage">HYPOTHESIS</Tag>
+                <small>EECS × Neuroscience</small>
+              </div>
+              <button className="icon-button">
+                <Icon name="more" />
+              </button>
+            </div>
+            <h3>Privacy-preserving neural representation alignment</h3>
+            <p>
+              {audience === "Professor"
+                ? "Exploring institution-safe latent alignment for cross-site neural decoding, with a formal privacy boundary and preliminary validation."
+                : "Exploring privacy-safe methods that help neural decoding models learn across institutions without moving sensitive data."}
+            </p>
+            <div className="offer-need">
+              <span>OFFERS</span>
+              <Tag tone="offer">Federated learning</Tag>
+              <Tag tone="offer">Privacy bounds</Tag>
+            </div>
+            <div className="offer-need">
+              <span>NEEDS</span>
+              <Tag tone="need">Clinical EEG access</Tag>
+              <Tag tone="need">IRB guidance</Tag>
+            </div>
+            <div className="blurred-owner">
+              <Icon name="lock" />
+              <span>
+                <b>Your identity stays hidden</b>Reveals only when both people
+                agree
+              </span>
+              <button>Request a private match</button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+  )
+}
 
-                <h3>{item.title}</h3>
-                <p className="snippet">{item.snippet}</p>
-                <p className="reason-note">{item.reason}</p>
+const projects = [
+  {
+    stage: "PROTOTYPE",
+    dept: "EECS × Public Health",
+    title: "Federated diagnostics for rural health networks",
+    body: "Training robust clinical classifiers across bandwidth-limited sites without centralizing patient records.",
+    offer: ["Secure aggregation", "Edge ML"],
+    need: ["Clinical validation"],
+    color: "cyan",
+    degree: "PhD",
+  },
+  {
+    stage: "EXPERIMENT",
+    dept: "Robotics × Conservation",
+    title: "Soft aerial sensors for forest canopy health",
+    body: "A biodegradable micro-drone swarm measuring tree stress above inaccessible terrain.",
+    offer: ["Soft robotics", "SLAM"],
+    need: ["Plant pathology"],
+    color: "lime",
+    degree: "MS",
+  },
+  {
+    stage: "HYPOTHESIS",
+    dept: "Neuroscience × Statistics",
+    title: "Invariant signatures of cognitive fatigue",
+    body: "Testing whether cross-subject latent structure predicts fatigue before behavioral decline.",
+    offer: ["EEG corpus", "Bayesian models"],
+    need: ["Representation learning"],
+    color: "violet",
+    degree: "PhD",
+  },
+  {
+    stage: "WRITING",
+    dept: "Energy × Materials",
+    title: "Self-healing electrolytes under extreme cycling",
+    body: "A polymer system that recovers ion transport after dendrite-induced microfractures.",
+    offer: ["Electrochemistry"],
+    need: ["X-ray tomography"],
+    color: "orange",
+    degree: "Lab",
+  },
+]
 
-                <div className="result-card-bottom">
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <OriginLink value={item.origin} />
-                    {item.kind === 'paper' && item.evidence_kind === 'public' && (
-                      <button
-                        type="button"
-                        className="button small"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
-                        onClick={() => setActivePdf({ id: item.source_id, title: item.title })}
-                      >
-                        <FileText className="w-3 h-3 text-rose-600" />
-                        <span>Read PDF</span>
-                      </button>
-                    )}
+function CampusView({ setView }: { setView: (view: View) => void }) {
+  const [accepted, setAccepted] = useState(false)
+  const [query, setQuery] = useState("")
+  const filtered = projects.filter((p) =>
+    (p.title + p.body + p.dept).toLowerCase().includes(query.toLowerCase()),
+  )
+  return (
+    <div className="view campus-view">
+      <section className="campus-hero">
+        <div className="campus-title">
+          <div className="eyebrow">
+            <span className="live-dot" /> 1,284 ACTIVE PROJECTS AT BERKELEY
+          </div>
+          <h1>
+            Find the people and projects
+            <br />
+            <em>that move your work forward.</em>
+          </h1>
+          <p>
+            Search work happening now—not just what was published last year.
+          </p>
+        </div>
+        <div className="campus-profile">
+          <Avatar initials="AM" color="gold" active />
+          <div>
+            <span>YOUR MATCH PROFILE</span>
+            <strong>Aria Malik · MSCS</strong>
+            <small>Representation learning · Federated systems · EEG</small>
+          </div>
+          <button>
+            <Icon name="expand" />
+          </button>
+        </div>
+      </section>
+      <section className="discovery-controls">
+        <div className="search-field">
+          <Icon name="search" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Try “EEG datasets”, “robotics collaborator”, or “NIH R21”…"
+          />
+          <kbd>⌘ K</kbd>
+        </div>
+        <button className="filter-pill active">
+          All campus <span>1,284</span>
+        </button>
+        <button className="filter-pill">EECS</button>
+        <button className="filter-pill">Neuroscience</button>
+        <button className="filter-pill">Prototype</button>
+        <button className="filter-pill">
+          <Icon name="filter" /> Refine
+        </button>
+      </section>
+      <section className="campus-layout">
+        <div className="feed">
+          <div className="feed-heading">
+            <div>
+              <span className="section-kicker">RECOMMENDED FOR YOU</span>
+              <h2>Work that complements yours</h2>
+            </div>
+            <button>
+              Best match first <Icon name="chevron" size={14} />
+            </button>
+          </div>
+          <div className="project-grid">
+            {filtered.map((project, i) => (
+              <article className="project-card" key={project.title}>
+                <div className={`project-art art-${project.color}`}>
+                  <span>{String(i + 1).padStart(2, "0")}</span>
+                  <Icon
+                    name={
+                      i === 0
+                        ? "shield"
+                        : i === 1
+                          ? "spark"
+                          : i === 2
+                            ? "brain"
+                            : "graph"
+                    }
+                    size={42}
+                  />
+                </div>
+                <div className="project-card-body">
+                  <div>
+                    <Tag tone="stage">{project.stage}</Tag>
+                    <span className="degree">{project.degree}</span>
                   </div>
-                  <div className="button-row">
-                    <button
-                      type="button"
-                      className="button small"
-                      disabled={busy || !selectedTeam || selectedTeam.role === 'viewer'}
-                      onClick={() =>
-                        void run(async () => {
-                          await api.addShortlist(teamId, item.source_id);
-                          setShortlistVersion((prev) => prev + 1);
-                          setNotice('Added to team shortlist.');
-                        })
-                      }
-                    >
-                      Shortlist
-                    </button>
-                    <button
-                      type="button"
-                      className="button primary small"
-                      disabled={
-                        busy ||
-                        !canAttachToProposal(teamId, proposal) ||
-                        sources.some((s) => s.id === item.source_id)
-                      }
-                      onClick={() =>
-                        void run(async () => {
-                          if (!proposal) return;
-                          const added = await api.attach(proposal.id, item.source_id);
-                          setSources((prev) => [...prev.filter((s) => s.id !== added.id), added]);
-                          setNotice('Attached to open proposal.');
-                        })
-                      }
-                    >
-                      {sources.some((s) => s.id === item.source_id) ? '✓ Attached' : 'Attach to Proposal'}
-                    </button>
+                  <small>{project.dept}</small>
+                  <h3>{project.title}</h3>
+                  <p>{project.body}</p>
+                  <div className="offer-need">
+                    <span>OFFERS</span>
+                    {project.offer.map((x) => (
+                      <Tag tone="offer" key={x}>
+                        {x}
+                      </Tag>
+                    ))}
                   </div>
+                  <div className="offer-need">
+                    <span>NEEDS</span>
+                    {project.need.map((x) => (
+                      <Tag tone="need" key={x}>
+                        {x}
+                      </Tag>
+                    ))}
+                  </div>
+                  <footer>
+                    <span>
+                      <Icon name="clock" size={14} /> Updated {i + 1}d ago
+                    </span>
+                    <button>
+                      View project <Icon name="arrow" size={15} />
+                    </button>
+                  </footer>
                 </div>
               </article>
             ))}
+          </div>
+        </div>
+        <aside className="match-column">
+          <div className="match-label">
+            <span>
+              <Icon name="spark" size={14} /> YOUR BEST MATCH TODAY
+            </span>
+            <small>Refreshes in 18h</small>
+          </div>
+          <article className={`match-card ${accepted ? "accepted" : ""}`}>
+            <div className="match-top">
+              <div className="anonymous-person">
+                <div className="blur-avatar">?</div>
+                <span>
+                  <b>Anonymous for now</b>PhD · Neuroscience
+                </span>
+              </div>
+              <MetricRing value={94} label="MATCH" tone="violet" size={74} />
+            </div>
+            <div className="bridge-visual">
+              <span>YOUR NEED</span>
+              <i />
+              <Icon name="spark" />
+              <i />
+              <span>THEIR OFFER</span>
+            </div>
+            <h2>
+              {accepted
+                ? "You’re interested. We’ll reveal both profiles if they agree."
+                : "They have the EEG access you need. You have the method they need."}
+            </h2>
+            <p>
+              They operate a <strong>128-channel mobile EEG facility</strong>{" "}
+              and need your expertise in{" "}
+              <strong>federated representation learning</strong> to compare
+              cohorts without pooling protected data.
+            </p>
+            <div className="vector-match">
+              <div>
+                <span>Your need</span>
+                <Tag tone="need">Longitudinal EEG</Tag>
+              </div>
+              <Icon name="arrow" />
+              <div>
+                <span>Their offer</span>
+                <Tag tone="offer">Mobile EEG lab</Tag>
+              </div>
+            </div>
+            <div className="proximity">
+              <Icon name="pin" />
+              <span>
+                <b>0.4 miles away</b>Helen Wills Neuroscience Institute
+              </span>
+            </div>
+            <button
+              className={accepted ? "mutual-button accepted" : "mutual-button"}
+              onClick={() => setAccepted(!accepted)}
+            >
+              {accepted ? (
+                <>
+                  <Icon name="check" /> Private interest sent
+                </>
+              ) : (
+                <>
+                  See why you match <Icon name="arrow" />
+                </>
+              )}
+            </button>
+            <small className="privacy-note">
+              <Icon name="lock" size={12} /> Identity and work reveal only after
+              both accept
+            </small>
+          </article>
+          <button className="graph-glimpse">
+            <span>
+              <Icon name="graph" />
+              <b>Explore knowledge graph</b>
+              <small>13 cross-department gaps found</small>
+            </span>
+            <Icon name="arrow" />
+          </button>
+          <button className="seal-prompt" onClick={() => setView("vault")}>
+            <span>
+              <Icon name="shield" />
+              <b>Protect a new idea</b>
+              <small>Prove it existed before you share it.</small>
+            </span>
+            <Icon name="arrow" />
+          </button>
+        </aside>
+      </section>
+    </div>
+  )
+}
 
-            {results && results.items.length === 0 && (
-              <div className="empty-results-box">
-                <Search className="w-8 h-8 text-[#536779]" />
-                <h3>No results found</h3>
-                <p className="muted">Try broader terminology or different keywords.</p>
+function HomeView({
+  setView,
+  openOverlay,
+}: {
+  setView: (view: View) => void
+  openOverlay: (overlay: Overlay) => void
+}) {
+  const [connected, setConnected] = useState(false)
+  const [following, setFollowing] = useState(false)
+  return (
+    <div className="home-view">
+      <div className="home-columns">
+        <aside className="home-left">
+          <section className="profile-card clean-card">
+            <div className="profile-cover">
+              <span />
+              <span />
+              <span />
+            </div>
+            <div className="profile-card-body">
+              <Avatar initials="AM" color="gold" active />
+              <h2>Aria Malik</h2>
+              <p>MS Computer Science · UC Berkeley</p>
+              <small>
+                Federated learning, neural decoding, and privacy-preserving AI
+              </small>
+              <button>View profile</button>
+            </div>
+            <div className="profile-stats">
+              <button>
+                <span>Project views</span>
+                <b>184</b>
+              </button>
+              <button>
+                <span>New matches</span>
+                <b>12</b>
+              </button>
+            </div>
+          </section>
+
+          <section className="availability-card clean-card">
+            <div>
+              <span className="availability-dot" />
+              <strong>Open to collaborate</strong>
+            </div>
+            <p>Capstone teams · Co-authoring</p>
+            <button>Edit availability</button>
+          </section>
+
+          <section className="saved-card clean-card">
+            <button>
+              <Icon name="pin" />
+              <span>
+                <b>Saved research</b>
+                <small>18 papers · 4 projects</small>
+              </span>
+            </button>
+            <button onClick={() => setView("vault")}>
+              <Icon name="shield" />
+              <span>
+                <b>Private vault</b>
+                <small>3 protected ideas</small>
+              </span>
+            </button>
+          </section>
+        </aside>
+
+        <section className="research-feed">
+          <div className="share-card clean-card">
+            <div>
+              <Avatar initials="AM" color="gold" />
+              <button>Share what you’re working on or looking for…</button>
+            </div>
+            <div className="share-actions">
+              <button onClick={() => openOverlay("project")}>
+                <Icon name="plus" />
+                Post a project
+              </button>
+              <button>
+                <Icon name="users" />
+                Find a collaborator
+              </button>
+              <button onClick={() => setView("vault")}>
+                <Icon name="shield" />
+                Protect an idea
+              </button>
+            </div>
+          </div>
+
+          <div className="feed-sort">
+            <span />
+            <button>
+              Sort by: <b>Most relevant</b> <Icon name="chevron" size={12} />
+            </button>
+          </div>
+
+          <article className="feed-card clean-card match-post">
+            <header className="feed-card-header">
+              <span className="feed-source-icon">
+                <Icon name="spark" />
+              </span>
+              <div>
+                <strong>Nexus match</strong>
+                <span>Recommended because of your research needs</span>
+              </div>
+              <button className="icon-button">
+                <Icon name="more" />
+              </button>
+            </header>
+            <div className="match-post-body">
+              <div className="match-person">
+                <Avatar initials="JL" color="blue" active />
+                <div>
+                  <h2>Jordan Lee</h2>
+                  <p>PhD Researcher in Neuroscience</p>
+                  <span>Helen Wills Neuroscience Institute · 0.4 miles</span>
+                </div>
+                <div className="simple-match-score">
+                  <b>94%</b>
+                  <span>match</span>
+                </div>
+              </div>
+              <p className="feed-lead">
+                Jordan runs a mobile EEG lab and is looking for a collaborator
+                with federated learning experience. You’re looking for
+                longitudinal EEG access.
+              </p>
+              <div className="match-reasons">
+                <div>
+                  <span>They can offer</span>
+                  <Tag tone="offer">128-channel mobile EEG</Tag>
+                </div>
+                <Icon name="arrow" />
+                <div>
+                  <span>You can offer</span>
+                  <Tag tone="need">Federated representation learning</Tag>
+                </div>
+              </div>
+            </div>
+            <footer className="feed-card-actions">
+              <button
+                className={connected ? "connected" : ""}
+                onClick={() =>
+                  connected ? openOverlay("reveal") : setConnected(true)
+                }
+              >
+                <Icon name={connected ? "check" : "users"} />
+                {connected ? "Review connection" : "Connect privately"}
+              </button>
+              <button>
+                <Icon name="message" /> Ask a question
+              </button>
+              <small>Profiles reveal only after both people accept</small>
+            </footer>
+          </article>
+
+          <article className="feed-card clean-card project-post">
+            <header className="feed-card-header">
+              <Avatar initials="MR" color="violet" active />
+              <div>
+                <strong>Maya Rodriguez</strong>
+                <span>PhD Candidate · Robotics · Posted a project · 2h</span>
+              </div>
+              <button className="icon-button">
+                <Icon name="more" />
+              </button>
+            </header>
+            <div className="project-post-copy">
+              <p>
+                We’re starting a cross-department project on biodegradable
+                aerial sensors for forest canopy health.
+              </p>
+              <div className="project-post-panel">
+                <span className="project-post-art">
+                  <Icon name="spark" size={36} />
+                </span>
+                <div>
+                  <Tag tone="stage">PROTOTYPE</Tag>
+                  <h2>Soft aerial sensors for forest canopy health</h2>
+                  <p>
+                    Looking for plant pathology expertise to help validate early
+                    stress indicators from field trials.
+                  </p>
+                  <div>
+                    <Tag tone="offer">Soft robotics</Tag>
+                    <Tag tone="offer">SLAM</Tag>
+                    <Tag tone="need">Needs: Plant pathology</Tag>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <footer className="feed-card-actions">
+              <button
+                className={following ? "connected" : ""}
+                onClick={() => setFollowing(!following)}
+              >
+                <Icon name={following ? "check" : "plus"} />
+                {following ? "Following" : "Follow project"}
+              </button>
+              <button>
+                <Icon name="message" /> Comment
+              </button>
+              <button>
+                <Icon name="send" /> Share
+              </button>
+            </footer>
+          </article>
+        </section>
+
+        <aside className="home-right">
+          <section className="next-step-card clean-card">
+            <div className="right-card-title">
+              <div>
+                <span>YOUR POD</span>
+                <h3>Neural Commons</h3>
+              </div>
+              <b>72%</b>
+            </div>
+            <p>Methods review is due Friday.</p>
+            <div className="mini-progress">
+              <i />
+            </div>
+            <button onClick={() => setView("pod")}>
+              Continue your work <Icon name="arrow" />
+            </button>
+          </section>
+
+          <section className="people-card clean-card">
+            <div className="right-card-title">
+              <h3>People you may want to know</h3>
+              <button>
+                <Icon name="more" />
+              </button>
+            </div>
+            {[
+              [
+                "SC",
+                "blue",
+                "Sam Chen",
+                "Computational biology",
+                "Python · Genomics",
+              ],
+              [
+                "NP",
+                "teal",
+                "Nina Patel",
+                "Clinical neuroscience",
+                "EEG · fMRI",
+              ],
+              [
+                "EO",
+                "violet",
+                "Eli Okafor",
+                "Privacy and security",
+                "DP · Formal methods",
+              ],
+            ].map(([initials, color, name, role, skills]) => (
+              <div className="person-suggestion" key={name}>
+                <Avatar initials={initials} color={color} />
+                <span>
+                  <b>{name}</b>
+                  <small>{role}</small>
+                  <em>{skills}</em>
+                </span>
+                <button>
+                  <Icon name="plus" size={14} /> Follow
+                </button>
+              </div>
+            ))}
+            <button className="see-all">
+              See all suggestions <Icon name="arrow" />
+            </button>
+          </section>
+
+          <section className="funding-card clean-card">
+            <span>FUNDING MATCH</span>
+            <h3>NIH R21 Exploratory Research</h3>
+            <p>Strong fit for your neural decoding project.</p>
+            <div>
+              <b>Deadline</b>
+              <span>Dec 12 · 64 days</span>
+            </div>
+            <button>View opportunity</button>
+          </section>
+          <footer className="home-footer">
+            <button>About</button>
+            <button>Privacy</button>
+            <button>Trust & safety</button>
+            <button>Help</button>
+            <span>Nexus © 2025</span>
+          </footer>
+        </aside>
+      </div>
+    </div>
+  )
+}
+
+function ProofView({
+  openOverlay,
+}: {
+  openOverlay: (overlay: Overlay) => void
+}) {
+  const [claim, setClaim] = useState(0)
+  const [verifying, setVerifying] = useState(false)
+  const [verified, setVerified] = useState(false)
+  const verify = () => {
+    setVerifying(true)
+    setVerified(false)
+    window.setTimeout(() => {
+      setVerifying(false)
+      setVerified(true)
+    }, 2200)
+  }
+  return (
+    <div className="proof-view">
+      <header className="studio-header">
+        <div>
+          <button className="icon-button">
+            <Icon name="chevron" />
+          </button>
+          <span>
+            <small>NEURAL COMMONS · NSF SCC</small>
+            <b>NSF SCC — Technical Narrative</b>
+          </span>
+        </div>
+        <div className="studio-presence">
+          <span>Saved 8 sec ago</span>
+          <div className="facepile">
+            <Avatar initials="JL" color="blue" active />
+            <Avatar initials="MK" color="violet" active />
+          </div>
+          <button className="soft-button">
+            <Icon name="message" /> Discuss
+          </button>
+          <button className="dark-button" onClick={() => openOverlay("export")}>
+            Export <Icon name="chevron" size={14} />
+          </button>
+        </div>
+      </header>
+      <div className="proof-layout">
+        <section className="editor-pane">
+          <div className="editor-toolbar">
+            <div>
+              <button>
+                Body <Icon name="chevron" size={12} />
+              </button>
+              <button>
+                <b>B</b>
+              </button>
+              <button>
+                <i>I</i>
+              </button>
+              <button>H₂</button>
+              <button>
+                <Icon name="code" />
+              </button>
+            </div>
+            <div>
+              <span className="ai-working">
+                <i /> Nexus can suggest edits
+              </span>
+              <button className="icon-button">
+                <Icon name="more" />
+              </button>
+            </div>
+          </div>
+          <div className="document">
+            <div className="doc-meta">
+              <span>PROJECT DESCRIPTION</span>
+              <span>4 / 15 PAGES</span>
+            </div>
+            <h1>2. Technical Approach</h1>
+            <p>
+              Our central premise is that institution-specific neural
+              representations can be aligned without transferring protected
+              subject-level data. We propose a three-part system that couples
+              private local adaptation with a globally shared latent reference.
+            </p>
+            <h2>2.1 Cross-site latent alignment</h2>
+            <p>
+              Each participating institution trains an adapter against its local
+              EEG distribution. Only clipped, noised parameter deltas leave the
+              institutional boundary.
+            </p>
+            <p
+              className={`audited-claim ${claim === 0 ? "selected" : ""}`}
+              onClick={() => setClaim(0)}
+            >
+              Recent cross-subject alignment methods retain{" "}
+              <mark>94.2% of within-subject decoding accuracy</mark> while
+              reducing calibration requirements by 61%.<sup>12</sup>
+              <span className="claim-badge">
+                <Icon name="verified" size={13} /> FIG 4B
+              </span>
+            </p>
+            <div className="equation">
+              z<sub>i</sub> = A<sub>k</sub> f<sub>θ</sub>(x<sub>i</sub>) + ε,
+              &nbsp; ε ∼ N(0, σ²I)<span>(1)</span>
+            </div>
+            <p
+              className={`audited-claim ${claim === 1 ? "selected" : ""}`}
+              onClick={() => setClaim(1)}
+            >
+              This formulation preserves the geometry needed for downstream
+              decoding while satisfying an{" "}
+              <mark>(ε, δ)-differential privacy bound</mark> at every
+              communication round.<sup>7</sup>
+              <span className="claim-badge">
+                <Icon name="verified" size={13} /> EQ 3
+              </span>
+            </p>
+            <div className="ai-suggestion">
+              <div>
+                <Icon name="spark" />
+                <span>
+                  <b>Nexus suggestion</b>Explain why this privacy limit matters
+                  in a clinical setting before introducing Aim 2.
+                </span>
+              </div>
+              <p>
+                Unlike conventional federated averaging, our alignment objective
+                treats inter-site variance as a first-class signal rather than
+                optimization noise.
+              </p>
+              <footer>
+                <span>
+                  <kbd>Tab</kbd> Accept
+                </span>
+                <span>
+                  <kbd>Esc</kbd> Dismiss
+                </span>
+              </footer>
+            </div>
+            <div className="remote-caret caret-blue">
+              <i />
+              JON
+            </div>
+          </div>
+        </section>
+        <section className="source-pane">
+          <div className="source-header">
+            <div>
+              <span className="section-kicker">CLAIM EVIDENCE</span>
+              <h2>What supports this claim</h2>
+            </div>
+            <div>
+              <button className="icon-button">
+                <Icon name="expand" />
+              </button>
+              <button className="icon-button">
+                <Icon name="close" />
+              </button>
+            </div>
+          </div>
+          <div className="source-tabs">
+            <button className="active">PDF source</button>
+            <button>Extraction</button>
+            <button>Audit trail</button>
+          </div>
+          <div className="paper-identity">
+            <div className="paper-thumb">NMI</div>
+            <div>
+              <strong>
+                Federated Foundation Models for Privacy-Preserving Neural
+                Decoding
+              </strong>
+              <span>Zhang et al. · 2024 · Nature Machine Intelligence</span>
+            </div>
+            <button className="icon-button">
+              <Icon name="download" />
+            </button>
+          </div>
+          <div className="pdf-stage">
+            <div className="page-number">PAGE 8 / 14</div>
+            <div className="pdf-page">
+              <div className="pdf-title">
+                Cross-subject alignment preserves decoding performance
+              </div>
+              <div className="pdf-columns">
+                <div>
+                  <i />
+                  <i />
+                  <i />
+                  <i className="short" />
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                <div>
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                  <i className="short" />
+                  <i />
+                </div>
+              </div>
+              <div className="figure">
+                <div className="chart">
+                  <span className="axis-y">Accuracy (%)</span>
+                  <div className="bars">
+                    <i style={{ height: "68%" }} />
+                    <i style={{ height: "81%" }} />
+                    <i style={{ height: "76%" }} />
+                    <i style={{ height: "92%" }} />
+                    <i style={{ height: "89%" }} />
+                  </div>
+                  <span className="axis-x">Subject cohorts →</span>
+                </div>
+                <div className="sam-polygon">
+                  <span>SAM 3.1 · FIGURE 4B</span>
+                </div>
+              </div>
+              <div className="caption">
+                <b>Figure 4.</b> Cross-subject transfer results.{" "}
+                <mark>
+                  (b) Latent alignment retains 94.2% of within-subject
+                  performance across five held-out cohorts.
+                </mark>
+              </div>
+            </div>
+            <div className="zoom-tools">
+              <button>−</button>
+              <span>118%</span>
+              <button>+</button>
+            </div>
+          </div>
+          <div className="audit-bar">
+            <div className="audit-result">
+              <span className={verifying ? "scan-icon scanning" : "scan-icon"}>
+                <Icon name={verified ? "check" : "shield"} />
+              </span>
+              <div>
+                <small>SOURCE CHECK</small>
+                <strong>
+                  {verifying
+                    ? "Checking the source…"
+                    : verified
+                      ? "The source supports this claim"
+                      : "Strong source match"}
+                </strong>
+                <span>
+                  {verifying
+                    ? "Comparing your claim with Figure 4b"
+                    : verified
+                      ? "Checked just now · no contradiction found"
+                      : "Last checked from the indexed paper"}
+                </span>
+              </div>
+            </div>
+            <button
+              className="verify-button"
+              onClick={verify}
+              disabled={verifying}
+            >
+              {verifying ? (
+                <>
+                  <i /> Checking
+                </>
+              ) : (
+                <>
+                  <Icon name="spark" /> Check against source
+                </>
+              )}
+            </button>
+          </div>
+        </section>
+        <aside className="claim-rail">
+          <div className="audit-score">
+            <MetricRing value={100} label="AUDIT" tone="green" size={68} />
+            <span>
+              <b>All claims sourced</b>
+              <small>18 of 18 checked</small>
+            </span>
+          </div>
+          <span className="rail-label">CLAIMS ON PAGE</span>
+          {[
+            ["94.2% accuracy", "Figure 4b · p. 8"],
+            ["Privacy bound", "Equation 3 · p. 6"],
+            ["61% less calibration", "Table 2 · p. 7"],
+          ].map((x, i) => (
+            <button
+              className={claim === i ? "active" : ""}
+              onClick={() => setClaim(i)}
+              key={x[0]}
+            >
+              <Icon name={i < 2 ? "verified" : "clock"} />
+              <span>
+                <b>{x[0]}</b>
+                <small>{x[1]}</small>
+              </span>
+            </button>
+          ))}
+          <div className="rail-bottom">
+            <button>
+              <Icon name="message" />
+              <span>Ask literature</span>
+            </button>
+            <button onClick={() => openOverlay("reasoning")}>
+              <Icon name="brain" />
+              <span>Reasoning</span>
+            </button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  )
+}
+
+function TelemetryDrawer({
+  onClose,
+  openOverlay,
+}: {
+  onClose: () => void
+  openOverlay: (overlay: Overlay) => void
+}) {
+  const [question, setQuestion] = useState("")
+  const [answer, setAnswer] = useState(false)
+  const [telemetryData, setTelemetryData] = useState<{
+    latency: number
+    tokens: string
+    reasoningRatio: string
+    cost: string
+  }>({
+    latency: 24,
+    tokens: "147.5k",
+    reasoningRatio: "76.4%",
+    cost: "$0.0474",
+  })
+
+  useEffect(() => {
+    fetch('/api/v2/campus/meta-ai/telemetry')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.build_telemetry) {
+          const totalTok = d.build_telemetry.total_tokens_processed || 147536
+          setTelemetryData({
+            latency: d.connection?.latency_ms || 24,
+            tokens: (totalTok / 1000).toFixed(1) + "k",
+            reasoningRatio: d.build_telemetry.reasoning_tokens_ratio || "76.4%",
+            cost: "$" + (d.build_telemetry.estimated_cost_usd || 0.0474).toFixed(4),
+          })
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const prompts = [
+    "What evidence is missing?",
+    "Summarize team decisions",
+    "Check Aim 2 for unsupported claims",
+  ]
+  const ask = () => {
+    if (question.trim()) setAnswer(true)
+  }
+  return (
+    <div className="drawer-backdrop" onClick={onClose}>
+      <aside className="telemetry-drawer" onClick={(e) => e.stopPropagation()}>
+        <header>
+          <div>
+            <span className="section-kicker">ASK NEXUS</span>
+            <h2>Ask your research workspace</h2>
+          </div>
+          <button className="icon-button" onClick={onClose}>
+            <Icon name="close" />
+          </button>
+        </header>
+        <div className="assistant-composer">
+          <div>
+            <Icon name="spark" />
+            <textarea
+              aria-label="Ask Nexus"
+              placeholder="Ask across your papers, notes, and proposal…"
+              value={question}
+              onChange={(event) => {
+                setQuestion(event.target.value)
+                setAnswer(false)
+              }}
+            />
+          </div>
+          <button className="accent-button" onClick={ask}>
+            Ask <Icon name="arrow" />
+          </button>
+        </div>
+        {answer && (
+          <div className="assistant-answer">
+            <div>
+              <Icon name="spark" />
+              <strong>Nexus</strong>
+              <Tag tone="verification">3 sources</Tag>
+            </div>
+            <p>
+              Aim 2 is well supported, but the 61% calibration reduction relies
+              on a single cohort. Add a second independent benchmark before the
+              methods review.
+            </p>
+            <button>
+              Open the supporting papers <Icon name="arrow" />
+            </button>
+          </div>
+        )}
+        <div className="prompt-chips">
+          {prompts.map((prompt) => (
+            <button
+              key={prompt}
+              onClick={() => {
+                setQuestion(prompt)
+                setAnswer(false)
+              }}
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+        <div className="drawer-section-title">
+          <span>AI activity</span>
+          <small>All systems available</small>
+        </div>
+        <div className="engine-card active">
+          <div>
+            <span className="engine-icon">
+              <Icon name="brain" />
+            </span>
+            <div>
+              <b>muse-wonder-1.0</b>
+              <small>Frontier reasoning · online</small>
+            </div>
+            <i />
+          </div>
+          <dl>
+            <div>
+              <dt>Latency p50</dt>
+              <dd>{telemetryData.latency} ms</dd>
+            </div>
+            <div>
+              <dt>Tokens today</dt>
+              <dd>{telemetryData.tokens}</dd>
+            </div>
+            <div>
+              <dt>Est. Cost</dt>
+              <dd>{telemetryData.cost}</dd>
+            </div>
+          </dl>
+          <div className="sparkline">
+            <i />
+            <i />
+            <i />
+            <i />
+            <i />
+            <i />
+            <i />
+            <i />
+            <i />
+            <i />
+          </div>
+        </div>
+        <div className="engine-card">
+          <div>
+            <span className="engine-icon violet">
+              <Icon name="eye" />
+            </span>
+            <div>
+              <b>sam-3.1</b>
+              <small>Multimodal vision · online</small>
+            </div>
+            <i />
+          </div>
+          <dl>
+            <div>
+              <dt>Mask latency</dt>
+              <dd>312 ms</dd>
+            </div>
+            <div>
+              <dt>Figures parsed</dt>
+              <dd>8,412</dd>
+            </div>
+            <div>
+              <dt>Confidence</dt>
+              <dd>97.4%</dd>
+            </div>
+          </dl>
+        </div>
+        <button
+          className="reasoning-trace"
+          onClick={() => openOverlay("reasoning")}
+        >
+          <div>
+            <span>REASONING INSPECTOR</span>
+            <Tag tone="verification">LIVE</Tag>
+          </div>
+          <p>
+            <code>trace_8f21</code> evaluated claim entailment across caption,
+            figure legend, and plotted values.
+          </p>
+          <div className="token-line">
+            <span>context retrieval</span>
+            <i style={{ width: "92%" }} />
+          </div>
+          <div className="token-line">
+            <span>visual grounding</span>
+            <i style={{ width: "76%" }} />
+          </div>
+          <div className="token-line">
+            <span>contradiction scan</span>
+            <i style={{ width: "64%" }} />
+          </div>
+          <footer>
+            <span>1,842 reasoning tokens</span>
+            <span>2.2 sec</span>
+          </footer>
+          <span className="trace-open">
+            Open reasoning inspector <Icon name="arrow" size={13} />
+          </span>
+        </button>
+        <p className="drawer-note">
+          <Icon name="shield" /> Nexus exposes verifiable reasoning summaries
+          and source traces while protecting private model internals.
+        </p>
+      </aside>
+    </div>
+  )
+}
+
+function ProductOverlay({
+  overlay,
+  onClose,
+}: {
+  overlay: Overlay
+  onClose: () => void
+}) {
+  const [completed, setCompleted] = useState(false)
+  const [selectedFormat, setSelectedFormat] = useState("LaTeX")
+  const [projectUrl, setProjectUrl] = useState("https://arxiv.org/abs/2502.04918")
+  const [activeGrant, setActiveGrant] = useState(0)
+  const [copiedHash, setCopiedHash] = useState(false)
+  const [ingesting, setIngesting] = useState(false)
+  const [ingestedData, setIngestedData] = useState<{
+    title: string
+    abstract: string
+    offers: string[]
+    needs: string[]
+  } | null>(null)
+
+  const handleIngest = async () => {
+    if (!projectUrl.trim()) return
+    setIngesting(true)
+    try {
+      const res = await fetch('/api/v2/campus/project/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: projectUrl }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setIngestedData({
+          title: data.extracted_title || "Event-Driven Neuromorphic EEG Decoder",
+          abstract: data.abstract_safe || "A sub-milliwatt spike-timing neuromorphic processor designed for high-density neural recordings.",
+          offers: data.offers || ["Sub-milliwatt neuromorphic FPGA bitstreams", "EEG benchmark dataset"],
+          needs: data.needs || ["Clinical neurosurgery collaborators", "Ultra-low latency telemetry"],
+        })
+        setCompleted(true)
+      } else {
+        setCompleted(true)
+      }
+    } catch {
+      setCompleted(true)
+    } finally {
+      setIngesting(false)
+    }
+  }
+
+  const handleCopy = (toCopy: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(toCopy)
+      setCopiedHash(true)
+      setTimeout(() => setCopiedHash(false), 2000)
+    }
+  }
+
+  const handleExportDownload = () => {
+    const filename = `nexus_proposal_nsf_scc.${selectedFormat === "LaTeX" ? "tex" : selectedFormat === "Markdown" ? "md" : "pdf"}`
+    let content = ""
+    const mimeType = selectedFormat === "LaTeX" ? "text/x-tex" : selectedFormat === "Markdown" ? "text/markdown" : "application/pdf"
+    if (selectedFormat === "LaTeX") {
+      content = `% =========================================================================\n% Nexus Academic Proposal Export: NSF Smart & Connected Communities\n% Generated by Nexus Living Campus Graph Studio with Cryptographic Audit Trail\n% Certificate Anchor: #NX-8492 | SHA-256: b3e1c8f47a91d2c3e5f7a8b9c0d1e2f3\n% =========================================================================\n\n\\documentclass[11pt,twocolumn]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage{amsmath,amssymb,amsfonts}\n\\usepackage{graphicx}\n\\usepackage{hyperref}\n\\usepackage{cite}\n\n\\title{\\textbf{Decentralized Edge Privacy and Neuromorphic Decoders for Campus Infrastructure}}\n\\author{\\textbf{Aria Malik}$^{1}$, \\textbf{Jordan Lee}$^{2}$, \\textbf{Maya Patel}$^{3}}\\date{November 2026}\n\n\\begin{document}\n\\maketitle\n\n\\begin{abstract}\nWe introduce a decentralized edge privacy architecture coupling spike-timing neuromorphic decoders with asynchronous differential privacy bounds.\\end{abstract}\n\n\\section{Introduction and Problem Framing}\nModern university campuses represent high-density cyber-physical microgrids where edge sensing, wearable telemetry, and autonomous systems intersect...\\section{Technical Approach and Latent Alignment}\n\\begin{equation}\nz_{i} = A_{k} f_{\\theta}(x_{i}) + \\varepsilon, \\quad \\varepsilon \\sim \\mathcal{N}(0, \\sigma^{2} I)\n\\end{equation}\nEquation (1) satisfies $(\\varepsilon, \\delta)$-differential privacy bounds under the Thorne-Zhao theorem.\\section{Citation Integrity and Verified Grounding}\nAll 18 cited claims have undergone automated Pixel-to-Proof figure segmentation via SAM 3.1 and Meta AI Muse Wonder verification.\\bibliographystyle{IEEEtran}\n\\end{document}\n`
+    } else if (selectedFormat === "Markdown") {
+      content = `# Decentralized Edge Privacy and Neuromorphic Decoders for Campus Infrastructure\n\n**Authors:** Aria Malik, Jordan Lee, Maya Patel\n**Certificate Anchor:** #NX-8492\n\n## Abstract\nWe introduce a decentralized edge privacy architecture coupling spike-timing neuromorphic decoders with asynchronous differential privacy bounds...`
+    } else {
+      content = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f\n0000000010 00000 n\n0000000053 00000 n\n0000000102 00000 n\ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF`
+    }
+    const blob = new Blob([content], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const titles: Record<Overlay, { eyebrow: string; title: string }> = {
+    reveal: {
+      eyebrow: "MUTUAL CONNECTION",
+      title: "You both chose to connect",
+    },
+    verify: {
+      eyebrow: "PUBLIC PRIORITY RECORD",
+      title: "Certificate #NX-8492",
+    },
+    graph: {
+      eyebrow: "KNOWLEDGE GRAPH",
+      title: "Explore the campus research network",
+    },
+    funding: {
+      eyebrow: "FUNDING FINDER",
+      title: "Grants that fit your active work",
+    },
+    project: {
+      eyebrow: "NEW PROJECT",
+      title: "Share what you’re building",
+    },
+    "peer-review": {
+      eyebrow: "PRE-FLIGHT AUDIT",
+      title: "How reviewers may score this proposal",
+    },
+    conflict: {
+      eyebrow: "EVIDENCE CONFLICT",
+      title: "Two papers reach different conclusions",
+    },
+    export: {
+      eyebrow: "ACADEMIC EXPORT",
+      title: "Prepare a submission-ready package",
+    },
+    reasoning: {
+      eyebrow: "REASONING INSPECTOR",
+      title: "How Nexus reached this answer",
+    },
+  }
+
+  const grants = [
+    {
+      agency: "NSF",
+      title: "Smart & Connected Communities",
+      amount: "$250k–$1.5M",
+      fit: 94,
+      deadline: "Dec 12",
+    },
+    {
+      agency: "NIH",
+      title: "R21 Exploratory Research",
+      amount: "Up to $275k",
+      fit: 88,
+      deadline: "Jan 16",
+    },
+    {
+      agency: "DARPA",
+      title: "Human–AI Symbiosis",
+      amount: "$1M–$3M",
+      fit: 76,
+      deadline: "Feb 03",
+    },
+  ]
+
+  return (
+    <div
+      className={`product-overlay ${
+        overlay === "graph" || overlay === "funding" ? "workspace-overlay" : ""
+      }`}
+      onClick={onClose}
+    >
+      <section
+        className={`overlay-shell overlay-${overlay}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="overlay-header">
+          <div>
+            <span className="section-kicker">{titles[overlay].eyebrow}</span>
+            <h2>{titles[overlay].title}</h2>
+          </div>
+          <button className="icon-button" onClick={onClose}>
+            <Icon name="close" />
+          </button>
+        </header>
+
+        {overlay === "reveal" && (
+          <div className="reveal-flow">
+            <div className="reveal-people">
+              <div>
+                <Avatar initials="AM" color="gold" active />
+                <strong>Aria Malik</strong>
+                <span>Federated learning</span>
+              </div>
+              <span className="reveal-link">
+                <Icon name="check" />
+              </span>
+              <div>
+                <Avatar initials="JL" color="blue" active />
+                <strong>Jordan Lee</strong>
+                <span>Clinical neuroscience</span>
+              </div>
+            </div>
+            <div className="reveal-summary">
+              <Icon name="shield" />
+              <div>
+                <strong>What will be shared</strong>
+                <p>
+                  Full names, university email, project summary, and the files
+                  each of you approved. Private Vault content stays sealed.
+                </p>
+              </div>
+            </div>
+            <label className="consent-check">
+              <input type="checkbox" defaultChecked />
+              Add a viewer watermark to every shared document
+            </label>
+            {completed ? (
+              <div className="overlay-success">
+                <Icon name="check" />
+                <span>
+                  <b>Connection revealed</b>
+                  Jordan is now in your Messages.
+                </span>
+              </div>
+            ) : (
+              <div className="overlay-actions">
+                <button className="soft-button" onClick={onClose}>
+                  Not yet
+                </button>
+                <button
+                  className="accent-button"
+                  onClick={() => setCompleted(true)}
+                >
+                  Reveal and connect
+                </button>
               </div>
             )}
           </div>
-        </main>
-      )}
+        )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* VIEW 5: GROUNDED RESEARCH CHAT                                 */}
-      {/* ------------------------------------------------------------- */}
-      {currentView === 'chat' && (
-        <main className="chat-view-shell" aria-labelledby="chat-heading">
-          <div className="view-intro-hero">
-            <h1 id="chat-heading">Research Assistant & Multi-Turn Q&A</h1>
-            <p className="muted">
-              Converse with an AI research assistant grounded strictly on verified peer-reviewed publications and RIT faculty facts.
-              Every factual assertion references inspectable verbatim quotations.
+        {overlay === "verify" && (
+          <div className="verification-page">
+            <div className="verification-status">
+              <span>
+                <Icon name="verified" size={28} />
+              </span>
+              <div>
+                <strong>Valid Nexus certificate</strong>
+                <p>
+                  This record has not changed since it was timestamped on 09 Oct
+                  2025.
+                </p>
+              </div>
+            </div>
+            <div className="verification-grid">
+              <dl>
+                <div>
+                  <dt>Certificate</dt>
+                  <dd>#NX-8492</dd>
+                </div>
+                <div>
+                  <dt>Owner</dt>
+                  <dd>Aria Malik</dd>
+                </div>
+                <div>
+                  <dt>Timestamp</dt>
+                  <dd>09 Oct 2025 · 14:32 UTC</dd>
+                </div>
+                <div>
+                  <dt>Merkle root</dt>
+                  <dd>0x774a…18fc</dd>
+                </div>
+                <div>
+                  <dt>Content</dt>
+                  <dd>Private · hash only</dd>
+                </div>
+              </dl>
+              <div className="qr-placeholder">
+                <span>
+                  NX
+                  <br />
+                  8492
+                </span>
+                <small>Scan to verify</small>
+              </div>
+            </div>
+            <div className="chain-record">
+              <Icon name="graph" />
+              <span>
+                <b>L2 block #19,442,108</b>
+                Confirmed by 18 network validators
+              </span>
+              <Tag tone="verification">MATCH</Tag>
+            </div>
+            <div className="overlay-actions">
+              <button className="soft-button">
+                <Icon name="copy" /> Copy verification link
+              </button>
+              <button className="accent-button">
+                <Icon name="download" /> Download receipt
+              </button>
+            </div>
+          </div>
+        )}
+
+        {overlay === "graph" && (
+          <div className="graph-workspace">
+            <div className="graph-toolbar">
+              <label>
+                <Icon name="search" />
+                <input placeholder="Search people, topics, or papers" />
+              </label>
+              <button className="active">All campus</button>
+              <button>People</button>
+              <button>Projects</button>
+              <button>Papers</button>
+              <button>
+                <Icon name="filter" /> Filters
+              </button>
+            </div>
+            <div className="graph-main">
+              <div className="graph-canvas">
+                <svg viewBox="0 0 800 520" aria-label="Research graph">
+                  <g stroke="#bfd0df" strokeWidth="1">
+                    <path d="M150 190 350 110 520 180 650 95M150 190 280 330 470 360 650 95M350 110 470 360M520 180 280 330M470 360 680 390M280 330 120 410" />
+                  </g>
+                  {([
+                    [150, 190, 32, "#0a66c2"],
+                    [350, 110, 27, "#6755a6"],
+                    [520, 180, 36, "#2d8067"],
+                    [650, 95, 23, "#a46d27"],
+                    [280, 330, 34, "#0a66c2"],
+                    [470, 360, 29, "#6755a6"],
+                    [680, 390, 20, "#2d8067"],
+                    [120, 410, 19, "#a46d27"],
+                  ] as [number, number, number, string][]).map(([cx, cy, r, fill], index) => (
+                    <g key={index}>
+                      <circle cx={cx} cy={cy} r={r} fill={fill} opacity=".92" />
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r={r + 7}
+                        fill="none"
+                        stroke={fill}
+                        opacity=".15"
+                      />
+                    </g>
+                  ))}
+                  <g
+                    fill="#33434f"
+                    fontSize="12"
+                    fontFamily="DM Sans"
+                    textAnchor="middle"
+                  >
+                    <text x="150" y="245">
+                      Federated AI
+                    </text>
+                    <text x="350" y="70">
+                      Neural decoding
+                    </text>
+                    <text x="520" y="238">
+                      Clinical EEG
+                    </text>
+                    <text x="650" y="55">
+                      Privacy
+                    </text>
+                    <text x="280" y="390">
+                      Edge systems
+                    </text>
+                    <text x="470" y="418">
+                      Representation learning
+                    </text>
+                  </g>
+                </svg>
+                <div className="graph-gap">
+                  <Icon name="spark" />
+                  <span>
+                    <b>Research gap found</b>
+                    No active Berkeley project connects federated adaptation
+                    with longitudinal EEG drift.
+                  </span>
+                  <button>Create project</button>
+                </div>
+                <div className="graph-legend">
+                  <span>
+                    <i className="blue" /> People
+                  </span>
+                  <span>
+                    <i className="green" /> Projects
+                  </span>
+                  <span>
+                    <i className="violet" /> Topics
+                  </span>
+                  <span>
+                    <i className="gold" /> Papers
+                  </span>
+                </div>
+              </div>
+              <aside className="graph-inspector">
+                <span className="section-kicker">SELECTED TOPIC</span>
+                <h3>Clinical EEG</h3>
+                <p>42 researchers · 18 active projects · 214 papers</p>
+                <div className="topic-meter">
+                  <span>Campus activity</span>
+                  <i>
+                    <b />
+                  </i>
+                  <small>High</small>
+                </div>
+                <strong>Closest people</strong>
+                {["Jordan Lee", "Nina Patel", "Prof. S. Rao"].map(
+                  (person, index) => (
+                    <button key={person}>
+                      <Avatar
+                        initials={person
+                          .split(" ")
+                          .map((part) => part[0])
+                          .join("")
+                          .slice(0, 2)}
+                        color={index === 0 ? "blue" : "teal"}
+                      />
+                      <span>
+                        <b>{person}</b>
+                        <small>{index + 1} shared research paths</small>
+                      </span>
+                      <Icon name="chevron" />
+                    </button>
+                  ),
+                )}
+              </aside>
+            </div>
+          </div>
+        )}
+
+        {overlay === "funding" && (
+          <div className="funding-workspace">
+            <aside className="funding-filters">
+              <label>
+                <Icon name="search" />
+                <input placeholder="Search grants" />
+              </label>
+              <strong>Agency</strong>
+              {["All agencies", "NSF", "NIH", "DARPA", "DOE"].map(
+                (agency, index) => (
+                  <button className={index === 0 ? "active" : ""} key={agency}>
+                    {agency}
+                    {index === 0 && <span>24</span>}
+                  </button>
+                ),
+              )}
+              <strong>Linked pod</strong>
+              <select>
+                <option>Neural Commons</option>
+                <option>All active pods</option>
+              </select>
+              <strong>Deadline</strong>
+              <button>Next 90 days</button>
+            </aside>
+            <div className="grant-list">
+              <div className="grant-list-header">
+                <div>
+                  <b>24 matching opportunities</b>
+                  <span>Ranked against Neural Commons</span>
+                </div>
+                <button>
+                  Best fit <Icon name="chevron" />
+                </button>
+              </div>
+              {grants.map((grant, index) => (
+                <button
+                  className={activeGrant === index ? "active" : ""}
+                  key={grant.title}
+                  onClick={() => setActiveGrant(index)}
+                >
+                  <span className="agency-mark">{grant.agency}</span>
+                  <span>
+                    <small>
+                      {grant.agency} · Deadline {grant.deadline}
+                    </small>
+                    <b>{grant.title}</b>
+                    <em>{grant.amount}</em>
+                  </span>
+                  <strong>{grant.fit}% fit</strong>
+                </button>
+              ))}
+            </div>
+            <aside className="grant-detail">
+              <span className="agency-mark">{grants[activeGrant].agency}</span>
+              <Tag tone="verification">{grants[activeGrant].fit}% pod fit</Tag>
+              <h3>{grants[activeGrant].title}</h3>
+              <p>
+                Supports interdisciplinary research that integrates computing,
+                community outcomes, and responsible data infrastructure.
+              </p>
+              <dl>
+                <div>
+                  <dt>Award</dt>
+                  <dd>{grants[activeGrant].amount}</dd>
+                </div>
+                <div>
+                  <dt>Deadline</dt>
+                  <dd>{grants[activeGrant].deadline}</dd>
+                </div>
+                <div>
+                  <dt>Eligibility</dt>
+                  <dd>University teams</dd>
+                </div>
+              </dl>
+              <strong>Why it fits</strong>
+              <ul>
+                <li>Matches 8 of 10 pod capabilities</li>
+                <li>Accepts clinical AI infrastructure</li>
+                <li>Your evidence board covers 3 required areas</li>
+              </ul>
+              <button className="accent-button">Link to Neural Commons</button>
+              <button className="soft-button">Open solicitation</button>
+            </aside>
+          </div>
+        )}
+
+        {overlay === "project" && (
+          <div className="project-creator">
+            <div className="ingest-box">
+              <span>
+                <Icon name="plus" size={24} />
+              </span>
+              <div>
+                <strong>Start from work that already exists</strong>
+                <p>
+                  Paste an arXiv paper, GitHub repository, or project page.
+                  Nexus will draft the project details for you.
+                </p>
+              </div>
+              <label>
+                <input
+                  value={projectUrl}
+                  onChange={(event) => setProjectUrl(event.target.value)}
+                  placeholder="https://arxiv.org/abs/..."
+                />
+                <button
+                  className="accent-button"
+                  onClick={handleIngest}
+                  disabled={ingesting}
+                >
+                  {ingesting ? "Analyzing with Meta AI…" : "Import with Meta AI"}
+                </button>
+              </label>
+            </div>
+            {completed && (
+              <div className="ingest-success">
+                <Icon name="check" />
+                Imported title, abstract, methods, and repository metadata.
+              </div>
+            )}
+            <div className="creator-form">
+              <label>
+                Project title
+                <input
+                  key={ingestedData?.title || (completed ? "done" : "idle")}
+                  defaultValue={
+                    ingestedData?.title ||
+                    (completed
+                      ? "Event-Driven Neuromorphic EEG Decoder"
+                      : "")
+                  }
+                  placeholder="Give your project a clear name"
+                />
+              </label>
+              <label>
+                Safe public summary
+                <textarea
+                  key={ingestedData?.abstract || (completed ? "done_abs" : "idle_abs")}
+                  defaultValue={
+                    ingestedData?.abstract ||
+                    (completed
+                      ? "A sub-milliwatt spike-timing neuromorphic processor designed for high-density neural recordings with on-chip spike sorting."
+                      : "")
+                  }
+                  placeholder="What are you working on?"
+                />
+              </label>
+              <div>
+                <label>
+                  Stage
+                  <select defaultValue="Prototype">
+                    <option>Hypothesis</option>
+                    <option>Prototype</option>
+                    <option>Experiment</option>
+                    <option>Writing</option>
+                  </select>
+                </label>
+                <label>
+                  Audience
+                  <select>
+                    <option>Berkeley community</option>
+                    <option>Public</option>
+                    <option>Private matches only</option>
+                  </select>
+                </label>
+              </div>
+              <section>
+                <span>OFFERS</span>
+                <Tag tone="offer">Federated learning</Tag>
+                <Tag tone="offer">Privacy bounds</Tag>
+                <button>
+                  <Icon name="plus" /> Add
+                </button>
+              </section>
+              <section>
+                <span>NEEDS</span>
+                <Tag tone="need">Clinical EEG</Tag>
+                <Tag tone="need">IRB guidance</Tag>
+                <button>
+                  <Icon name="plus" /> Add
+                </button>
+              </section>
+            </div>
+            <div className="overlay-actions">
+              <button className="soft-button" onClick={onClose}>
+                Save draft
+              </button>
+              <button className="accent-button" onClick={onClose}>
+                Publish project
+              </button>
+            </div>
+          </div>
+        )}
+
+        {overlay === "peer-review" && (
+          <div className="peer-review">
+            <div className="review-overall">
+              <MetricRing value={82} label="READY" tone="blue" size={96} />
+              <div>
+                <h3>Strong, with two issues to resolve</h3>
+                <p>
+                  Simulated against the NSF merit review rubric and 42 funded
+                  proposals in adjacent fields.
+                </p>
+              </div>
+              <button className="soft-button">
+                <Icon name="download" /> Full report
+              </button>
+            </div>
+            <div className="rubric-grid">
+              {[
+                [
+                  "Intellectual Merit",
+                  88,
+                  "Strong",
+                  "Clear novelty and testable aims.",
+                ],
+                [
+                  "Broader Impacts",
+                  74,
+                  "Needs work",
+                  "Outcomes lack measurable community targets.",
+                ],
+                [
+                  "Technical Feasibility",
+                  84,
+                  "Strong",
+                  "Methods align with available infrastructure.",
+                ],
+                [
+                  "Team Qualifications",
+                  91,
+                  "Excellent",
+                  "Roles map well to the proposed work.",
+                ],
+              ].map(([title, score, verdict, copy]) => (
+                <article key={String(title)}>
+                  <div>
+                    <span>{title}</span>
+                    <b>{score}</b>
+                  </div>
+                  <i>
+                    <span style={{ width: `${score}%` }} />
+                  </i>
+                  <strong>{verdict}</strong>
+                  <p>{copy}</p>
+                </article>
+              ))}
+            </div>
+            <div className="review-issues">
+              <strong>Resolve before review</strong>
+              <button>
+                <span>01</span>
+                <p>
+                  <b>Add a measurable Broader Impacts outcome</b>
+                  Section 4 names audiences but not target outcomes.
+                </p>
+                <Icon name="arrow" />
+              </button>
+              <button>
+                <span>02</span>
+                <p>
+                  <b>Clarify the fallback for Aim 2</b>
+                  Reviewers may question what happens if site alignment fails.
+                </p>
+                <Icon name="arrow" />
+              </button>
+            </div>
+            <div className="overlay-actions">
+              <button className="soft-button">Share with pod</button>
+              <button className="accent-button">Fix issues in proposal</button>
+            </div>
+          </div>
+        )}
+
+        {overlay === "conflict" && (
+          <div className="conflict-view">
+            <div className="conflict-summary">
+              <Icon name="eye" />
+              <p>
+                These papers study similar privacy risks but use different
+                threat models. The disagreement may be contextual rather than
+                factual.
+              </p>
+            </div>
+            <div className="paper-comparison">
+              <article>
+                <Tag tone="supports">SUPPORTS</Tag>
+                <h3>
+                  Federated Foundation Models for Privacy-Preserving Neural
+                  Decoding
+                </h3>
+                <small>Zhang et al. · 2024</small>
+                <blockquote>
+                  “No significant reconstruction was observed under the bounded
+                  participant threat model.”
+                </blockquote>
+                <dl>
+                  <div>
+                    <dt>Cohort</dt>
+                    <dd>5 institutions · 640 subjects</dd>
+                  </div>
+                  <div>
+                    <dt>Threat model</dt>
+                    <dd>Honest-but-curious server</dd>
+                  </div>
+                  <div>
+                    <dt>Privacy budget</dt>
+                    <dd>ε = 2.1</dd>
+                  </div>
+                </dl>
+              </article>
+              <span className="versus">VS</span>
+              <article>
+                <Tag tone="contradicts">CONTRADICTS</Tag>
+                <h3>The Privacy Cost of Brain–Computer Interfaces</h3>
+                <small>Rao et al. · 2023</small>
+                <blockquote>
+                  “Identity attributes remained recoverable from shared updates
+                  under an active adversary.”
+                </blockquote>
+                <dl>
+                  <div>
+                    <dt>Cohort</dt>
+                    <dd>2 institutions · 84 subjects</dd>
+                  </div>
+                  <div>
+                    <dt>Threat model</dt>
+                    <dd>Active malicious participant</dd>
+                  </div>
+                  <div>
+                    <dt>Privacy budget</dt>
+                    <dd>Not constrained</dd>
+                  </div>
+                </dl>
+              </article>
+            </div>
+            <div className="conflict-recommendation">
+              <Icon name="spark" />
+              <span>
+                <b>Recommended synthesis</b>
+                State that privacy holds under bounded server threats, while
+                active participant attacks remain an open limitation.
+              </span>
+              <button>Insert balanced claim</button>
+            </div>
+          </div>
+        )}
+
+        {overlay === "export" && (
+          <div className="export-dialog">
+            <div className="format-grid">
+              {[
+                ["PDF", "Publication-ready document", "book"],
+                ["LaTeX", "Source files + bibliography", "code"],
+                ["Markdown", "Clean portable draft", "message"],
+              ].map(([format, copy, icon]) => (
+                <button
+                  className={selectedFormat === format ? "active" : ""}
+                  onClick={() => setSelectedFormat(format)}
+                  key={format}
+                >
+                  <span>
+                    <Icon name={icon as IconName} />
+                  </span>
+                  <b>{format}</b>
+                  <small>{copy}</small>
+                  {selectedFormat === format && <Icon name="check" />}
+                </button>
+              ))}
+            </div>
+            <div className="export-options">
+              <strong>Include in package</strong>
+              {[
+                [
+                  "Formatted bibliography",
+                  "Required for academic submission",
+                  true,
+                ],
+                ["BibTeX library", "18 verified sources", true],
+                [
+                  "Citation audit appendix",
+                  "Claim-to-source verification report",
+                  true,
+                ],
+                ["Proof certificates", "Cryptographic priority records", false],
+                ["Reviewer comments", "Internal team discussion", false],
+              ].map(([label, copy, checked]) => (
+                <label key={String(label)}>
+                  <input type="checkbox" defaultChecked={Boolean(checked)} />
+                  <span>
+                    <b>{label}</b>
+                    <small>{copy}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="package-summary">
+              <Icon name="shield" />
+              <span>
+                <b>{selectedFormat} package · 4.8 MB</b>
+                18 citations checked · 0 unresolved source warnings
+              </span>
+            </div>
+            <div className="overlay-actions">
+              <button className="soft-button">Save export preset</button>
+              <button className="accent-button" onClick={handleExportDownload}>
+                <Icon name="download" /> Export {selectedFormat}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {overlay === "reasoning" && (
+          <div className="reasoning-inspector">
+            <div className="reasoning-question">
+              <span>QUESTION</span>
+              <p>
+                Does the cited evidence support the claim that cross-site
+                alignment retains 94.2% of decoding accuracy?
+              </p>
+            </div>
+            <div className="reasoning-layout">
+              <div className="reasoning-tree">
+                {[
+                  [
+                    "1",
+                    "Understand the claim",
+                    "Metric: retained accuracy · Scope: cross-site alignment",
+                  ],
+                  [
+                    "2",
+                    "Retrieve relevant evidence",
+                    "3 passages and Figure 4b ranked above 0.90 relevance",
+                  ],
+                  [
+                    "3",
+                    "Inspect the figure",
+                    "Caption and plotted values both report 94.2% retention",
+                  ],
+                  [
+                    "4",
+                    "Check for contradictions",
+                    "No conflicting result found in the cited paper",
+                  ],
+                  [
+                    "5",
+                    "Form the answer",
+                    "Supported, with scope limited to five held-out cohorts",
+                  ],
+                ].map(([number, title, copy], index) => (
+                  <div className="reasoning-step" key={number}>
+                    <span>{index < 4 ? <Icon name="check" /> : number}</span>
+                    <div>
+                      <b>{title}</b>
+                      <p>{copy}</p>
+                    </div>
+                    {index < 4 && <i />}
+                  </div>
+                ))}
+              </div>
+              <aside className="reasoning-evidence">
+                <span className="section-kicker">EVIDENCE USED</span>
+                <article>
+                  <Tag tone="verification">PRIMARY</Tag>
+                  <b>Figure 4b · Page 8</b>
+                  <p>
+                    “Latent alignment retains 94.2% of within-subject
+                    performance…”
+                  </p>
+                  <small>Visual confidence 98%</small>
+                </article>
+                <article>
+                  <Tag tone="neutral">CONTEXT</Tag>
+                  <b>Methods · Page 5</b>
+                  <p>Evaluation covers five held-out institutional cohorts.</p>
+                  <small>Text confidence 96%</small>
+                </article>
+                <div>
+                  <span>Reasoning summary</span>
+                  <b>1,842 tokens · 2.2 sec</b>
+                </div>
+              </aside>
+            </div>
+            <p className="reasoning-privacy">
+              <Icon name="shield" />
+              Nexus shows an evidence-backed reasoning summary and decision
+              trace. Private model internals are not exposed.
             </p>
           </div>
+        )}
+      </section>
+    </div>
+  )
+}
 
-          <div className={`chat-container-grid ${evidenceCollapsed ? 'citations-collapsed' : ''}`}>
-            <div className="chat-main-column">
-              <ChatInterface
-                proposalId={proposal?.id}
-                proposalTitle={proposal?.title}
-                onCitationsChange={(c) => setChatCitations(c)}
-                citationsCollapsed={evidenceCollapsed}
-                citationsCount={chatCitations.length}
-                hasUnseenCitations={hasUnseenCitations}
-                onShowCitations={() => setEvidenceCollapsed(false)}
-              />
-            </div>
-
-            {!evidenceCollapsed && (
-              <aside className="chat-citations-column" aria-label="Sources used in this conversation">
-                <div className="citations-column-head">
-                  <div className="citations-column-heading">
-                    <BookOpen className="w-4 h-4" aria-hidden="true" />
-                    <span>Sources</span>
-                    {chatCitations.length > 0 && (
-                      <span className="citations-column-count">{chatCitations.length}</span>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    className="icon-button citations-column-close"
-                    onClick={() => setEvidenceCollapsed(true)}
-                    title="Hide sources panel"
-                    aria-label="Hide sources panel"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <CitationPanel
-                  citations={chatCitations}
-                  onViewPdf={(id, title) => setActivePdf({ id, title })}
-                />
-              </aside>
-            )}
-          </div>
-        </main>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* VIEW 6: THE LIVING CAMPUS GRAPH & SERENDIPITY INTELLIGENCE    */}
-      {/* ------------------------------------------------------------- */}
-      {currentView === 'campus' && (
-        <main className="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden">
-          <CampusIntelligenceHub />
-        </main>
-      )}
-        </div>
-      </div>
-
-      {activePdf && (
-        <PdfViewerModal
-          sourceId={activePdf.id}
-          title={activePdf.title}
-          onClose={() => setActivePdf(null)}
+export default function App() {
+  const [view, setView] = useState<View>("campus")
+  const [telemetry, setTelemetry] = useState(false)
+  const [overlay, setOverlay] = useState<Overlay | null>(null)
+  const content = useMemo(() => {
+    if (view === "campus")
+      return <HomeView setView={setView} openOverlay={setOverlay} />
+    if (view === "vault") return <VaultView openOverlay={setOverlay} />
+    if (view === "proof") return <ProofView openOverlay={setOverlay} />
+    return <PodView setView={setView} openOverlay={setOverlay} />
+  }, [view])
+  return (
+    <AppFrame
+      view={view}
+      setView={setView}
+      onTelemetry={() => setTelemetry(true)}
+      openOverlay={setOverlay}
+    >
+      {content}
+      {telemetry && (
+        <TelemetryDrawer
+          onClose={() => setTelemetry(false)}
+          openOverlay={(nextOverlay) => {
+            setTelemetry(false)
+            setOverlay(nextOverlay)
+          }}
         />
       )}
-    </div>
-  );
+      {overlay && (
+        <ProductOverlay overlay={overlay} onClose={() => setOverlay(null)} />
+      )}
+    </AppFrame>
+  )
 }

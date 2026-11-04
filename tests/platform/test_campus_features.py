@@ -105,3 +105,42 @@ def test_meta_ai_telemetry(client):
     assert data["status"] == "ONLINE"
     assert data["models"]["frontier_reasoning"] == "muse-wonder-1.0"
     assert data["build_telemetry"]["total_tokens_processed"] > 100000
+
+def test_peer_review_audit(client):
+    """Verifies simulated NSF peer review audit endpoint."""
+    response = client.get("/api/v2/campus/peer-review/audit")
+    assert response.status_code == 200
+    data = response.json()
+    assert "overall_score" in data
+    assert "intellectual_merit" in data
+    assert "top_panel_questions" in data
+    assert len(data["top_panel_questions"]) >= 1
+
+def test_evidence_conflict(client):
+    """Verifies evidence conflict resolution and synthesis."""
+    response = client.get("/api/v2/campus/evidence/conflict")
+    assert response.status_code == 200
+    data = response.json()
+    assert "conflict_title" in data
+    assert "paper_a" in data
+    assert "paper_b" in data
+    assert "synthesis_recommendation" in data
+
+def test_project_ingest(client):
+    """Verifies 1-click project ingestion endpoint."""
+    response = client.post("/api/v2/campus/project/ingest", json={"url": "https://arxiv.org/abs/2502.04918"})
+    assert response.status_code == 200
+    data = response.json()
+    assert "extracted_title" in data
+    assert "offers" in data
+    assert "needs" in data
+    assert len(data["offers"]) >= 1
+
+def test_proof_reasoning_trace(client):
+    """Verifies Meta AI reasoning trace endpoint."""
+    response = client.get("/api/v2/campus/proof/reasoning-trace")
+    assert response.status_code == 200
+    data = response.json()
+    assert "verdict" in data
+    assert "reasoning_steps" in data
+    assert len(data["reasoning_steps"]) >= 3
