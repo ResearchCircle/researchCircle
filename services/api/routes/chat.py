@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from services.api.dependencies import current_user, get_session, require_proposal
 from src.platform.database.models import ProposalSource, Source, User
+from src.platform.database.public_records import PublicRecord
 from src.platform.discovery.public_search import search_public
 from src.platform.drafting.types import SourceSnapshot
 from src.platform.workflow.errors import WorkflowError
@@ -100,6 +101,17 @@ def research_chat(
         snapshots
     )
 
+    citation_source_ids = {c.source_id for c in result.citations}
+    pdf_source_ids: set[str] = set()
+    if citation_source_ids:
+        records = session.scalars(
+            select(PublicRecord).where(PublicRecord.source_id.in_(citation_source_ids))
+        ).all()
+        for rec in records:
+            meta = rec.metadata_json if isinstance(rec.metadata_json, dict) else {}
+            if meta.get('pdf_file'):
+                pdf_source_ids.add(rec.source_id)
+
     return {
         'response': result.response,
         'citations': [
@@ -109,7 +121,8 @@ def research_chat(
                 'content_hash': c.content_hash,
                 'title': c.title,
                 'origin': c.origin,
-                'quote': c.quote
+                'quote': c.quote,
+                'has_pdf': c.source_id in pdf_source_ids,
             }
             for c in result.citations
         ],

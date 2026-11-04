@@ -8,6 +8,7 @@ import {
   Network,
   Plus,
   Search,
+  Trash2,
   Users,
 } from 'lucide-react';
 import type { Proposal } from '@/lib/api';
@@ -26,6 +27,7 @@ type Props = {
   onNavigate: (view: AppView) => void;
   onOpenProposal: (id: string) => void;
   onCreateProposal: (title: string) => Promise<void>;
+  onDeleteProposal?: (proposal: Proposal) => Promise<void>;
   onMobileClose: () => void;
 };
 
@@ -49,11 +51,13 @@ export default function AppSidebar({
   onNavigate,
   onOpenProposal,
   onCreateProposal,
+  onDeleteProposal,
   onMobileClose,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const teamProposals = proposals.filter(proposal => proposal.team_id === teamId);
 
   const navigate = (view: AppView) => {
@@ -131,21 +135,46 @@ export default function AppSidebar({
               <>
                 <div className="sidebar-proposal-list" role="list" aria-label="Team proposals">
                   {teamProposals.map(proposal => (
-                    <button
-                      type="button"
+                    <div
                       key={proposal.id}
-                      className={`sidebar-proposal-item ${proposal.id === activeProposalId ? 'active' : ''}`}
+                      className={`sidebar-proposal-row ${proposal.id === activeProposalId ? 'active' : ''}`}
                       role="listitem"
-                      aria-current={proposal.id === activeProposalId ? 'page' : undefined}
-                      disabled={busy}
-                      onClick={() => {
-                        onOpenProposal(proposal.id);
-                        onMobileClose();
-                      }}
                     >
-                      <span>{proposal.title}</span>
-                      <small>Saved · v{proposal.revision}</small>
-                    </button>
+                      <button
+                        type="button"
+                        className={`sidebar-proposal-item ${proposal.id === activeProposalId ? 'active' : ''}`}
+                        aria-current={proposal.id === activeProposalId ? 'page' : undefined}
+                        disabled={busy || deletingId === proposal.id}
+                        onClick={() => {
+                          onOpenProposal(proposal.id);
+                          onMobileClose();
+                        }}
+                      >
+                        <span>{proposal.title}</span>
+                        <small>Saved · v{proposal.revision}</small>
+                      </button>
+                      {canEdit && onDeleteProposal && (
+                        <button
+                          type="button"
+                          className="sidebar-proposal-delete"
+                          aria-label={`Delete proposal ${proposal.title}`}
+                          title="Delete proposal"
+                          disabled={busy || deletingId === proposal.id}
+                          onClick={async (event) => {
+                            event.stopPropagation();
+                            if (!window.confirm(`Delete “${proposal.title}”? This permanently removes the proposal, its private sources, drafts and tracking history.`)) return;
+                            setDeletingId(proposal.id);
+                            try {
+                              await onDeleteProposal(proposal);
+                            } finally {
+                              setDeletingId(null);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
                   ))}
                   {teamProposals.length === 0 && (
                     <p className="sidebar-empty" role="listitem">No proposals yet.</p>
@@ -178,12 +207,12 @@ export default function AppSidebar({
               <button
                 type="button"
                 className="sidebar-nav-item"
-                aria-label="Team shortlist"
-                title="Team shortlist"
+                aria-label="Saved sources"
+                title="Saved sources"
                 onClick={() => setCollapsed(false)}
               >
                 <FileText className="w-4 h-4" aria-hidden="true" />
-                <span>Team shortlist</span>
+                <span>Saved Sources</span>
               </button>
             ) : shortlist}
           </div>

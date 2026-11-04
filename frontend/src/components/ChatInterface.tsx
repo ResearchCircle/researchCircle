@@ -80,10 +80,18 @@ export default function ChatInterface({
   proposalId,
   proposalTitle,
   onCitationsChange,
+  citationsCollapsed,
+  citationsCount,
+  hasUnseenCitations,
+  onShowCitations,
 }: {
   proposalId?: string | null;
   proposalTitle?: string;
   onCitationsChange?: (citations: ChatCitation[]) => void;
+  citationsCollapsed?: boolean;
+  citationsCount?: number;
+  hasUnseenCitations?: boolean;
+  onShowCitations?: () => void;
 }) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
@@ -342,20 +350,35 @@ export default function ChatInterface({
             >
               {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
             </button>
-            <span style={{ fontWeight: 650 }}>{activeSession.title}</span>
+            <span className="chat-scope-title">{activeSession.title}</span>
             {proposalId && (
-              <span className="tag" style={{ marginLeft: 6 }}>
+              <span className="tag chat-scope-tag">
                 Proposal: {proposalTitle || 'Active'}
               </span>
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="muted" style={{ fontSize: 11 }}>
+          <div className="chat-scope-right">
+            <span className="muted chat-scope-meta">
               {activeSession.messages.length > 1
                 ? `${Math.floor((activeSession.messages.length - 1) / 2)} turn context`
                 : 'Fresh chat'}
             </span>
+            {citationsCollapsed && onShowCitations && (
+              <button
+                type="button"
+                className={`show-sources-btn ${hasUnseenCitations ? 'has-ping' : ''}`}
+                onClick={onShowCitations}
+                title={hasUnseenCitations ? 'New sources available — click to view' : 'Show sources panel'}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Sources</span>
+                {typeof citationsCount === 'number' && citationsCount > 0 && (
+                  <span className="show-sources-count">{citationsCount}</span>
+                )}
+                {hasUnseenCitations && <span className="show-sources-ping" aria-hidden="true" />}
+              </button>
+            )}
             <button
               type="button"
               className="clear-chat-btn"

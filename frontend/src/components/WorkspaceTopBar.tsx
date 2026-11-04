@@ -53,8 +53,9 @@ export default function WorkspaceTopBar({
   const menuRef = useRef<HTMLDetailsElement>(null);
   const dialogReturnFocusRef = useRef<HTMLElement | null>(null);
   const selectedTeam = teams.find(team => team.id === teamId);
-  const visibleMembers = members.slice(0, 4);
-  const additionalMembers = Math.max(0, members.length - visibleMembers.length);
+  const teammates = members.filter(member => member.id !== user.id);
+  const visibleMembers = teammates.slice(0, 4);
+  const additionalMembers = Math.max(0, teammates.length - visibleMembers.length);
 
   useEffect(() => {
     const element = dialogRef.current;
@@ -110,23 +111,25 @@ export default function WorkspaceTopBar({
             </select>
           </label>
 
-          <div className="member-avatar-stack" aria-label={`${members.length} team members`}>
-            {visibleMembers.map(member => (
-              <span
-                key={member.id}
-                className="member-avatar"
-                title={`${member.name} (${member.role})`}
-                aria-label={`${member.name}, ${member.role}`}
-              >
-                {initials(member.name)}
-              </span>
-            ))}
-            {additionalMembers > 0 && (
-              <span className="member-avatar member-avatar-more" aria-label={`${additionalMembers} more team members`}>
-                +{additionalMembers}
-              </span>
-            )}
-          </div>
+          {teammates.length > 0 && (
+            <div className="member-avatar-stack" aria-label={`${teammates.length} teammate${teammates.length === 1 ? '' : 's'}`}>
+              {visibleMembers.map(member => (
+                <span
+                  key={member.id}
+                  className="member-avatar"
+                  title={`${member.name} (${member.role})`}
+                  aria-label={`${member.name}, ${member.role}`}
+                >
+                  {initials(member.name)}
+                </span>
+              ))}
+              {additionalMembers > 0 && (
+                <span className="member-avatar member-avatar-more" aria-label={`${additionalMembers} more teammates`}>
+                  +{additionalMembers}
+                </span>
+              )}
+            </div>
+          )}
 
           <button
             type="button"

@@ -121,6 +121,7 @@ export type ChatCitation = {
   title: string;
   origin: string;
   quote: string;
+  has_pdf?: boolean;
 };
 
 export type SourceConsulted = {
@@ -213,6 +214,7 @@ export const api = {
   createProposal: (team_id: string, title: string, content: string = '') => post<Proposal>('/proposals', { team_id, title, content }),
   proposal: (id: string) => request<Proposal>(`/proposals/${id}`),
   save: (id: string, body: SaveInput) => request<Proposal>(`/proposals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteProposal: async (id: string) => { await responseFor(`/proposals/${id}`, { method: 'DELETE' }); },
   exportMarkdown: async (id: string) => (await responseFor(`/proposals/${id}/export`)).blob(),
   sources: (id: string) => request<{ items: SourceSnapshot[] }>(`/proposals/${id}/sources`),
   addSource: (id: string, body: { title: string; text: string; origin: string }) => post<SourceSnapshot>(`/proposals/${id}/sources`, body),

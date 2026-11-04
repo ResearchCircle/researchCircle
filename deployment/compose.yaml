@@ -35,6 +35,7 @@ services:
     volumes:
       - "${TBR_RUNTIME_WORK_MOUNT:-runtime-work}:/var/lib/tbr-work"
       - "${TBR_PDFS_MOUNT:-../data/pdfs}:/app/data/pdfs:ro"
+      - "${TBR_PAPERS_MOUNT:-../data/papers}:/app/data/papers:ro"
     depends_on:
       db:
         condition: service_healthy
@@ -48,6 +49,7 @@ services:
     volumes:
       - "${TBR_RUNTIME_WORK_MOUNT:-runtime-work}:/var/lib/tbr-work"
       - "${TBR_PDFS_MOUNT:-../data/pdfs}:/app/data/pdfs:ro"
+      - "${TBR_PAPERS_MOUNT:-../data/papers}:/app/data/papers:ro"
     depends_on:
       db:
         condition: service_healthy

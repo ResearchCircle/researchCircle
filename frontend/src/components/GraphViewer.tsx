@@ -54,7 +54,7 @@ export default function GraphViewer({
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [centerNodeId, setCenterNodeId] = useState<string | null>(null);
   const [hops, setHops] = useState<number>(2);
-  const [nodeLimit, setNodeLimit] = useState<number>(300);
+  const [nodeLimit, setNodeLimit] = useState<number>(2500);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement>(null);

@@ -75,6 +75,15 @@ import {
   type ShortlistDrafts,
 } from '@/lib/shortlist';
 
+function looksLikePaperSource(opts: { title?: string; origin?: string }): boolean {
+  const title = (opts.title || '').toLowerCase();
+  const origin = (opts.origin || '').toLowerCase();
+  if (title.startsWith('listed author:') || title.startsWith('synthetic researcher')) return false;
+  if (origin.startsWith('synthetic ')) return false;
+  if (!origin.startsWith('http://') && !origin.startsWith('https://')) return false;
+  return true;
+}
+
 function OriginLink({ value }: { value: string }) {
   const href = safeOrigin(value);
   return href ? (
@@ -229,6 +238,20 @@ export default function App() {
   const [savedCollaboratorIds, setSavedCollaboratorIds] = useState<string[]>([]);
   const [chatCitations, setChatCitations] = useState<ChatCitation[]>([]);
   const [evidenceCollapsed, setEvidenceCollapsed] = useState(false);
+  const [hasUnseenCitations, setHasUnseenCitations] = useState(false);
+  const prevCitationsKey = useRef<string>('');
+
+  useEffect(() => {
+    const key = chatCitations.map((c) => `${c.source_id}:${c.quote}`).join('|');
+    if (key && key !== prevCitationsKey.current) {
+      if (evidenceCollapsed) setHasUnseenCitations(true);
+    }
+    prevCitationsKey.current = key;
+  }, [chatCitations, evidenceCollapsed]);
+
+  useEffect(() => {
+    if (!evidenceCollapsed) setHasUnseenCitations(false);
+  }, [evidenceCollapsed]);
 
   const opening = useRef(0);
   const selectedTeam = teams.find((team) => team.id === teamId);
@@ -417,6 +440,17 @@ export default function App() {
     await run(async () => {
       const created = await api.createProposal(teamId, proposalTitle, initialContent);
       await openProposal(created.id);
+    });
+  };
+
+  const deleteProposal = async (target: Proposal) => {
+    await run(async () => {
+      await api.deleteProposal(target.id);
+      setProposals((previous) => previous.filter((item) => item.id !== target.id));
+      if (proposal?.id === target.id) {
+        clearEditor();
+      }
+      setNotice(`Deleted “${target.title}”.`);
     });
   };
 
@@ -745,7 +779,7 @@ export default function App() {
 
   const shortlistContent = selectedTeam ? (
     <details className="sidebar-shortlist-details">
-      <summary>Team shortlist</summary>
+      <summary>Saved Sources</summary>
       <ShortlistPanel
         team={selectedTeam}
         proposal={proposal}
@@ -820,6 +854,7 @@ export default function App() {
             if (guardEdits()) void run(() => openProposal(id));
           }}
           onCreateProposal={createProposal}
+          onDeleteProposal={deleteProposal}
           onMobileClose={() => setSidebarOpen(false)}
         />
         <div className="app-content">
@@ -1334,23 +1369,16 @@ export default function App() {
                       <Sparkles className="w-4 h-4 text-amber-500" />
                       <span>{selectedTeam ? `${selectedTeam.name} Workspace` : 'Research Workspace'}</span>
                     </div>
-                    <h2>Welcome to your Research Workspace</h2>
+                    <h2>
+                      Welcome back{user?.name ? <>, <span className="hero-name">{user.name.split(' ')[0]}</span></> : ''} <span className="hero-wave" aria-hidden="true">👋</span>
+                    </h2>
                     <p className="dashboard-subtitle">
-                      Create and refine cited grant proposals, explore connected RIT faculty and publications, or synthesize evidence with grounded AI assistance.
+                      Start a new proposal, continue where you left off, or explore the knowledge graph to find your next collaborator.
                     </p>
                   </div>
-                  <div className="dashboard-hero-stats">
-                    <div className="hero-stat-card">
-                      <span className="stat-number">{proposals.length}</span>
-                      <span className="stat-label">Active Proposals</span>
-                    </div>
-                    <div className="hero-stat-card">
-                      <span className="stat-number">2,100+</span>
-                      <span className="stat-label">Indexed Papers</span>
-                    </div>
-                    <div className="hero-stat-card">
-                      <span className="stat-number">850+</span>
-                      <span className="stat-label">RIT Faculty</span>
+                  <div className="dashboard-hero-glyph" aria-hidden="true">
+                    <div className="hero-glyph-ring">
+                      <Sparkles className="w-7 h-7" />
                     </div>
                   </div>
                 </div>
@@ -1600,15 +1628,17 @@ export default function App() {
                         <pre>{s.text}</pre>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
                           <OriginLink value={s.origin} />
-                          <button
-                            type="button"
-                            className="button small"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
-                            onClick={() => setActivePdf({ id: s.id, title: s.title })}
-                          >
-                            <FileText className="w-3 h-3 text-rose-600" />
-                            <span>Read PDF</span>
-                          </button>
+                          {s.is_public && looksLikePaperSource({ title: s.title, origin: s.origin }) && (
+                            <button
+                              type="button"
+                              className="button small"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
+                              onClick={() => setActivePdf({ id: s.id, title: s.title })}
+                            >
+                              <FileText className="w-3 h-3 text-rose-600" />
+                              <span>Read PDF</span>
+                            </button>
+                          )}
                         </div>
                       </details>
                     </article>
@@ -1859,15 +1889,17 @@ export default function App() {
                                     <strong>{c.title}</strong>
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
                                       <OriginLink value={c.origin} />
-                                      <button
-                                        type="button"
-                                        className="button small"
-                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
-                                        onClick={() => setActivePdf({ id: c.source_id, title: c.title })}
-                                      >
-                                        <FileText className="w-3 h-3 text-rose-600" />
-                                        <span>Read PDF</span>
-                                      </button>
+                                      {looksLikePaperSource({ title: c.title, origin: c.origin }) && (
+                                        <button
+                                          type="button"
+                                          className="button small"
+                                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
+                                          onClick={() => setActivePdf({ id: c.source_id, title: c.title })}
+                                        >
+                                          <FileText className="w-3 h-3 text-rose-600" />
+                                          <span>Read PDF</span>
+                                        </button>
+                                      )}
                                     </div>
                                   </footer>
                                 </blockquote>
@@ -2033,15 +2065,6 @@ export default function App() {
                     <div className="card-actions">
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <OriginLink value={match.origin} />
-                        <button
-                          type="button"
-                          className="button small"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
-                          onClick={() => setActivePdf({ id: match.source_id, title: match.title })}
-                        >
-                          <FileText className="w-3 h-3 text-rose-600" />
-                          <span>Read PDF</span>
-                        </button>
                       </div>
                       <button
                         type="button"
@@ -2155,15 +2178,17 @@ export default function App() {
                 <div className="result-card-bottom">
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <OriginLink value={item.origin} />
-                    <button
-                      type="button"
-                      className="button small"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
-                      onClick={() => setActivePdf({ id: item.source_id, title: item.title })}
-                    >
-                      <FileText className="w-3 h-3 text-rose-600" />
-                      <span>Read PDF</span>
-                    </button>
+                    {item.kind === 'paper' && item.evidence_kind === 'public' && (
+                      <button
+                        type="button"
+                        className="button small"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', padding: '2px 8px' }}
+                        onClick={() => setActivePdf({ id: item.source_id, title: item.title })}
+                      >
+                        <FileText className="w-3 h-3 text-rose-600" />
+                        <span>Read PDF</span>
+                      </button>
+                    )}
                   </div>
                   <div className="button-row">
                     <button
@@ -2228,29 +2253,37 @@ export default function App() {
             </p>
           </div>
 
-          <div className="chat-container-grid">
+          <div className={`chat-container-grid ${evidenceCollapsed ? 'citations-collapsed' : ''}`}>
             <div className="chat-main-column">
               <ChatInterface
                 proposalId={proposal?.id}
                 proposalTitle={proposal?.title}
                 onCitationsChange={(c) => setChatCitations(c)}
+                citationsCollapsed={evidenceCollapsed}
+                citationsCount={chatCitations.length}
+                hasUnseenCitations={hasUnseenCitations}
+                onShowCitations={() => setEvidenceCollapsed(false)}
               />
             </div>
 
             {!evidenceCollapsed && (
-              <aside className="chat-citations-column" aria-label="Active Grounded Citations">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingBottom: '6px', borderBottom: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
-                    Active Citations ({chatCitations.length})
-                  </span>
+              <aside className="chat-citations-column" aria-label="Sources used in this conversation">
+                <div className="citations-column-head">
+                  <div className="citations-column-heading">
+                    <BookOpen className="w-4 h-4" aria-hidden="true" />
+                    <span>Sources</span>
+                    {chatCitations.length > 0 && (
+                      <span className="citations-column-count">{chatCitations.length}</span>
+                    )}
+                  </div>
                   <button
                     type="button"
-                    className="icon-button"
+                    className="icon-button citations-column-close"
                     onClick={() => setEvidenceCollapsed(true)}
-                    title="Collapse Evidence Panel"
-                    style={{ padding: '2px 4px', height: '24px', width: '24px' }}
+                    title="Hide sources panel"
+                    aria-label="Hide sources panel"
                   >
-                    <X className="w-3.5 h-3.5 text-slate-500" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 <CitationPanel

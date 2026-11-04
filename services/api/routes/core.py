@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
@@ -17,6 +17,8 @@ from sqlalchemy.orm import Session
 from services.api.dependencies import SESSION_COOKIE, current_user, get_session, require_proposal, team_role
 from src.platform.database.models import Invitation, LoginSession, Membership, Proposal, ProposalSource, Source, Team, User, utcnow
 from src.platform.database.public_records import PublicRecord
+from src.platform.database.pursuits import Outcome, Pursuit, PursuitHistory
+from src.platform.workflow.draft_jobs import DraftJobRecord
 from src.platform.models.provider import DEFAULT_META_MODEL_ID
 from src.platform.workflow.accounts import authenticate, create_session, password_hasher
 from src.platform.workflow.errors import WorkflowError
@@ -304,6 +306,23 @@ def patch_proposal(proposal_id: UUID, body: SaveInput, session: Session = Depend
     if 'selected_source_ids' in changes:
         changes['selected_source_ids'] = [str(source_id) for source_id in changes['selected_source_ids']]
     return proposal_view(session, user, save_proposal(session, proposal, body.expected_revision, changes))
+
+
+@router.delete('/proposals/{proposal_id}', status_code=204)
+def delete_proposal(proposal_id: UUID, session: Session = Depends(get_session), user: User = Depends(current_user)):
+    proposal = require_proposal(session, user, str(proposal_id), edit=True)
+    pid = proposal.id
+    pursuit_ids = list(session.scalars(select(Pursuit.id).where(Pursuit.proposal_id == pid)).all())
+    if pursuit_ids:
+        session.execute(delete(Outcome).where(Outcome.pursuit_id.in_(pursuit_ids)))
+        session.execute(delete(PursuitHistory).where(PursuitHistory.pursuit_id.in_(pursuit_ids)))
+        session.execute(delete(Pursuit).where(Pursuit.id.in_(pursuit_ids)))
+    session.execute(delete(DraftJobRecord).where(DraftJobRecord.proposal_id == pid))
+    session.execute(delete(ProposalSource).where(ProposalSource.proposal_id == pid))
+    session.execute(delete(Source).where(Source.proposal_id == pid, Source.is_public.is_(False)))
+    session.delete(proposal)
+    session.commit()
+    return Response(status_code=204)
 
 
 @router.get('/proposals/{proposal_id}/sources')
