@@ -499,10 +499,10 @@ export default function GraphViewer({
               outline: 'none',
             }}
           >
-            <option value={150}>150 nodes</option>
             <option value={300}>300 nodes</option>
             <option value={600}>600 nodes</option>
-            <option value={1000}>1,000 nodes</option>
+            <option value={1200}>1,200 nodes</option>
+            <option value={2500}>2,500 nodes (Full Corpus)</option>
           </select>
 
           {/* Theme Switcher Toggle */}

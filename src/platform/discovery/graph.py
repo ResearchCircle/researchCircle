@@ -428,7 +428,7 @@ def get_public_graph(
                     add_link(author_ids[i], author_ids[j], 'co_authorship', f"Co-authored works ({a1} and {a2})")
 
     # Pass 3.5: Paper-to-paper shared concept links
-    # Connect papers that address identical scientific concepts (capped to avoid visual clutter)
+    # Connect papers that address identical scientific concepts
     topic_to_papers: dict[str, list[str]] = {}
     for link in links:
         if link['relationship'] == 'addresses':
@@ -439,11 +439,11 @@ def get_public_graph(
         topic_name = topic_nodes.get(topic_id, {}).get('name', 'Research Area')
         for i in range(len(paper_ids)):
             p1 = paper_ids[i]
-            if paper_shared_concept_count.get(p1, 0) >= 3:
+            if paper_shared_concept_count.get(p1, 0) >= 8:
                 continue
-            for j in range(i + 1, min(len(paper_ids), i + 4)):
+            for j in range(i + 1, min(len(paper_ids), i + 9)):
                 p2 = paper_ids[j]
-                if paper_shared_concept_count.get(p2, 0) >= 3:
+                if paper_shared_concept_count.get(p2, 0) >= 8:
                     continue
                 t1_name = nodes_by_id[p1]['name']
                 t2_name = nodes_by_id[p2]['name']
@@ -467,8 +467,8 @@ def get_public_graph(
 
     faculty_shared_interest_count: dict[str, int] = {}
     for (f1, f2), shared_topics in faculty_pair_overlaps.items():
-        if len(shared_topics) >= 2 or (len(shared_topics) >= 1 and len(nodes_by_id) < 50):
-            if faculty_shared_interest_count.get(f1, 0) < 3 and faculty_shared_interest_count.get(f2, 0) < 3:
+        if len(shared_topics) >= 1:
+            if faculty_shared_interest_count.get(f1, 0) < 6 and faculty_shared_interest_count.get(f2, 0) < 6:
                 f1_name = nodes_by_id[f1]['name']
                 f2_name = nodes_by_id[f2]['name']
                 topics_str = ', '.join(shared_topics[:2])
@@ -560,9 +560,9 @@ def get_public_graph(
         faculty_candidates = sorted([n for n in all_nodes if n['type'] == 'faculty'], key=lambda x: -x['degree'])
         paper_candidates = sorted([n for n in all_nodes if n['type'] == 'paper'], key=lambda x: -x['degree'])
 
-        # Quotas tailored to limit
-        quota_topics = min(len(topic_candidates), max(5, limit // 5))
-        quota_faculty = min(len(faculty_candidates), max(10, limit // 3))
+        # Quotas tailored to limit: ensure research papers form the majority of the knowledge graph
+        quota_topics = min(len(topic_candidates), max(5, min(35, limit // 8)))
+        quota_faculty = min(len(faculty_candidates), max(10, min(80, limit // 4)))
         quota_papers = min(len(paper_candidates), limit - quota_topics - quota_faculty)
 
         selected_nodes = topic_candidates[:quota_topics] + faculty_candidates[:quota_faculty] + paper_candidates[:quota_papers]

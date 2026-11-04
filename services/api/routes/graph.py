@@ -12,7 +12,7 @@ router = APIRouter(prefix='/api/v2')
 
 @router.get('/graph')
 def read_public_graph(
-    limit: int = Query(default=150, ge=1, le=1500),
+    limit: int = Query(default=300, ge=1, le=3000),
     topic: str | None = Query(default=None, max_length=200),
     center_id: str | None = Query(default=None, max_length=200),
     hops: int = Query(default=2, ge=1, le=3),
