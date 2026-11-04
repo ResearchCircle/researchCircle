@@ -79,7 +79,13 @@ ipython_config.py
 
 # Environments
 .env
+.env.*
 .envrc
+*.env
+*.env.*
+*.key
+*.pem
+secrets/
 .venv/
 env/
 venv/
@@ -150,6 +156,8 @@ logs/
 
 tests/output/
 
-# --- Temporary Dumps ---
+# --- Temporary Dumps & Scratch Scripts ---
 notebookllm_source.txt
 frontend_dump_for_figma.txt
+test_deepseek*.py
+audit_with_*.py
